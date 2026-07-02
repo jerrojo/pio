@@ -70,7 +70,8 @@ export function IntelligentConversation({
     setIsProcessing(true);
     try {
       const formData = new FormData();
-      formData.append('audio', audioBlob);
+      const ext = audioBlob.type.includes('mp4') ? 'mp4' : audioBlob.type.includes('ogg') ? 'ogg' : 'webm';
+      formData.append('audio', audioBlob, `speech.${ext}`);
 
       const response = await fetch('/api/speech-to-text', { method: 'POST', body: formData });
       const data = await response.json();
@@ -436,15 +437,17 @@ export function IntelligentConversation({
         {/* Error toast */}
         <AnimatePresence>
           {errorMsg && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="fixed bottom-10 left-1/2 -translate-x-1/2 glass-deep rounded-2xl px-4 py-3 text-sm text-red-200 z-50 w-[calc(100%-3rem)] max-w-sm text-center"
-              style={{ borderColor: 'rgba(248,113,113,0.35)' }}
-            >
-              {errorMsg}
-            </motion.div>
+            <div className="fixed bottom-10 inset-x-0 z-50 flex justify-center px-6 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="glass-deep rounded-2xl px-4 py-3 text-sm text-red-200 w-full max-w-sm text-center"
+                style={{ borderColor: 'rgba(248,113,113,0.35)' }}
+              >
+                {errorMsg}
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
       </main>

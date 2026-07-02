@@ -52,7 +52,23 @@ export async function transcribeAudio(
   const openai = getOpenAI();
 
   const buffer = Buffer.from(await audio.arrayBuffer());
-  const filename = audio instanceof File && audio.name ? audio.name : 'audio.webm';
+
+  // Whisper decide el formato por la extensión del nombre de archivo.
+  // Los Blobs del navegador llegan como "blob" sin extensión, así que la
+  // derivamos del content-type real (iOS graba audio/mp4, Chrome webm).
+  const type = (audio.type || '').toLowerCase();
+  const ext = type.includes('mp4') || type.includes('m4a')
+    ? 'mp4'
+    : type.includes('ogg')
+    ? 'ogg'
+    : type.includes('mpeg') || type.includes('mp3')
+    ? 'mp3'
+    : type.includes('wav')
+    ? 'wav'
+    : 'webm';
+  const givenName = audio instanceof File ? audio.name : '';
+  const hasValidExt = /\.(webm|mp4|m4a|ogg|mp3|wav|flac|mpga|mpeg|oga)$/i.test(givenName);
+  const filename = hasValidExt ? givenName : `audio.${ext}`;
 
   const transcription = await openai.audio.transcriptions.create({
     file: await toFile(buffer, filename),

@@ -42,12 +42,12 @@ export function LanguagePairing({
         className="w-full max-w-lg"
       >
         <div className="text-center mb-8">
-          <span className="text-5xl">🐣</span>
-          <h1 className="text-3xl font-bold text-white mt-3">
+          <span className="mx-auto block w-3 h-3 rounded-full orb-gradient" aria-hidden />
+          <h1 className="text-3xl font-medium tracking-tight text-white mt-4">
             ¿Qué idioma quieres aprender?
           </h1>
-          <p className="text-slate-400 mt-2">
-            Hablarás con Pío y te corregirá la pronunciación en tiempo real
+          <p className="text-slate-500 mt-2">
+            Habla con Pío: traduce lo que digas y evalúa tu pronunciación en tiempo real
           </p>
         </div>
 
@@ -63,16 +63,15 @@ export function LanguagePairing({
                 transition={{ delay: 0.05 * i }}
                 onClick={() => selectTarget(lang.code)}
                 className={`glass rounded-2xl p-4 text-left transition-all ${
-                  active
-                    ? 'ring-2 ring-amber-400 bg-amber-400/10'
-                    : 'hover:bg-white/10'
+                  active ? 'bg-white/10' : 'hover:bg-white/10'
                 }`}
+                style={active ? { borderColor: 'rgba(139,156,249,0.6)', boxShadow: '0 0 24px rgba(139,156,249,0.18)' } : undefined}
                 aria-pressed={active}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-3xl">{lang.flag}</span>
                   <div>
-                    <div className={`font-semibold ${active ? 'text-amber-300' : 'text-white'}`}>
+                    <div className={`font-medium ${active ? 'text-spectrum' : 'text-white'}`}>
                       {lang.name}
                     </div>
                     <div className="text-xs text-slate-400">{lang.accent}</div>
@@ -93,7 +92,7 @@ export function LanguagePairing({
               setNative(code);
               if (code === target) setTarget(native);
             }}
-            className="bg-ink-800 text-white rounded-lg px-3 py-2 text-sm font-semibold border border-white/10 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="bg-[#0a0c14] text-white rounded-lg px-3 py-2 text-sm font-semibold border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#8b9cf9]"
           >
             {languages.map(lang => (
               <option key={lang.code} value={lang.code}>

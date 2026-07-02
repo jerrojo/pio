@@ -62,7 +62,7 @@ export default function App() {
       {stage === 'lockout' && (
         <div className="min-h-dvh flex items-center justify-center px-6">
           <div className="glass rounded-3xl p-10 text-center max-w-md">
-            <h2 className="text-2xl font-bold text-white mb-3">Cuenta Bloqueada</h2>
+            <h2 className="text-2xl font-medium tracking-tight text-white mb-3">Cuenta bloqueada</h2>
             <p className="text-slate-400">
               Contacta a soporte para desbloquear tu cuenta.
             </p>

@@ -10,12 +10,15 @@ interface SplashScreenProps {
   targetLanguage: LanguageCode;
 }
 
+/**
+ * Splash mínimo: el orbe aurora se forma, el wordmark aparece con el
+ * gradiente del espectro, y entramos. Sin mascota, sin espera artificial.
+ */
 export function SplashScreen({ onComplete, userLanguage, targetLanguage }: SplashScreenProps) {
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
-    const duration = 3200;
+    const duration = 1600;
     const startTime = Date.now();
     let raf = 0;
 
@@ -25,8 +28,7 @@ export function SplashScreen({ onComplete, userLanguage, targetLanguage }: Splas
       setLoadingProgress(progress);
 
       if (progress >= 100) {
-        setIsComplete(true);
-        setTimeout(() => onComplete(), 400);
+        setTimeout(() => onComplete(), 250);
       } else {
         raf = requestAnimationFrame(animate);
       }
@@ -40,58 +42,51 @@ export function SplashScreen({ onComplete, userLanguage, targetLanguage }: Splas
   return (
     <div className="min-h-dvh flex items-center justify-center px-6">
       <div className="text-center">
-        {/* Pollito con bounce Pixar-style */}
+        {/* Orbe formándose */}
         <motion.div
-          initial={{ scale: 0, y: 40 }}
-          animate={{
-            scale: isComplete ? 1.15 : 1,
-            y: isComplete ? -8 : [0, -14, 0],
-          }}
-          transition={{
-            scale: { type: 'spring', stiffness: 260, damping: 14 },
-            y: isComplete
-              ? { duration: 0.3 }
-              : { duration: 1.4, repeat: Infinity, ease: 'easeInOut' },
-          }}
-          className="relative mb-6 inline-block"
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 120, damping: 16 }}
+          className="relative mx-auto mb-8 w-28 h-28"
         >
           <div
-            className="w-36 h-36 mx-auto rounded-full flex items-center justify-center"
-            style={{
-              background: 'radial-gradient(circle at 35% 28%, #fde68a, #fbbf24 60%, #f59e0b)',
-              boxShadow: '0 0 70px 12px rgba(251,191,36,0.3)',
-            }}
-          >
-            <span className="text-6xl select-none">🐣</span>
-          </div>
-          {/* sombra */}
-          <motion.div
-            animate={{ scaleX: isComplete ? 0.7 : [1, 0.75, 1] }}
-            transition={{ duration: 1.4, repeat: isComplete ? 0 : Infinity, ease: 'easeInOut' }}
-            className="mx-auto mt-4 h-2 w-24 rounded-full bg-black/40 blur-sm"
+            className="orb-spin-layer orb-gradient absolute -inset-4 rounded-full"
+            style={{ animation: 'orb-spin 6s linear infinite', filter: 'blur(22px)', opacity: 0.7 }}
           />
+          <div className="relative w-28 h-28 rounded-full overflow-hidden">
+            <div
+              className="orb-spin-layer orb-gradient absolute -inset-4"
+              style={{ animation: 'orb-spin 6s linear infinite', filter: 'blur(10px)' }}
+            />
+            <div
+              className="absolute inset-[7px] rounded-full"
+              style={{
+                background:
+                  'radial-gradient(circle at 38% 30%, rgba(255,255,255,0.2), rgba(5,6,10,0.55) 55%, rgba(5,6,10,0.8))',
+              }}
+            />
+          </div>
         </motion.div>
 
         <motion.h1
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="text-5xl font-extrabold tracking-wide text-white mb-8"
+          transition={{ delay: 0.2 }}
+          className="text-5xl font-medium tracking-tight text-spectrum mb-8"
         >
-          P<span className="text-amber-400">Í</span>O
+          pío
         </motion.h1>
 
-        <div className="w-64 h-1.5 glass rounded-full overflow-hidden mx-auto">
+        <div className="w-56 h-1 rounded-full overflow-hidden mx-auto bg-white/10">
           <motion.div
             animate={{ width: `${loadingProgress}%` }}
             transition={{ duration: 0.1 }}
-            className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-300"
+            className="h-full rounded-full orb-gradient"
           />
         </div>
 
-        <p className="text-slate-400 mt-4 text-sm">
-          {getLanguage(userLanguage).flag} {getLanguage(userLanguage).name} →{' '}
-          {getLanguage(targetLanguage).flag} {getLanguage(targetLanguage).name}
+        <p className="text-slate-500 mt-4 text-sm">
+          {getLanguage(userLanguage).name} → {getLanguage(targetLanguage).name}
         </p>
       </div>
     </div>

@@ -51,9 +51,9 @@ export function TermsScreen({ onAccept, onReject }: TermsScreenProps) {
   return (
     <div className="h-dvh flex flex-col">
       <div className="text-center px-6 pt-10 pb-6">
-        <span className="text-4xl">🐣</span>
-        <h1 className="text-3xl font-bold text-white mt-2">Términos y Condiciones</h1>
-        <p className="text-slate-400 mt-1 text-sm">
+        <span className="mx-auto block w-3 h-3 rounded-full orb-gradient" aria-hidden />
+        <h1 className="text-3xl font-medium tracking-tight text-white mt-4">Términos y condiciones</h1>
+        <p className="text-slate-500 mt-1 text-sm">
           Léelos hasta el final para continuar
         </p>
       </div>
@@ -78,7 +78,7 @@ export function TermsScreen({ onAccept, onReject }: TermsScreenProps) {
         </div>
       </div>
 
-      <div className="px-6 py-5 border-t border-white/10 bg-ink-900/80 backdrop-blur">
+      <div className="px-6 py-5 border-t border-white/10 glass-deep">
         <div className="max-w-2xl mx-auto flex gap-3">
           <button
             onClick={onReject}
@@ -93,7 +93,7 @@ export function TermsScreen({ onAccept, onReject }: TermsScreenProps) {
             className="btn-primary flex-1 px-6 py-4 flex items-center justify-center gap-2"
           >
             <Check className="w-5 h-5" />
-            {canAccept ? 'Aceptar y Continuar' : 'Desliza hasta el final'}
+            {canAccept ? 'Aceptar y continuar' : 'Desliza hasta el final'}
           </button>
         </div>
       </div>

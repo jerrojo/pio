@@ -59,7 +59,7 @@ export function FaceIdLogin({ onSuccess, onLockout }: FaceIdLoginProps) {
           className="glass rounded-3xl p-10 text-center max-w-md"
         >
           <Lock className="w-14 h-14 mx-auto text-red-400 mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">
+          <h2 className="text-2xl font-medium tracking-tight text-white mb-2">
             Cuenta Bloqueada Temporalmente
           </h2>
           <p className="text-slate-400 mb-6">
@@ -92,16 +92,16 @@ export function FaceIdLogin({ onSuccess, onLockout }: FaceIdLoginProps) {
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 1.4, repeat: Infinity, ease: 'linear' }}
-              className="absolute -inset-3 rounded-full border-2 border-transparent border-t-amber-400 border-r-amber-400/40"
+              className="absolute -inset-3 rounded-full border-2 border-transparent border-t-[#8b9cf9] border-r-[#6cd4ff]/40"
             />
           )}
           <motion.div
             animate={{ scale: isScanning ? [1, 1.05, 1] : 1 }}
             transition={{ duration: 1.6, repeat: isScanning ? Infinity : 0 }}
             className="w-32 h-32 mx-auto rounded-full glass flex items-center justify-center"
-            style={{ boxShadow: isScanning ? '0 0 50px 8px rgba(251,191,36,0.25)' : undefined }}
+            style={{ boxShadow: isScanning ? '0 0 50px 8px rgba(139,156,249,0.3)' : undefined }}
           >
-            <ScanFace className={`w-16 h-16 ${isScanning ? 'text-amber-300' : 'text-slate-300'}`} />
+            <ScanFace className={`w-16 h-16 ${isScanning ? 'text-[#8b9cf9]' : 'text-slate-300'}`} />
           </motion.div>
 
           {attempts > 0 && (
@@ -111,7 +111,7 @@ export function FaceIdLogin({ onSuccess, onLockout }: FaceIdLoginProps) {
           )}
         </div>
 
-        <h1 className="text-3xl font-bold text-white mb-2">Face ID</h1>
+        <h1 className="text-3xl font-medium tracking-tight text-white mb-2">Face ID</h1>
         <p className="text-slate-400 mb-8">
           {attempts === 0 && 'Mira a la cámara para iniciar sesión'}
           {attempts === 1 && 'Intento fallido. Intenta de nuevo'}
@@ -143,7 +143,7 @@ export function FaceIdLogin({ onSuccess, onLockout }: FaceIdLoginProps) {
         {attempts === 2 && (
           <button
             onClick={handleRetrain}
-            className="mb-4 text-amber-300 hover:text-amber-200 font-medium text-sm"
+            className="mb-4 text-[#8b9cf9] hover:text-[#a9b6fb] font-medium text-sm"
           >
             Re-entrenar Face ID
           </button>

@@ -117,17 +117,34 @@ export function VoiceRecorder({
     <button
       onClick={isRecording ? stopRecording : startRecording}
       aria-label={isRecording ? 'Detener grabación' : 'Grabar'}
-      className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all ${
-        isRecording
-          ? 'bg-red-500 hover:bg-red-400 text-white'
-          : 'bg-amber-400 hover:bg-amber-300 text-slate-900'
-      }`}
+      className="relative w-20 h-20 rounded-full flex items-center justify-center transition-all text-white active:scale-95"
       style={{
+        background: isRecording
+          ? 'rgba(248,113,113,0.15)'
+          : 'rgba(255,255,255,0.06)',
+        border: isRecording
+          ? '1.5px solid rgba(248,113,113,0.6)'
+          : '1.5px solid rgba(139,156,249,0.45)',
+        backdropFilter: 'blur(18px)',
+        WebkitBackdropFilter: 'blur(18px)',
         boxShadow: isRecording
-          ? '0 0 40px 6px rgba(239,68,68,0.45)'
-          : '0 0 34px 4px rgba(251,191,36,0.35)',
+          ? '0 0 44px 8px rgba(248,113,113,0.3)'
+          : '0 0 34px 6px rgba(139,156,249,0.22)',
       }}
     >
+      {!isRecording && (
+        <span
+          className="orb-spin-layer absolute -inset-1 rounded-full pointer-events-none"
+          aria-hidden
+          style={{
+            background:
+              'conic-gradient(from 0deg, rgba(139,156,249,0.5), rgba(108,212,255,0.5), rgba(246,178,107,0.4), rgba(242,140,192,0.5), rgba(139,156,249,0.5))',
+            WebkitMask: 'radial-gradient(circle, transparent 68%, black 70%)',
+            mask: 'radial-gradient(circle, transparent 68%, black 70%)',
+            animation: 'orb-spin 8s linear infinite',
+          }}
+        />
+      )}
       {isRecording ? (
         <span className="flex items-end gap-1 h-7" aria-hidden>
           {[0, 1, 2, 3, 4].map(i => (

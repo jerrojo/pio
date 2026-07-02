@@ -245,6 +245,8 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
 
   useEffect(() => {
     let cancelled = false;
+    let onPointer: (() => void) | null = null;
+    let onVisibility: (() => void) | null = null;
 
     const init = async () => {
       try {
@@ -268,17 +270,18 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
         }
 
         // Cualquier primer toque en la página desbloquea
-        const onPointer = () => {
+        onPointer = () => {
           ctx.resume().catch(() => {});
         };
-        document.addEventListener('pointerdown', onPointer);
-        document.addEventListener('visibilitychange', () => {
+        onVisibility = () => {
           if (document.visibilityState === 'visible') {
             ctx.resume().catch(() => {});
             const t = streamRef.current?.getAudioTracks()[0];
             if (!t || t.readyState === 'ended' || t.muted) reacquire();
           }
-        });
+        };
+        document.addEventListener('pointerdown', onPointer);
+        document.addEventListener('visibilitychange', onVisibility);
 
         setPermission('granted');
         intervalRef.current = setInterval(tick, 90);
@@ -291,6 +294,8 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
 
     return () => {
       cancelled = true;
+      if (onPointer) document.removeEventListener('pointerdown', onPointer);
+      if (onVisibility) document.removeEventListener('visibilitychange', onVisibility);
       if (intervalRef.current) clearInterval(intervalRef.current);
       if (recorderRef.current && recorderRef.current.state !== 'inactive') {
         discardRef.current = true;

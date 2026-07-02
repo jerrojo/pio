@@ -60,7 +60,7 @@ export function IntelligentConversation({
 
   const busy = isProcessing || isSpeaking || showCelebration;
 
-  const { permission, isCapturing, needsTouch, unlock, retryPermission } = useAutoListen({
+  const { permission, isCapturing, needsTouch, unlock, playAudioData, retryPermission } = useAutoListen({
     enabled: !busy,
     onSpeechEnd: blob => handleSpeech(blob),
   });
@@ -161,10 +161,19 @@ export function IntelligentConversation({
       });
       if (!response.ok) return;
 
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
+      const data = await response.arrayBuffer();
 
+      // Vía principal: Web Audio por el AudioContext ya desbloqueado
+      // (inmune al bloqueo de autoplay de iOS). Espera a que TERMINE.
+      const played = await playAudioData(data);
+      if (played) {
+        setNeedsAudioUnlock(false);
+        return;
+      }
+
+      // Fallback: HTMLAudio (puede requerir un toque en iOS)
+      const audioUrl = URL.createObjectURL(new Blob([data], { type: 'audio/mpeg' }));
+      const audio = new Audio(audioUrl);
       await new Promise<void>(resolve => {
         audio.onended = () => {
           URL.revokeObjectURL(audioUrl);
@@ -175,7 +184,6 @@ export function IntelligentConversation({
           .play()
           .then(() => setNeedsAudioUnlock(false))
           .catch(() => {
-            // Autoplay bloqueado (iOS): guardamos el audio y pedimos un toque
             pendingAudioRef.current = audio;
             setNeedsAudioUnlock(true);
             resolve();

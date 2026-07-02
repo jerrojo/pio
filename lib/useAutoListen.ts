@@ -212,6 +212,37 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
     }
   }, []);
 
+  /**
+   * Reproduce audio (ej. TTS) a través del AudioContext ya desbloqueado.
+   * A diferencia de new Audio().play(), Web Audio no está sujeto al bloqueo
+   * de autoplay de iOS una vez que el contexto corre. Resuelve al TERMINAR.
+   */
+  const playAudioData = useCallback(async (data: ArrayBuffer): Promise<boolean> => {
+    const ctx = ctxRef.current;
+    if (!ctx) return false;
+    if (ctx.state !== 'running') {
+      try {
+        await ctx.resume();
+      } catch {
+        return false;
+      }
+      if ((ctx.state as string) !== 'running') return false;
+    }
+    try {
+      const buffer = await ctx.decodeAudioData(data.slice(0));
+      await new Promise<void>(resolve => {
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.onended = () => resolve();
+        source.start();
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -275,5 +306,5 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
     window.location.reload();
   }, []);
 
-  return { permission, isCapturing, needsTouch, unlock, retryPermission };
+  return { permission, isCapturing, needsTouch, unlock, playAudioData, retryPermission };
 }

@@ -78,6 +78,13 @@ export function IntelligentConversation({
   };
 
   const handleSpeech = async (audioBlob: Blob) => {
+    // Routing por contexto: si Pío acaba de darte una frase para repetir,
+    // tu siguiente intervención ES el intento en el idioma objetivo.
+    // Forzamos la transcripción en ese idioma (con la frase esperada como
+    // sesgo) y evaluamos — sin adivinar. Adivinar el idioma de una frase
+    // corta con acento es justo donde Whisper falla.
+    const expecting = translatedRef.current;
+
     setMode('detection');
     setPhase('transcribing');
     setIsProcessing(true);
@@ -85,15 +92,29 @@ export function IntelligentConversation({
       const formData = new FormData();
       const ext = audioBlob.type.includes('mp4') ? 'mp4' : audioBlob.type.includes('ogg') ? 'ogg' : 'webm';
       formData.append('audio', audioBlob, `speech.${ext}`);
+      if (expecting) {
+        formData.append('language', targetLanguage);
+        formData.append('prompt', expecting);
+      }
 
       const response = await fetch('/api/speech-to-text', { method: 'POST', body: formData });
       const data = await response.json();
       if (data.error) throw new Error(data.error);
 
-      if (data.text) {
-        await routeByLanguage(data.text, data.language || userLanguage, audioBlob);
-      } else {
+      if (!data.text) {
         setPhase('idle');
+        return;
+      }
+
+      if (expecting) {
+        setCurrentText(data.text);
+        setDetectedLanguage(targetLanguage);
+        setMode('evaluation');
+        setPhase('evaluating');
+        await evaluateUserPronunciation(data.text, audioBlob);
+        setPhase('done');
+      } else {
+        await routeByLanguage(data.text, data.language || userLanguage, audioBlob);
       }
     } catch (error) {
       console.error('Error processing audio:', error);

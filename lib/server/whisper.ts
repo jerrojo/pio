@@ -47,7 +47,8 @@ export interface WhisperResult {
  */
 export async function transcribeAudio(
   audio: File | Blob,
-  language?: LanguageCode
+  language?: LanguageCode,
+  prompt?: string
 ): Promise<WhisperResult> {
   const openai = getOpenAI();
 
@@ -75,6 +76,7 @@ export async function transcribeAudio(
     model: 'whisper-1',
     response_format: 'verbose_json',
     ...(language ? { language } : {}),
+    ...(prompt ? { prompt } : {}),
     temperature: 0,
   });
 

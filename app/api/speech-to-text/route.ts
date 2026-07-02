@@ -14,12 +14,13 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const audio = formData.get('audio') as File | null;
     const language = (formData.get('language') as LanguageCode | null) || undefined;
+    const prompt = (formData.get('prompt') as string | null) || undefined;
 
     if (!audio || audio.size === 0) {
       return NextResponse.json({ error: 'No audio file provided' }, { status: 400 });
     }
 
-    const result = await transcribeAudio(audio, language);
+    const result = await transcribeAudio(audio, language, prompt);
 
     return NextResponse.json({
       text: result.text,

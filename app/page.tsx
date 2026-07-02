@@ -1,36 +1,25 @@
 'use client';
 
 import { useState } from 'react';
-import { TermsScreen } from '@/components/TermsScreen';
-import { FaceIdLogin } from '@/components/FaceIdLogin';
-import { SplashScreen } from '@/components/SplashScreen';
 import { LanguagePairing } from '@/components/LanguagePairing';
 import { IntelligentConversation } from '@/components/IntelligentConversation';
 import { LanguageCode } from '@/types';
 
-type AppStage = 'terms' | 'faceid' | 'languages' | 'splash' | 'main' | 'lockout';
+type AppStage = 'languages' | 'main';
 
+/**
+ * Sin fricción de entrada: la app abre directo en la elección de idioma
+ * (un tap + Empezar) y de ahí a la conversación. Términos, Face ID y
+ * splash quedan fuera del flujo (los componentes siguen en /components
+ * por si se necesitan al integrar auth real).
+ */
 export default function App() {
-  const [stage, setStage] = useState<AppStage>('terms');
+  const [stage, setStage] = useState<AppStage>('languages');
   const [userLanguage, setUserLanguage] = useState<LanguageCode>('es');
   const [targetLanguage, setTargetLanguage] = useState<LanguageCode>('en');
 
   return (
     <>
-      {stage === 'terms' && (
-        <TermsScreen
-          onAccept={() => setStage('faceid')}
-          onReject={() => {}}
-        />
-      )}
-
-      {stage === 'faceid' && (
-        <FaceIdLogin
-          onSuccess={() => setStage('languages')}
-          onLockout={() => setStage('lockout')}
-        />
-      )}
-
       {stage === 'languages' && (
         <LanguagePairing
           initialNative={userLanguage}
@@ -38,16 +27,8 @@ export default function App() {
           onConfirm={(native, target) => {
             setUserLanguage(native);
             setTargetLanguage(target);
-            setStage('splash');
+            setStage('main');
           }}
-        />
-      )}
-
-      {stage === 'splash' && (
-        <SplashScreen
-          onComplete={() => setStage('main')}
-          userLanguage={userLanguage}
-          targetLanguage={targetLanguage}
         />
       )}
 
@@ -57,17 +38,6 @@ export default function App() {
           targetLanguage={targetLanguage}
           onChangeLanguages={() => setStage('languages')}
         />
-      )}
-
-      {stage === 'lockout' && (
-        <div className="min-h-dvh flex items-center justify-center px-6">
-          <div className="glass rounded-3xl p-10 text-center max-w-md">
-            <h2 className="text-2xl font-medium tracking-tight text-white mb-3">Cuenta bloqueada</h2>
-            <p className="text-slate-400">
-              Contacta a soporte para desbloquear tu cuenta.
-            </p>
-          </div>
-        </div>
       )}
     </>
   );

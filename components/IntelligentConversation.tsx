@@ -8,7 +8,12 @@ import { getLanguage } from '@/lib/languages';
 import { useAutoListen } from '@/lib/useAutoListen';
 import { evaluatePronunciation, shouldRepeat, hasMastered } from '@/lib/pronunciation';
 import { translateText } from '@/lib/agent';
-import { Languages, MicOff, Volume2 } from 'lucide-react';
+import { Languages, MicOff, Volume2, Flame, Check } from 'lucide-react';
+import { loadProgress, recordMastery, Progress } from '@/lib/progress';
+
+// Caché de audio en el cliente: repetir una frase no vuelve a pedir TTS
+const clientTtsCache = new Map<string, ArrayBuffer>();
+const CLIENT_TTS_MAX = 30;
 
 interface IntelligentConversationProps {
   userLanguage: LanguageCode;
@@ -47,6 +52,11 @@ export function IntelligentConversation({
   const [showCelebration, setShowCelebration] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [needsAudioUnlock, setNeedsAudioUnlock] = useState(false);
+  const [progress, setProgress] = useState<Progress | null>(null);
+
+  useEffect(() => {
+    setProgress(loadProgress());
+  }, []);
 
   const pendingAudioRef = useRef<HTMLAudioElement | null>(null);
   const translatedRef = useRef('');
@@ -146,6 +156,7 @@ export function IntelligentConversation({
     setPronunciationScore(score);
 
     if (hasMastered(score.score)) {
+      setProgress(recordMastery(targetText));
       playCelebrationSound();
       setShowCelebration(true);
       setTimeout(() => setShowCelebration(false), 2200);
@@ -167,18 +178,29 @@ export function IntelligentConversation({
   const speak = async (text: string, lang: LanguageCode = targetLanguage) => {
     try {
       setIsSpeaking(true);
-      const response = await fetch('/api/elevenlabs-tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          voiceId: getLanguage(lang).elevenLabsVoiceId,
-          model: 'eleven_multilingual_v2',
-        }),
-      });
-      if (!response.ok) return;
-
-      const data = await response.arrayBuffer();
+      const cacheKey = `${lang}:${text}`;
+      let data = clientTtsCache.get(cacheKey);
+      if (!data) {
+        const response = await fetch('/api/elevenlabs-tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text,
+            voiceId: getLanguage(lang).elevenLabsVoiceId,
+            model: 'eleven_multilingual_v2',
+          }),
+        });
+        if (!response.ok) {
+          // Sin voz (ej. cuota agotada): la app sigue funcionando en texto
+          setErrorMsg('La voz no está disponible ahora — lee la frase en pantalla.');
+          return;
+        }
+        data = await response.arrayBuffer();
+        clientTtsCache.set(cacheKey, data);
+        if (clientTtsCache.size > CLIENT_TTS_MAX) {
+          clientTtsCache.delete(clientTtsCache.keys().next().value!);
+        }
+      }
 
       // Vía principal: Web Audio por el AudioContext ya desbloqueado
       // (inmune al bloqueo de autoplay de iOS). Espera a que TERMINE.
@@ -296,14 +318,28 @@ export function IntelligentConversation({
           <span className="font-medium tracking-tight text-white text-lg">pío</span>
         </div>
 
-        <button
-          onClick={onChangeLanguages}
-          className="glass rounded-full px-4 py-2 flex items-center gap-2 text-sm font-medium text-slate-300 hover:bg-white/10 transition-colors"
-          aria-label="Cambiar idiomas"
-        >
-          <Languages className="w-4 h-4 text-slate-400" />
-          {getLanguage(targetLanguage).name}
-        </button>
+        <div className="flex items-center gap-2">
+          {progress && (progress.streak > 0 || progress.mastered > 0) && (
+            <div
+              className="glass rounded-full px-3 py-2 flex items-center gap-2 text-xs font-medium text-slate-300 tabular-nums"
+              title={`Racha de ${progress.streak} día(s) · ${progress.mastered} frases dominadas`}
+            >
+              <Flame className="w-3.5 h-3.5 text-amber-300" aria-hidden />
+              {progress.streak}
+              <span className="text-slate-600">·</span>
+              <Check className="w-3.5 h-3.5 text-green-300" aria-hidden />
+              {progress.mastered}
+            </div>
+          )}
+          <button
+            onClick={onChangeLanguages}
+            className="glass rounded-full px-4 py-2 flex items-center gap-2 text-sm font-medium text-slate-300 hover:bg-white/10 transition-colors"
+            aria-label="Cambiar idiomas"
+          >
+            <Languages className="w-4 h-4 text-slate-400" />
+            {getLanguage(targetLanguage).name}
+          </button>
+        </div>
       </header>
 
       {/* Centro: solo el orbe */}

@@ -10,6 +10,15 @@ export interface Progress {
   lastDay: string; // YYYY-MM-DD del último día activo
   mastered: number;
   phrases: string[];
+  todayCount: number; // frases dominadas HOY (meta diaria)
+}
+
+/** Meta diaria: sesiones cortas y consistentes ganan (3 frases ≈ 3-5 min) */
+export const DAILY_GOAL = 3;
+
+export function masteredToday(p: Progress): number {
+  const today = new Date().toISOString().slice(0, 10);
+  return p.lastDay === today ? p.todayCount ?? 0 : 0;
 }
 
 const KEY = 'pio-progress-v1';
@@ -32,7 +41,7 @@ export function loadProgress(): Progress {
   } catch {
     /* localStorage no disponible */
   }
-  return { streak: 0, lastDay: '', mastered: 0, phrases: [] };
+  return { streak: 0, lastDay: '', mastered: 0, phrases: [], todayCount: 0 };
 }
 
 function save(p: Progress) {
@@ -49,6 +58,7 @@ function touchDay(p: Progress) {
   if (p.lastDay === today) return;
   p.streak = p.lastDay === day(-1) ? p.streak + 1 : 1;
   p.lastDay = today;
+  p.todayCount = 0; // nuevo día, nueva meta
 }
 
 /** Frase dominada (≥7/10): cuenta una sola vez por frase */
@@ -61,6 +71,7 @@ export function recordMastery(phrase: string): Progress {
     if (p.phrases.length > 300) p.phrases.shift();
     p.mastered += 1;
   }
+  p.todayCount = (p.todayCount ?? 0) + 1;
   save(p);
   return p;
 }

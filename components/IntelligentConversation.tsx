@@ -9,7 +9,8 @@ import { useAutoListen } from '@/lib/useAutoListen';
 import { evaluatePronunciation, shouldRepeat, hasMastered } from '@/lib/pronunciation';
 import { translateText } from '@/lib/agent';
 import { Languages, MicOff, Volume2, Flame, Check } from 'lucide-react';
-import { loadProgress, recordMastery, Progress } from '@/lib/progress';
+import { loadProgress, recordMastery, masteredToday, Progress, DAILY_GOAL } from '@/lib/progress';
+import { scheduleReview, getDueReview } from '@/lib/review';
 
 // Caché de audio en el cliente: repetir una frase no vuelve a pedir TTS
 const clientTtsCache = new Map<string, ArrayBuffer>();
@@ -60,7 +61,10 @@ export function IntelligentConversation({
 
   const pendingAudioRef = useRef<HTMLAudioElement | null>(null);
   const translatedRef = useRef('');
+  const nativeRef = useRef(''); // la frase en tu idioma (para el repaso)
   const audioUnlockedRef = useRef(false);
+  const lastProposalRef = useRef(0);
+  const busyRef = useRef(false);
 
   useEffect(() => {
     if (!errorMsg) return;
@@ -69,11 +73,43 @@ export function IntelligentConversation({
   }, [errorMsg]);
 
   const busy = isProcessing || isSpeaking || showCelebration;
+  busyRef.current = busy;
 
   const { permission, isCapturing, needsTouch, unlock, playAudioData, retryPermission } = useAutoListen({
     enabled: !busy,
     onSpeechEnd: blob => handleSpeech(blob),
   });
+
+  // Repaso espaciado proactivo: en reposo, Pío te pide PRODUCIR una frase
+  // pendiente ("¿Cómo se dice X?") — recall activo, la forma que enseña
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (busyRef.current) return;
+      if (translatedRef.current) return; // ya hay frase en curso
+      if (Date.now() - lastProposalRef.current < 90_000) return;
+      const due = getDueReview();
+      if (!due) return;
+
+      lastProposalRef.current = Date.now();
+      translatedRef.current = due.target;
+      nativeRef.current = due.native;
+      setTranslatedText(due.target);
+      setCurrentText(due.native);
+      setDetectedLanguage(null);
+      setMode('translation');
+      setPhase('done');
+      void speak(
+        due.native
+          ? `Repasemos. ¿Cómo se dice: ${due.native}?`
+          : 'Repasemos esta frase. Escucha y repite.',
+        userLanguage
+      ).then(() => {
+        if (!due.native) return speak(due.target, targetLanguage);
+      });
+    }, 12_000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Un toque desbloquea a la vez el análisis de voz (AudioContext) y el
    *  autoplay de audio en iOS, reproduciendo un WAV silencioso. */
@@ -148,6 +184,7 @@ export function IntelligentConversation({
       const translated = await translateText(text, targetLanguage, userLanguage);
       setTranslatedText(translated);
       translatedRef.current = translated;
+      nativeRef.current = text;
       await speak(translated);
     }
     setPhase('done');
@@ -159,16 +196,24 @@ export function IntelligentConversation({
     setPronunciationScore(score);
 
     if (hasMastered(score.score)) {
-      setProgress(recordMastery(targetText));
+      const updated = recordMastery(targetText);
+      setProgress(updated);
+      scheduleReview(nativeRef.current, targetText, true);
       playCelebrationSound();
       setShowCelebration(true);
       setTimeout(() => setShowCelebration(false), 2200);
+      const today = masteredToday(updated);
       await speak(
-        score.score >= 9 ? '¡Excelente! Lo dominaste.' : '¡Muy bien! Lo lograste.',
+        today === DAILY_GOAL
+          ? '¡Meta del día cumplida! Tres frases dominadas.'
+          : score.score >= 9
+          ? '¡Excelente! Lo dominaste.'
+          : '¡Muy bien! Lo lograste.',
         userLanguage
       );
       setTimeout(() => resetTurn(), 800);
     } else {
+      scheduleReview(nativeRef.current, targetText, false);
       // Feedback hablado en tu idioma + Pío re-modela la frase en el idioma objetivo
       await speak(score.feedback || 'Casi. Inténtalo otra vez.', userLanguage);
       if (translatedRef.current) {
@@ -251,6 +296,7 @@ export function IntelligentConversation({
     setCurrentText('');
     setTranslatedText('');
     translatedRef.current = '';
+    nativeRef.current = '';
   };
 
   const handleOrbTap = () => {
@@ -332,6 +378,10 @@ export function IntelligentConversation({
               <span className="text-slate-600">·</span>
               <Check className="w-3.5 h-3.5 text-green-300" aria-hidden />
               {progress.mastered}
+              <span className="text-slate-600">·</span>
+              <span className={masteredToday(progress) >= DAILY_GOAL ? 'text-[#f5c86b]' : ''}>
+                hoy {Math.min(masteredToday(progress), DAILY_GOAL)}/{DAILY_GOAL}
+              </span>
             </div>
           )}
           <button

@@ -119,12 +119,22 @@ export function IntelligentConversation({
       playCelebrationSound();
       setShowCelebration(true);
       setTimeout(() => setShowCelebration(false), 2200);
-      setTimeout(() => resetTurn(), 3000);
+      await speak(
+        score.score >= 9 ? '¡Excelente! Lo dominaste.' : '¡Muy bien! Lo lograste.',
+        userLanguage
+      );
+      setTimeout(() => resetTurn(), 800);
+    } else {
+      // Feedback hablado en tu idioma + Pío re-modela la frase en el idioma objetivo
+      await speak(score.feedback || 'Casi. Inténtalo otra vez.', userLanguage);
+      if (translatedRef.current) {
+        await speak(translatedRef.current, targetLanguage);
+      }
     }
   };
 
   /** Reproduce TTS y espera a que TERMINE antes de volver a escuchar */
-  const speak = async (text: string) => {
+  const speak = async (text: string, lang: LanguageCode = targetLanguage) => {
     try {
       setIsSpeaking(true);
       const response = await fetch('/api/elevenlabs-tts', {
@@ -132,7 +142,7 @@ export function IntelligentConversation({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text,
-          voiceId: getLanguage(targetLanguage).elevenLabsVoiceId,
+          voiceId: getLanguage(lang).elevenLabsVoiceId,
           model: 'eleven_multilingual_v2',
         }),
       });

@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     const language = (formData.get('language') as LanguageCode | null) || undefined;
     const prompt = (formData.get('prompt') as string | null) || undefined;
     const target = (formData.get('target') as LanguageCode | null) || undefined;
+    const native = (formData.get('native') as LanguageCode | null) || undefined;
     const expected = (formData.get('expected') as string | null) || undefined;
 
     if (!audio || audio.size === 0) {
@@ -63,13 +64,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ text: cleaned.text, language: free.language, intent: 'evaluate' });
     }
 
-    // Ambigüedad: no detectó el objetivo, pero hay frase pendiente.
-    // Pasada 2 forzada al objetivo para ver si el audio ERA el intento.
+    // Hay frase pendiente de practicar: decidir si esto ERA el intento.
+    // Principio: SOLO el idioma nativo dispara traducción. El acento hace
+    // que Whisper etiquete el intento como un tercer idioma (alemán de
+    // hispanohablante suena a "inglés") — eso NUNCA debe traducirse.
     if (target && expected) {
       const forced = await transcribeAudio(audio, target, expected);
       const forcedClean = stripFillers(forced.text);
       const sim = similarity(normalize(forcedClean), normalize(expected));
-      if (isReliable(forced) && sim >= 0.45) {
+
+      // Se parece a la frase esperada → intento claro
+      if (sim >= 0.45) {
+        return NextResponse.json({ text: forcedClean, language: target, intent: 'evaluate' });
+      }
+
+      // Suena a un TERCER idioma (ni objetivo ni nativo) → intento con
+      // acento fuerte: evaluar contra lo esperado (score bajo + coaching),
+      // jamás traducir el malentendido
+      if (free.language !== native) {
+        return NextResponse.json({
+          text: forcedClean || cleaned.text,
+          language: target,
+          intent: 'evaluate',
+        });
+      }
+
+      // Suena al nativo pero con parecido moderado → probablemente el
+      // intento (frases cortas engañan a la detección)
+      if (sim >= 0.28) {
         return NextResponse.json({ text: forcedClean, language: target, intent: 'evaluate' });
       }
     }

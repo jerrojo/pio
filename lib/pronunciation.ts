@@ -6,7 +6,8 @@ export async function evaluatePronunciation(
   audioBlob: Blob | null,
   targetText: string,
   targetLanguage: LanguageCode,
-  spokenText?: string
+  spokenText?: string,
+  nativeLanguage?: LanguageCode
 ): Promise<PronunciationScore> {
   try {
     const formData = new FormData();
@@ -18,6 +19,9 @@ export async function evaluatePronunciation(
     }
     formData.append('targetText', targetText);
     formData.append('targetLanguage', targetLanguage);
+    if (nativeLanguage) {
+      formData.append('nativeLanguage', nativeLanguage);
+    }
 
     const response = await fetch('/api/evaluate-pronunciation', {
       method: 'POST',

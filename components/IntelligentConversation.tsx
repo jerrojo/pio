@@ -99,6 +99,7 @@ export function IntelligentConversation({
       const ext = audioBlob.type.includes('mp4') ? 'mp4' : audioBlob.type.includes('ogg') ? 'ogg' : 'webm';
       formData.append('audio', audioBlob, `speech.${ext}`);
       formData.append('target', targetLanguage);
+      formData.append('native', userLanguage);
       if (translatedRef.current) {
         formData.append('expected', translatedRef.current);
       }
@@ -154,7 +155,7 @@ export function IntelligentConversation({
 
   const evaluateUserPronunciation = async (userText: string) => {
     const targetText = translatedRef.current || userText;
-    const score = await evaluatePronunciation(null, targetText, targetLanguage, userText);
+    const score = await evaluatePronunciation(null, targetText, targetLanguage, userText, userLanguage);
     setPronunciationScore(score);
 
     if (hasMastered(score.score)) {

@@ -97,7 +97,7 @@ export function MainCircle({ mode, score, isListening = false }: MainCircleProps
       <svg viewBox="0 0 100 100" className="absolute w-72 h-72 -rotate-90 pointer-events-none">
         <circle
           cx="50" cy="50" r={RING_RADIUS}
-          fill="none" stroke="rgba(0,0,0,0.06)" strokeWidth="2.5"
+          fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2.5"
         />
         <motion.circle
           cx="50" cy="50" r={RING_RADIUS}

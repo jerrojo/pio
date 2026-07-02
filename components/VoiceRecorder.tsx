@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
-import { Mic, Square } from 'lucide-react';
+import { Mic } from 'lucide-react';
 
 interface VoiceRecorderProps {
   onRecordingComplete: (audioBlob: Blob) => void;
@@ -117,13 +117,30 @@ export function VoiceRecorder({
     <button
       onClick={isRecording ? stopRecording : startRecording}
       aria-label={isRecording ? 'Detener grabación' : 'Grabar'}
-      className={`w-16 h-16 rounded-full flex items-center justify-center transition-all shadow-lg ${
+      className={`relative w-20 h-20 rounded-full flex items-center justify-center transition-all ${
         isRecording
-          ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-          : 'bg-primary-500 hover:bg-primary-600'
-      } text-white`}
+          ? 'bg-red-500 hover:bg-red-400 text-white'
+          : 'bg-amber-400 hover:bg-amber-300 text-slate-900'
+      }`}
+      style={{
+        boxShadow: isRecording
+          ? '0 0 40px 6px rgba(239,68,68,0.45)'
+          : '0 0 34px 4px rgba(251,191,36,0.35)',
+      }}
     >
-      {isRecording ? <Square className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+      {isRecording ? (
+        <span className="flex items-end gap-1 h-7" aria-hidden>
+          {[0, 1, 2, 3, 4].map(i => (
+            <span
+              key={i}
+              className="wave-bar w-1.5 rounded-full bg-white"
+              style={{ height: '100%', animationDelay: `${i * 0.12}s` }}
+            />
+          ))}
+        </span>
+      ) : (
+        <Mic className="w-8 h-8" />
+      )}
     </button>
   );
 }

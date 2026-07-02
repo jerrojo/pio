@@ -15,88 +15,85 @@ export function SplashScreen({ onComplete, userLanguage, targetLanguage }: Splas
   const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
-    const duration = 3800;
+    const duration = 3200;
     const startTime = Date.now();
+    let raf = 0;
 
     const animate = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min((elapsed / duration) * 100, 100);
       setLoadingProgress(progress);
 
-      if (progress >= 100 && !isComplete) {
+      if (progress >= 100) {
         setIsComplete(true);
-        setTimeout(() => onComplete(), 300);
+        setTimeout(() => onComplete(), 400);
       } else {
-        requestAnimationFrame(animate);
+        raf = requestAnimationFrame(animate);
       }
     };
 
-    animate();
-  }, [isComplete, onComplete]);
+    raf = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-600 via-primary-500 to-primary-700 flex items-center justify-center">
+    <div className="min-h-dvh flex items-center justify-center px-6">
       <div className="text-center">
+        {/* Pollito con bounce Pixar-style */}
         <motion.div
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ 
-            scale: isComplete ? 1.2 : 1,
-            opacity: 1,
-            rotate: isComplete ? 360 : 0,
+          initial={{ scale: 0, y: 40 }}
+          animate={{
+            scale: isComplete ? 1.15 : 1,
+            y: isComplete ? -8 : [0, -14, 0],
           }}
-          transition={{ 
-            duration: 3.8,
-            ease: [0.43, 0.13, 0.23, 0.96],
+          transition={{
+            scale: { type: 'spring', stiffness: 260, damping: 14 },
+            y: isComplete
+              ? { duration: 0.3 }
+              : { duration: 1.4, repeat: Infinity, ease: 'easeInOut' },
           }}
-          className="relative mb-8"
+          className="relative mb-6 inline-block"
         >
-          <motion.div
-            animate={{
-              scale: isComplete ? [1, 1.1, 1] : [1, 1.05, 1],
-              borderRadius: isComplete ? '50%' : '20%',
+          <div
+            className="w-36 h-36 mx-auto rounded-full flex items-center justify-center"
+            style={{
+              background: 'radial-gradient(circle at 35% 28%, #fde68a, #fbbf24 60%, #f59e0b)',
+              boxShadow: '0 0 70px 12px rgba(251,191,36,0.3)',
             }}
-            transition={{
-              duration: 3.8,
-              repeat: isComplete ? 0 : Infinity,
-              repeatDelay: 0.5,
-            }}
-            className="w-32 h-32 mx-auto bg-white rounded-full flex items-center justify-center shadow-2xl"
           >
-            <span className="text-6xl font-bold text-primary-600">P</span>
-            <motion.span
-              animate={{
-                scale: isComplete ? 1.2 : 1,
-              }}
-              className="text-6xl font-bold text-primary-600"
-            >
-              Í
-            </motion.span>
-            <motion.span
-              animate={{
-                scale: isComplete ? 1.2 : 1,
-                borderRadius: isComplete ? '50%' : '0%',
-              }}
-              className="text-6xl font-bold text-primary-600 inline-block w-16 h-16 flex items-center justify-center"
-            >
-              O
-            </motion.span>
-          </motion.div>
+            <span className="text-6xl select-none">🐣</span>
+          </div>
+          {/* sombra */}
+          <motion.div
+            animate={{ scaleX: isComplete ? 0.7 : [1, 0.75, 1] }}
+            transition={{ duration: 1.4, repeat: isComplete ? 0 : Infinity, ease: 'easeInOut' }}
+            className="mx-auto mt-4 h-2 w-24 rounded-full bg-black/40 blur-sm"
+          />
         </motion.div>
 
-        <div className="w-64 h-1 bg-white/20 rounded-full overflow-hidden mx-auto">
+        <motion.h1
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="text-5xl font-extrabold tracking-wide text-white mb-8"
+        >
+          P<span className="text-amber-400">Í</span>O
+        </motion.h1>
+
+        <div className="w-64 h-1.5 glass rounded-full overflow-hidden mx-auto">
           <motion.div
             animate={{ width: `${loadingProgress}%` }}
             transition={{ duration: 0.1 }}
-            className="h-full bg-white rounded-full"
+            className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-300"
           />
         </div>
-        
-        <p className="text-white/80 mt-4 text-sm">
-          Cargando {getLanguage(userLanguage).name} → {getLanguage(targetLanguage).name}
+
+        <p className="text-slate-400 mt-4 text-sm">
+          {getLanguage(userLanguage).flag} {getLanguage(userLanguage).name} →{' '}
+          {getLanguage(targetLanguage).flag} {getLanguage(targetLanguage).name}
         </p>
       </div>
     </div>
   );
 }
-
-

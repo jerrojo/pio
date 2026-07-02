@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, Lightbulb, Lock } from 'lucide-react';
+import { Lightbulb, Lock, ScanFace } from 'lucide-react';
 
 interface FaceIdLoginProps {
   onSuccess: () => void;
@@ -23,18 +23,18 @@ export function FaceIdLogin({ onSuccess, onLockout }: FaceIdLoginProps) {
     }
 
     setIsScanning(true);
-    
-    // Simulate FaceTec scan
+
+    // Mock FaceTec: 85% de éxito (el SDK real reemplaza esto)
     setTimeout(() => {
       setIsScanning(false);
-      const success = Math.random() > 0.7; // Mock: 30% success rate for demo
+      const success = Math.random() > 0.15;
 
       if (success) {
         onSuccess();
       } else {
         const newAttempts = attempts + 1;
         setAttempts(newAttempts);
-        
+
         if (newAttempts === 2) {
           setShowTips(true);
         } else if (newAttempts >= 3) {
@@ -42,7 +42,7 @@ export function FaceIdLogin({ onSuccess, onLockout }: FaceIdLoginProps) {
           setTimeout(() => onLockout(), 2000);
         }
       }
-    }, 2000);
+    }, 1800);
   };
 
   const handleRetrain = () => {
@@ -52,22 +52,25 @@ export function FaceIdLogin({ onSuccess, onLockout }: FaceIdLoginProps) {
 
   if (isLockedOut) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 to-white flex items-center justify-center px-6">
+      <div className="min-h-dvh flex items-center justify-center px-6">
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
+          initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="text-center max-w-md"
+          className="glass rounded-3xl p-10 text-center max-w-md"
         >
-          <Lock className="w-16 h-16 mx-auto text-red-500 mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Cuenta Bloqueada Temporalmente</h2>
-          <p className="text-gray-600 mb-6">
-            Has superado el número máximo de intentos. Por favor, contacta a soporte para desbloquear tu cuenta.
+          <Lock className="w-14 h-14 mx-auto text-red-400 mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-2">
+            Cuenta Bloqueada Temporalmente
+          </h2>
+          <p className="text-slate-400 mb-6">
+            Has superado el número máximo de intentos. Contacta a soporte para
+            desbloquear tu cuenta.
           </p>
           <a
             href="https://wa.me/1234567890?text=Necesito ayuda con mi cuenta de Pío App"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold transition-colors"
+            className="btn-primary inline-block px-6 py-3"
           >
             Contactar Soporte por WhatsApp
           </a>
@@ -77,37 +80,39 @@ export function FaceIdLogin({ onSuccess, onLockout }: FaceIdLoginProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-white flex flex-col items-center justify-center px-6">
+    <div className="min-h-dvh flex flex-col items-center justify-center px-6">
       <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
+        initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         className="text-center max-w-md w-full"
       >
-        <div className="relative mb-8">
+        <div className="relative mb-8 inline-block">
+          {/* anillo de escaneo */}
+          {isScanning && (
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1.4, repeat: Infinity, ease: 'linear' }}
+              className="absolute -inset-3 rounded-full border-2 border-transparent border-t-amber-400 border-r-amber-400/40"
+            />
+          )}
           <motion.div
-            animate={{
-              scale: isScanning ? [1, 1.1, 1] : 1,
-            }}
-            transition={{
-              duration: 2,
-              repeat: isScanning ? Infinity : 0,
-            }}
-            className="w-32 h-32 mx-auto bg-primary-500 rounded-full flex items-center justify-center"
+            animate={{ scale: isScanning ? [1, 1.05, 1] : 1 }}
+            transition={{ duration: 1.6, repeat: isScanning ? Infinity : 0 }}
+            className="w-32 h-32 mx-auto rounded-full glass flex items-center justify-center"
+            style={{ boxShadow: isScanning ? '0 0 50px 8px rgba(251,191,36,0.25)' : undefined }}
           >
-            <svg className="w-20 h-20 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
+            <ScanFace className={`w-16 h-16 ${isScanning ? 'text-amber-300' : 'text-slate-300'}`} />
           </motion.div>
-          
+
           {attempts > 0 && (
-            <div className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
+            <div className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
               {attempts}
             </div>
           )}
         </div>
 
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Face ID</h1>
-        <p className="text-gray-600 mb-8">
+        <h1 className="text-3xl font-bold text-white mb-2">Face ID</h1>
+        <p className="text-slate-400 mb-8">
           {attempts === 0 && 'Mira a la cámara para iniciar sesión'}
           {attempts === 1 && 'Intento fallido. Intenta de nuevo'}
           {attempts === 2 && 'Segundo intento fallido'}
@@ -115,15 +120,17 @@ export function FaceIdLogin({ onSuccess, onLockout }: FaceIdLoginProps) {
 
         {showTips && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-left"
+            className="glass rounded-2xl p-4 mb-6 text-left"
           >
             <div className="flex items-start gap-3">
-              <Lightbulb className="w-5 h-5 text-yellow-600 mt-0.5" />
+              <Lightbulb className="w-5 h-5 text-amber-300 mt-0.5 shrink-0" />
               <div>
-                <h3 className="font-semibold text-yellow-900 mb-1">Consejos para mejor reconocimiento:</h3>
-                <ul className="text-sm text-yellow-800 space-y-1">
+                <h3 className="font-semibold text-white mb-1 text-sm">
+                  Consejos para mejor reconocimiento:
+                </h3>
+                <ul className="text-sm text-slate-300 space-y-1">
                   <li>• Asegúrate de tener buena iluminación</li>
                   <li>• Quítate gafas de sol o sombreros</li>
                   <li>• Mantén el rostro frente a la cámara</li>
@@ -136,7 +143,7 @@ export function FaceIdLogin({ onSuccess, onLockout }: FaceIdLoginProps) {
         {attempts === 2 && (
           <button
             onClick={handleRetrain}
-            className="mb-4 text-primary-600 hover:text-primary-700 font-medium text-sm"
+            className="mb-4 text-amber-300 hover:text-amber-200 font-medium text-sm"
           >
             Re-entrenar Face ID
           </button>
@@ -145,15 +152,11 @@ export function FaceIdLogin({ onSuccess, onLockout }: FaceIdLoginProps) {
         <button
           onClick={handleFaceScan}
           disabled={isScanning}
-          className={`w-full px-6 py-4 bg-primary-500 hover:bg-primary-600 disabled:bg-gray-300 text-white rounded-xl font-semibold transition-colors ${
-            isScanning ? 'cursor-wait' : ''
-          }`}
+          className="btn-primary w-full px-6 py-4"
         >
-          {isScanning ? 'Escaneando...' : attempts === 0 ? 'Iniciar Escaneo' : 'Intentar Nuevamente'}
+          {isScanning ? 'Escaneando…' : attempts === 0 ? 'Iniciar Escaneo' : 'Intentar Nuevamente'}
         </button>
       </motion.div>
     </div>
   );
 }
-
-

@@ -10,22 +10,29 @@ interface Options {
   onSpeechEnd: (blob: Blob) => void;
 }
 
-const SPEECH_THRESHOLD = 0.022; // RMS mínimo para considerar voz
+const SPEECH_THRESHOLD = 0.018; // RMS mínimo para considerar voz
 const SILENCE_MS = 1300;        // silencio que cierra el turno
 const MIN_SPEECH_MS = 450;      // descartar blips de ruido
 const MAX_SPEECH_MS = 20000;    // failsafe
 
 /**
- * Escucha continua manos libres: pide permiso de micrófono al montar,
- * detecta actividad de voz con Web Audio (RMS) y entrega un Blob de audio
- * cuando detecta que terminaste de hablar. Como una conversación real.
+ * Escucha continua manos libres con dos defensas específicas para iOS Safari:
+ *
+ * 1. AudioContext nace suspendido sin gesto del usuario → exponemos
+ *    `needsTouch` + `unlock()` para reanudarlo con un solo toque (una vez
+ *    por sesión). En Android/desktop arranca solo.
+ * 2. iOS mutea o mata el track del micrófono al reproducir audio (cambio
+ *    de sesión de audio) → vigilamos mute/ended y re-adquirimos el stream
+ *    automáticamente, reconectando el análisis sin intervención.
  */
 export function useAutoListen({ enabled, onSpeechEnd }: Options) {
   const [permission, setPermission] = useState<MicPermission>('pending');
   const [isCapturing, setIsCapturing] = useState(false);
+  const [needsTouch, setNeedsTouch] = useState(false);
 
   const streamRef = useRef<MediaStream | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -34,11 +41,61 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
   const speechStartRef = useRef<number | null>(null);
   const discardRef = useRef(false);
   const capturingRef = useRef(false);
+  const reacquiringRef = useRef(false);
+  const lastResumeTryRef = useRef(0);
 
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
   const onSpeechEndRef = useRef(onSpeechEnd);
   onSpeechEndRef.current = onSpeechEnd;
+
+  const attachStream = useCallback((stream: MediaStream) => {
+    streamRef.current = stream;
+    const ctx = ctxRef.current;
+    if (ctx) {
+      sourceRef.current?.disconnect();
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = analyserRef.current ?? ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      source.connect(analyser);
+      sourceRef.current = source;
+      analyserRef.current = analyser;
+    }
+
+    // iOS mutea/mata el track al reproducir TTS → re-adquirir solo
+    const track = stream.getAudioTracks()[0];
+    if (track) {
+      track.onended = () => reacquire();
+      track.onmute = () => {
+        // Dale 1.5s por si se des-mutea solo al terminar el audio
+        setTimeout(() => {
+          const t = streamRef.current?.getAudioTracks()[0];
+          if (t && (t.muted || t.readyState === 'ended')) reacquire();
+        }, 1500);
+      };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const reacquire = useCallback(async () => {
+    if (reacquiringRef.current) return;
+    reacquiringRef.current = true;
+    try {
+      streamRef.current?.getTracks().forEach(t => {
+        t.onended = null;
+        t.onmute = null;
+        t.stop();
+      });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
+      attachStream(stream);
+    } catch {
+      /* si falla, el siguiente tick lo reintentará vía track ended */
+    } finally {
+      reacquiringRef.current = false;
+    }
+  }, [attachStream]);
 
   const startRecorder = useCallback(() => {
     const stream = streamRef.current;
@@ -49,7 +106,12 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
       ? 'audio/webm'
       : 'audio/mp4';
 
-    const recorder = new MediaRecorder(stream, { mimeType });
+    let recorder: MediaRecorder;
+    try {
+      recorder = new MediaRecorder(stream, { mimeType });
+    } catch {
+      recorder = new MediaRecorder(stream);
+    }
     recorderRef.current = recorder;
     chunksRef.current = [];
     discardRef.current = false;
@@ -58,7 +120,7 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
       if (e.data.size > 0) chunksRef.current.push(e.data);
     };
     recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: mimeType });
+      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mimeType });
       capturingRef.current = false;
       setIsCapturing(false);
       if (!discardRef.current && blob.size > 0) {
@@ -86,12 +148,31 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
   }, []);
 
   const tick = useCallback(() => {
+    const ctx = ctxRef.current;
     const analyser = analyserRef.current;
-    if (!analyser) return;
+    if (!ctx || !analyser) return;
 
-    // Si el sistema está ocupado (procesando / hablando), no capturamos
+    // iOS: el contexto puede estar suspendido hasta un gesto del usuario
+    if (ctx.state !== 'running') {
+      setNeedsTouch(true);
+      const now = Date.now();
+      if (now - lastResumeTryRef.current > 2000) {
+        lastResumeTryRef.current = now;
+        ctx.resume().catch(() => {});
+      }
+      return;
+    }
+    setNeedsTouch(false);
+
     if (!enabledRef.current) {
       if (capturingRef.current) stopRecorder(true);
+      return;
+    }
+
+    // Si iOS dejó el track muerto y no saltó el evento, re-adquirir
+    const track = streamRef.current?.getAudioTracks()[0];
+    if (!track || track.readyState === 'ended') {
+      reacquire();
       return;
     }
 
@@ -121,7 +202,15 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
         stopRecorder(!spoke);
       }
     }
-  }, [startRecorder, stopRecorder]);
+  }, [startRecorder, stopRecorder, reacquire]);
+
+  /** Llamar desde cualquier toque del usuario: reanuda el AudioContext (iOS) */
+  const unlock = useCallback(() => {
+    const ctx = ctxRef.current;
+    if (ctx && ctx.state !== 'running') {
+      ctx.resume().catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,28 +224,30 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
           stream.getTracks().forEach(t => t.stop());
           return;
         }
-        streamRef.current = stream;
 
         const Ctx: typeof AudioContext =
           (window as any).AudioContext || (window as any).webkitAudioContext;
         const ctx = new Ctx();
         ctxRef.current = ctx;
-        const source = ctx.createMediaStreamSource(stream);
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 1024;
-        source.connect(analyser);
-        analyserRef.current = analyser;
+        attachStream(stream);
 
-        // iOS puede arrancar el AudioContext suspendido: intentamos reanudar
-        // y dejamos un desbloqueo por primer toque como respaldo.
         if (ctx.state === 'suspended') {
           ctx.resume().catch(() => {});
-          const unlock = () => {
-            ctx.resume().catch(() => {});
-            document.removeEventListener('pointerdown', unlock);
-          };
-          document.addEventListener('pointerdown', unlock);
+          setNeedsTouch(true);
         }
+
+        // Cualquier primer toque en la página desbloquea
+        const onPointer = () => {
+          ctx.resume().catch(() => {});
+        };
+        document.addEventListener('pointerdown', onPointer);
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+            ctx.resume().catch(() => {});
+            const t = streamRef.current?.getAudioTracks()[0];
+            if (!t || t.readyState === 'ended' || t.muted) reacquire();
+          }
+        });
 
         setPermission('granted');
         intervalRef.current = setInterval(tick, 90);
@@ -184,5 +275,5 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
     window.location.reload();
   }, []);
 
-  return { permission, isCapturing, retryPermission };
+  return { permission, isCapturing, needsTouch, unlock, retryPermission };
 }

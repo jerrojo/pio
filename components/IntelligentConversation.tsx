@@ -50,6 +50,7 @@ export function IntelligentConversation({
 
   const pendingAudioRef = useRef<HTMLAudioElement | null>(null);
   const translatedRef = useRef('');
+  const audioUnlockedRef = useRef(false);
 
   useEffect(() => {
     if (!errorMsg) return;
@@ -59,10 +60,22 @@ export function IntelligentConversation({
 
   const busy = isProcessing || isSpeaking || showCelebration;
 
-  const { permission, isCapturing, retryPermission } = useAutoListen({
+  const { permission, isCapturing, needsTouch, unlock, retryPermission } = useAutoListen({
     enabled: !busy,
     onSpeechEnd: blob => handleSpeech(blob),
   });
+
+  /** Un toque desbloquea a la vez el análisis de voz (AudioContext) y el
+   *  autoplay de audio en iOS, reproduciendo un WAV silencioso. */
+  const unlockAll = () => {
+    unlock();
+    if (!audioUnlockedRef.current) {
+      const silent = new Audio(
+        'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='
+      );
+      silent.play().then(() => { audioUnlockedRef.current = true; }).catch(() => {});
+    }
+  };
 
   const handleSpeech = async (audioBlob: Blob) => {
     setMode('detection');
@@ -191,6 +204,7 @@ export function IntelligentConversation({
   };
 
   const handleOrbTap = () => {
+    unlockAll();
     if (needsAudioUnlock && pendingAudioRef.current) {
       const audio = pendingAudioRef.current;
       pendingAudioRef.current = null;
@@ -284,7 +298,18 @@ export function IntelligentConversation({
         {/* Estado */}
         <div className="h-6 mt-3">
           <AnimatePresence mode="wait">
-            {permission === 'pending' ? (
+            {needsTouch ? (
+              <motion.button
+                key="touch"
+                onClick={unlockAll}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="text-sm font-medium text-spectrum"
+              >
+                Toca el orbe una vez para comenzar
+              </motion.button>
+            ) : permission === 'pending' ? (
               <motion.p
                 key="pending"
                 initial={{ opacity: 0 }}

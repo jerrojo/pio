@@ -75,15 +75,11 @@ function alignWords(targetText: string, heard: string): WordFeedback[] {
   });
 }
 
-function buildFeedback(score: number, weakWords: string[]): string {
-  if (score >= 9) return '¡Excelente pronunciación! Se entendió perfectamente.';
-  if (score >= 7) {
-    return weakWords.length
-      ? `¡Bien hecho! Presta atención a: ${weakWords.slice(0, 3).join(', ')}.`
-      : '¡Bien hecho! Continúa practicando para pulir los detalles.';
-  }
-  if (weakWords.length) {
-    return `Repite con calma. No se entendieron bien: ${weakWords.slice(0, 3).join(', ')}. Pronuncia cada sílaba.`;
+function buildFeedback(score: number, passed: boolean, badWords: string[]): string {
+  if (passed && score >= 9) return '¡Excelente pronunciación! Se entendió perfectamente.';
+  if (passed) return '¡Bien hecho! Se entendió claramente.';
+  if (badWords.length) {
+    return `Casi. La palabra clave es "${badWords[0]}" — escúchala tocándola y repite la frase.`;
   }
   return 'Intenta pronunciar más claramente y un poco más despacio.';
 }
@@ -105,15 +101,21 @@ export function scorePronunciation(targetText: string, heardText: string): Pronu
   const sim = similarity(target, heard);
   const words = alignWords(targetText, heard);
   const weakWords = words.filter(w => w.quality !== 'good').map(w => normalize(w.word));
+  const badWords = words.filter(w => w.quality === 'bad').map(w => w.word);
 
   // curva: similitud 1.0 → 10, 0.85 → ~8.5, 0.6 → ~5
   const score = Math.max(0, Math.min(10, Math.round(sim * 10)));
+
+  // Estricto (regla anti-Babbel): nunca aprobar con una palabra fallida.
+  // Pasa con 8+, o con 7 si TODAS las palabras fueron al menos aceptables.
+  const passed = score >= 8 || (score >= 7 && badWords.length === 0);
 
   return {
     score,
     phonemes: [],
     weakPhonemes: weakWords,
-    feedback: buildFeedback(score, weakWords),
+    feedback: buildFeedback(score, passed, badWords),
     words,
+    passed,
   };
 }

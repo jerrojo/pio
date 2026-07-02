@@ -7,6 +7,8 @@ interface MainCircleProps {
   mode: ConversationMode;
   score?: number;
   isListening?: boolean;
+  /** aprobado estricto (si no se pasa, se infiere de score>=7) */
+  passed?: boolean;
 }
 
 const GOLD = '#f5c86b';
@@ -25,8 +27,8 @@ function scoreColor(score: number) {
  * que respira en reposo y acelera al escuchar. Sin texto, sin mascota:
  * el estado se comunica con luz y movimiento.
  */
-export function MainCircle({ mode, score, isListening = false }: MainCircleProps) {
-  const mastered = mode === 'evaluation' && score !== undefined && score >= 7;
+export function MainCircle({ mode, score, isListening = false, passed }: MainCircleProps) {
+  const mastered = mode === 'evaluation' && score !== undefined && (passed ?? score >= 7);
   const progress = mode === 'evaluation' && score !== undefined ? score / 10 : 0;
   const active = isListening || mode !== 'detection';
   const spinDuration = isListening ? '3.5s' : active ? '7s' : '14s';

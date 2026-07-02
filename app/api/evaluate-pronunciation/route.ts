@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
     const score = scorePronunciation(targetText, heard);
 
     // Falló: consejo concreto de un coach, no un "inténtalo de nuevo"
-    if (score.score < 7) {
+    if (!score.passed) {
       const coached = await coachFeedback(
         targetText,
         heard,

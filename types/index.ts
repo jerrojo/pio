@@ -48,6 +48,10 @@ export interface PronunciationScore {
   feedback: string;
   /** Feedback visual palabra por palabra (estilo ELSA) */
   words?: WordFeedback[];
+  /** Aprobado estricto: ≥8, o 7 sin ninguna palabra fallida */
+  passed?: boolean;
+  /** Lo que se entendió del intento */
+  heardText?: string;
 }
 
 export interface WordFeedback {

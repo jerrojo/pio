@@ -6,7 +6,7 @@ import { LanguageCode, ConversationMode, PronunciationScore } from '@/types';
 import { MainCircle } from '@/components/MainCircle';
 import { getLanguage } from '@/lib/languages';
 import { useAutoListen } from '@/lib/useAutoListen';
-import { evaluatePronunciation, shouldRepeat, hasMastered } from '@/lib/pronunciation';
+import { evaluatePronunciation, hasMastered } from '@/lib/pronunciation';
 import { translateText } from '@/lib/agent';
 import { Languages, MicOff, Volume2, Flame, Check } from 'lucide-react';
 import { loadProgress, recordMastery, masteredToday, Progress, DAILY_GOAL } from '@/lib/progress';
@@ -194,8 +194,10 @@ export function IntelligentConversation({
     const targetText = translatedRef.current || userText;
     const score = await evaluatePronunciation(null, targetText, targetLanguage, userText, userLanguage);
     setPronunciationScore(score);
+    setPhase('done'); // la evaluación terminó; lo que sigue es feedback
 
-    if (hasMastered(score.score)) {
+    const passed = score.passed ?? hasMastered(score.score);
+    if (passed) {
       const updated = recordMastery(targetText);
       setProgress(updated);
       scheduleReview(nativeRef.current, targetText, true);
@@ -405,6 +407,7 @@ export function IntelligentConversation({
           <MainCircle
             mode={mode}
             score={pronunciationScore?.score}
+            passed={pronunciationScore?.passed}
             isListening={isCapturing || isProcessing}
           />
         </button>
@@ -525,17 +528,16 @@ export function IntelligentConversation({
                 exit={{ opacity: 0 }}
                 className="glass rounded-2xl p-4"
                 style={{
-                  borderColor:
-                    pronunciationScore.score < 7
-                      ? 'rgba(248,113,113,0.35)'
-                      : pronunciationScore.score < 9
-                      ? 'rgba(246,178,107,0.35)'
-                      : 'rgba(74,222,128,0.35)',
+                  borderColor: !(pronunciationScore.passed ?? pronunciationScore.score >= 7)
+                    ? 'rgba(248,113,113,0.35)'
+                    : pronunciationScore.score < 9
+                    ? 'rgba(246,178,107,0.35)'
+                    : 'rgba(74,222,128,0.35)',
                 }}
               >
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-medium text-white">
-                    {pronunciationScore.score < 7
+                    {!(pronunciationScore.passed ?? pronunciationScore.score >= 7)
                       ? 'Casi — inténtalo otra vez'
                       : pronunciationScore.score < 9
                       ? 'Bien'
@@ -577,6 +579,11 @@ export function IntelligentConversation({
                   </div>
                 )}
 
+                {pronunciationScore.heardText && (
+                  <p className="text-xs text-slate-500 mb-1.5">
+                    Dijiste: <span className="text-slate-400 italic">"{pronunciationScore.heardText}"</span>
+                  </p>
+                )}
                 <p className="text-sm text-slate-300">{pronunciationScore.feedback}</p>
 
                 {pronunciationScore.words &&
@@ -586,7 +593,7 @@ export function IntelligentConversation({
                     </p>
                   )}
 
-                {shouldRepeat(pronunciationScore.score) && (
+                {!(pronunciationScore.passed ?? pronunciationScore.score >= 7) && (
                   <p className="mt-3 text-xs text-slate-400">
                     Solo dilo de nuevo — te sigo escuchando.
                   </p>

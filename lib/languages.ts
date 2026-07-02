@@ -10,7 +10,7 @@ export const LANGUAGES: Record<LanguageCode, Language> = {
     accent: 'Acento de Roma',
     voiceName: 'it-IT-Standard-A',
     locale: 'it-IT',
-    elevenLabsVoiceId: '21m00Tcm4TlvDq8ikWAM',
+    elevenLabsVoiceId: 'cgSgspJ2msm6clMCkdW9',
   },
   es: {
     code: 'es',
@@ -19,7 +19,7 @@ export const LANGUAGES: Record<LanguageCode, Language> = {
     accent: 'Acento de Madrid',
     voiceName: 'es-ES-Standard-A',
     locale: 'es-ES',
-    elevenLabsVoiceId: '21m00Tcm4TlvDq8ikWAM',
+    elevenLabsVoiceId: 'EXAVITQu4vr4xnSDxMaL',
   },
   en: {
     code: 'en',
@@ -28,7 +28,7 @@ export const LANGUAGES: Record<LanguageCode, Language> = {
     accent: 'Londres / Wellington',
     voiceName: 'en-GB-Standard-A',
     locale: 'en-GB',
-    elevenLabsVoiceId: '21m00Tcm4TlvDq8ikWAM',
+    elevenLabsVoiceId: 'Xb7hH8MSUJpSbSDYk0k2',
   },
   fr: {
     code: 'fr',
@@ -37,7 +37,7 @@ export const LANGUAGES: Record<LanguageCode, Language> = {
     accent: 'París',
     voiceName: 'fr-FR-Standard-A',
     locale: 'fr-FR',
-    elevenLabsVoiceId: '21m00Tcm4TlvDq8ikWAM',
+    elevenLabsVoiceId: 'pFZP5JQG7iQjIQuC4Bku',
   },
   de: {
     code: 'de',
@@ -46,7 +46,7 @@ export const LANGUAGES: Record<LanguageCode, Language> = {
     accent: 'Berlín',
     voiceName: 'de-DE-Standard-A',
     locale: 'de-DE',
-    elevenLabsVoiceId: '21m00Tcm4TlvDq8ikWAM',
+    elevenLabsVoiceId: 'XrExE9yKIg1WjnnlVkGX',
   },
   pt: {
     code: 'pt',
@@ -55,7 +55,7 @@ export const LANGUAGES: Record<LanguageCode, Language> = {
     accent: 'Portugal',
     voiceName: 'pt-PT-Standard-A',
     locale: 'pt-PT',
-    elevenLabsVoiceId: '21m00Tcm4TlvDq8ikWAM',
+    elevenLabsVoiceId: 'hpp4J3VqNfWAUOO0d1Us',
   },
 };
 

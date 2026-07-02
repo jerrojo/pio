@@ -1,4 +1,5 @@
 import { PronunciationScore } from '@/types';
+import { stripFillers } from '@/lib/server/cleanTranscript';
 
 /**
  * Scoring de pronunciación basado en la transcripción de Whisper:
@@ -68,7 +69,8 @@ function buildFeedback(score: number, weakWords: string[]): string {
 
 export function scorePronunciation(targetText: string, heardText: string): PronunciationScore {
   const target = normalize(targetText);
-  const heard = normalize(heardText);
+  // Un "mmm" o "este..." a mitad del intento no cuenta contra el score
+  const heard = normalize(stripFillers(heardText));
 
   if (!heard) {
     return {

@@ -117,10 +117,12 @@ export function IntelligentConversation({
         setDetectedLanguage(targetLanguage);
         setMode('evaluation');
         setPhase('evaluating');
-        await evaluateUserPronunciation(data.text, audioBlob);
+        // El servidor ya transcribió con Whisper: evaluar sobre ese texto
+        // evita una pasada extra de audio (respuesta casi instantánea)
+        await evaluateUserPronunciation(data.text);
         setPhase('done');
       } else {
-        await routeByLanguage(data.text, data.language || userLanguage, audioBlob);
+        await routeByLanguage(data.text, data.language || userLanguage);
       }
     } catch (error) {
       console.error('Error processing audio:', error);
@@ -131,14 +133,14 @@ export function IntelligentConversation({
     }
   };
 
-  const routeByLanguage = async (text: string, detected: LanguageCode, audioBlob?: Blob) => {
+  const routeByLanguage = async (text: string, detected: LanguageCode) => {
     setCurrentText(text);
     setDetectedLanguage(detected);
 
     if (detected === targetLanguage) {
       setMode('evaluation');
       setPhase('evaluating');
-      await evaluateUserPronunciation(text, audioBlob);
+      await evaluateUserPronunciation(text);
     } else {
       setMode('translation');
       setPhase('translating');
@@ -150,9 +152,9 @@ export function IntelligentConversation({
     setPhase('done');
   };
 
-  const evaluateUserPronunciation = async (userText: string, audioBlob?: Blob) => {
+  const evaluateUserPronunciation = async (userText: string) => {
     const targetText = translatedRef.current || userText;
-    const score = await evaluatePronunciation(audioBlob ?? null, targetText, targetLanguage, userText);
+    const score = await evaluatePronunciation(null, targetText, targetLanguage, userText);
     setPronunciationScore(score);
 
     if (hasMastered(score.score)) {

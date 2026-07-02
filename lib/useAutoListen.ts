@@ -10,10 +10,13 @@ interface Options {
   onSpeechEnd: (blob: Blob) => void;
 }
 
-const SPEECH_THRESHOLD = 0.018; // RMS mínimo para considerar voz
-const SILENCE_MS = 1300;        // silencio que cierra el turno
+const SPEECH_THRESHOLD = 0.018; // RMS mínimo absoluto para considerar voz
+const SILENCE_MS = 1100;        // silencio que cierra el turno (ágil pero seguro)
 const MIN_SPEECH_MS = 450;      // descartar blips de ruido
 const MAX_SPEECH_MS = 20000;    // failsafe
+const NOISE_FLOOR_RATIO = 2.4;  // la voz debe superar el piso de ruido por este factor
+const DOMINANT_MEAN_RATIO = 1.3;  // volumen medio mínimo vs umbral (voz cercana/dominante)
+const DOMINANT_PEAK_RATIO = 2.2;  // o pico mínimo vs umbral
 
 /**
  * Escucha continua manos libres con dos defensas específicas para iOS Safari:
@@ -43,6 +46,13 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
   const capturingRef = useRef(false);
   const reacquiringRef = useRef(false);
   const lastResumeTryRef = useRef(0);
+  // Piso de ruido adaptativo (EMA del RMS ambiente) + energía del turno:
+  // solo la voz claramente por encima del ambiente dispara y conserva turnos,
+  // filtrando conversaciones de fondo y TV.
+  const noiseFloorRef = useRef(0.006);
+  const captureRmsSumRef = useRef(0);
+  const captureRmsCountRef = useRef(0);
+  const capturePeakRef = useRef(0);
 
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
@@ -133,6 +143,9 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
     setIsCapturing(true);
     speechStartRef.current = Date.now();
     silenceStartRef.current = null;
+    captureRmsSumRef.current = 0;
+    captureRmsCountRef.current = 0;
+    capturePeakRef.current = 0;
   }, []);
 
   const stopRecorder = useCallback((discard: boolean) => {
@@ -186,7 +199,21 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
     const rms = Math.sqrt(sum / data.length);
     const now = Date.now();
 
-    if (rms > SPEECH_THRESHOLD) {
+    // Umbral dinámico: el ambiente ruidoso sube la vara automáticamente
+    const threshold = Math.max(SPEECH_THRESHOLD, noiseFloorRef.current * NOISE_FLOOR_RATIO);
+
+    if (!capturingRef.current && rms <= threshold) {
+      // aprende el ambiente solo cuando nadie habla
+      noiseFloorRef.current = noiseFloorRef.current * 0.95 + rms * 0.05;
+    }
+
+    if (capturingRef.current) {
+      captureRmsSumRef.current += rms;
+      captureRmsCountRef.current += 1;
+      if (rms > capturePeakRef.current) capturePeakRef.current = rms;
+    }
+
+    if (rms > threshold) {
       silenceStartRef.current = null;
       if (!capturingRef.current) startRecorder();
       else if (speechStartRef.current && now - speechStartRef.current > MAX_SPEECH_MS) {
@@ -199,7 +226,16 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
         const spoke =
           speechStartRef.current !== null &&
           now - speechStartRef.current - SILENCE_MS > MIN_SPEECH_MS;
-        stopRecorder(!spoke);
+        // Compuerta de dominancia: una voz lejana o de fondo apenas supera
+        // el umbral; la voz que lleva la conversación lo supera con margen
+        const meanRms =
+          captureRmsCountRef.current > 0
+            ? captureRmsSumRef.current / captureRmsCountRef.current
+            : 0;
+        const dominant =
+          meanRms >= threshold * DOMINANT_MEAN_RATIO ||
+          capturePeakRef.current >= threshold * DOMINANT_PEAK_RATIO;
+        stopRecorder(!spoke || !dominant);
       }
     }
   }, [startRecorder, stopRecorder, reacquire]);

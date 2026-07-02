@@ -39,6 +39,22 @@ export interface WhisperResult {
   text: string;
   language: LanguageCode | null;
   raw?: string;
+  /** Probabilidad media de que el audio NO sea voz (0-1) */
+  noSpeechProb: number;
+  /** Log-probabilidad media de la transcripción (más negativa = menos confiable) */
+  avgLogprob: number;
+}
+
+/**
+ * Compuerta de calidad: descarta ruido, música y voces de fondo lejanas.
+ * Whisper alucina texto plausible sobre audio dudoso; sus propias métricas
+ * por segmento son la mejor defensa.
+ */
+export function isReliable(r: WhisperResult): boolean {
+  if (!r.text) return false;
+  if (r.noSpeechProb > 0.55) return false;
+  if (r.avgLogprob < -1.1) return false;
+  return true;
 }
 
 /**
@@ -82,9 +98,22 @@ export async function transcribeAudio(
 
   const detected = mapWhisperLanguage((transcription as any).language);
 
+  // Métricas de confianza promediadas sobre los segmentos
+  const segments: any[] = (transcription as any).segments || [];
+  let noSpeechProb = 0;
+  let avgLogprob = 0;
+  if (segments.length > 0) {
+    noSpeechProb =
+      segments.reduce((s, seg) => s + (seg.no_speech_prob ?? 0), 0) / segments.length;
+    avgLogprob =
+      segments.reduce((s, seg) => s + (seg.avg_logprob ?? 0), 0) / segments.length;
+  }
+
   return {
     text: (transcription.text || '').trim(),
     language: language ?? detected,
     raw: (transcription as any).language,
+    noSpeechProb,
+    avgLogprob,
   };
 }

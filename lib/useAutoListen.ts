@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { isHumanSpeech, warmupHumanVoice } from '@/lib/humanVoice';
 
 export type MicPermission = 'pending' | 'granted' | 'denied';
 
@@ -129,12 +130,15 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
     recorder.ondataavailable = e => {
       if (e.data.size > 0) chunksRef.current.push(e.data);
     };
-    recorder.onstop = () => {
+    recorder.onstop = async () => {
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mimeType });
       capturingRef.current = false;
       setIsCapturing(false);
       if (!discardRef.current && blob.size > 0) {
-        onSpeechEndRef.current(blob);
+        // Silero VAD (red neuronal, en el navegador): ¿es voz humana real?
+        // TV, música y ruido mueren aquí, antes de gastar red y API.
+        const human = await isHumanSpeech(blob, ctxRef.current);
+        if (human) onSpeechEndRef.current(blob);
       }
     };
 
@@ -282,6 +286,7 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
   useEffect(() => {
     let cancelled = false;
     let onPointer: (() => void) | null = null;
+    warmupHumanVoice();
     let onVisibility: (() => void) | null = null;
 
     const init = async () => {

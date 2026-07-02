@@ -7,7 +7,7 @@ import { PronunciationScore } from '@/types';
  * la pronunciación fue lo bastante clara para ser entendida.
  */
 
-function normalize(text: string): string {
+export function normalize(text: string): string {
   return text
     .toLowerCase()
     .normalize('NFD')
@@ -36,7 +36,7 @@ function levenshtein(a: string, b: string): number {
   return prev[b.length];
 }
 
-function similarity(a: string, b: string): number {
+export function similarity(a: string, b: string): number {
   const maxLen = Math.max(a.length, b.length);
   if (maxLen === 0) return 1;
   return 1 - levenshtein(a, b) / maxLen;

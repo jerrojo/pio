@@ -78,13 +78,9 @@ export function IntelligentConversation({
   };
 
   const handleSpeech = async (audioBlob: Blob) => {
-    // Routing por contexto: si Pío acaba de darte una frase para repetir,
-    // tu siguiente intervención ES el intento en el idioma objetivo.
-    // Forzamos la transcripción en ese idioma (con la frase esperada como
-    // sesgo) y evaluamos — sin adivinar. Adivinar el idioma de una frase
-    // corta con acento es justo donde Whisper falla.
-    const expecting = translatedRef.current;
-
+    // Regla de Pío: idioma natal → traduce; idioma objetivo → evalúa.
+    // El servidor desambigua el acento comparando contra la frase pendiente
+    // (si la hay), así que aquí solo seguimos su decisión.
     setMode('detection');
     setPhase('transcribing');
     setIsProcessing(true);
@@ -92,9 +88,9 @@ export function IntelligentConversation({
       const formData = new FormData();
       const ext = audioBlob.type.includes('mp4') ? 'mp4' : audioBlob.type.includes('ogg') ? 'ogg' : 'webm';
       formData.append('audio', audioBlob, `speech.${ext}`);
-      if (expecting) {
-        formData.append('language', targetLanguage);
-        formData.append('prompt', expecting);
+      formData.append('target', targetLanguage);
+      if (translatedRef.current) {
+        formData.append('expected', translatedRef.current);
       }
 
       const response = await fetch('/api/speech-to-text', { method: 'POST', body: formData });
@@ -106,7 +102,7 @@ export function IntelligentConversation({
         return;
       }
 
-      if (expecting) {
+      if (data.intent === 'evaluate') {
         setCurrentText(data.text);
         setDetectedLanguage(targetLanguage);
         setMode('evaluation');

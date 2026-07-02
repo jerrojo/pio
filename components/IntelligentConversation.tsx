@@ -553,25 +553,38 @@ export function IntelligentConversation({
                     {pronunciationScore.score}/10
                   </span>
                 </div>
-                <p className="text-sm text-slate-300">{pronunciationScore.feedback}</p>
-
-                {pronunciationScore.weakPhonemes.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-1.5">
-                      Palabras a pulir
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {pronunciationScore.weakPhonemes.slice(0, 4).map(w => (
-                        <span
-                          key={w}
-                          className="text-xs px-2.5 py-1 rounded-full bg-white/10 text-slate-200 border border-white/10"
-                        >
-                          {w}
-                        </span>
-                      ))}
-                    </div>
+                {/* Feedback visual palabra por palabra (estilo ELSA):
+                    verde = bien, ámbar = mejorable, rojo = falló.
+                    Tocar una palabra la reproduce sola. */}
+                {pronunciationScore.words && pronunciationScore.words.length > 0 && (
+                  <div className="flex flex-wrap gap-x-2 gap-y-1.5 my-2">
+                    {pronunciationScore.words.map((w, i) => (
+                      <button
+                        key={`${w.word}-${i}`}
+                        onClick={() => speak(w.word, targetLanguage)}
+                        aria-label={`Escuchar "${w.word}"`}
+                        className={`text-xl font-medium tracking-tight transition-transform active:scale-95 ${
+                          w.quality === 'good'
+                            ? 'text-green-300'
+                            : w.quality === 'weak'
+                            ? 'text-amber-300 underline decoration-dotted decoration-amber-300/60 underline-offset-4'
+                            : 'text-red-300 underline decoration-wavy decoration-red-300/70 underline-offset-4'
+                        }`}
+                      >
+                        {w.word}
+                      </button>
+                    ))}
                   </div>
                 )}
+
+                <p className="text-sm text-slate-300">{pronunciationScore.feedback}</p>
+
+                {pronunciationScore.words &&
+                  pronunciationScore.words.some(w => w.quality !== 'good') && (
+                    <p className="mt-2 text-[11px] text-slate-500">
+                      Toca una palabra para escucharla sola
+                    </p>
+                  )}
 
                 {shouldRepeat(pronunciationScore.score) && (
                   <p className="mt-3 text-xs text-slate-400">

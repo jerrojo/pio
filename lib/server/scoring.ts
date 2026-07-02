@@ -1,4 +1,4 @@
-import { PronunciationScore } from '@/types';
+import { PronunciationScore, WordFeedback } from '@/types';
 import { stripFillers } from '@/lib/server/cleanTranscript';
 
 /**
@@ -44,13 +44,34 @@ export function similarity(a: string, b: string): number {
 }
 
 /** Palabras del objetivo que no se reconocieron bien */
-function findWeakWords(target: string, heard: string): string[] {
-  const targetWords = target.split(' ');
-  const heardWords = new Set(heard.split(' '));
-  return targetWords.filter(w => {
-    if (heardWords.has(w)) return false;
-    // tolera pequeñas variaciones por palabra
-    return ![...heardWords].some(h => similarity(w, h) >= 0.75);
+/**
+ * Alineamiento en orden palabra-a-palabra (feedback visual estilo ELSA):
+ * para cada palabra del objetivo busca su mejor match en una ventana de
+ * lo escuchado → 'good' (≥0.85), 'weak' (≥0.6) o 'bad'.
+ */
+function alignWords(targetText: string, heard: string): WordFeedback[] {
+  const originals = targetText.split(/\s+/).filter(Boolean);
+  const heardWords = heard.split(' ').filter(Boolean);
+  let hIdx = 0;
+
+  return originals.map(original => {
+    const tw = normalize(original);
+    if (!tw) return { word: original, quality: 'good' as const };
+
+    let best = 0;
+    let bestJ = -1;
+    for (let j = hIdx; j < Math.min(heardWords.length, hIdx + 3); j++) {
+      const s = similarity(tw, heardWords[j]);
+      if (s > best) {
+        best = s;
+        bestJ = j;
+      }
+    }
+    if (bestJ >= 0 && best >= 0.6) hIdx = bestJ + 1;
+
+    const quality: WordFeedback['quality'] =
+      best >= 0.85 ? 'good' : best >= 0.6 ? 'weak' : 'bad';
+    return { word: original, quality };
   });
 }
 
@@ -82,7 +103,8 @@ export function scorePronunciation(targetText: string, heardText: string): Pronu
   }
 
   const sim = similarity(target, heard);
-  const weakWords = findWeakWords(target, heard);
+  const words = alignWords(targetText, heard);
+  const weakWords = words.filter(w => w.quality !== 'good').map(w => normalize(w.word));
 
   // curva: similitud 1.0 → 10, 0.85 → ~8.5, 0.6 → ~5
   const score = Math.max(0, Math.min(10, Math.round(sim * 10)));
@@ -92,5 +114,6 @@ export function scorePronunciation(targetText: string, heardText: string): Pronu
     phonemes: [],
     weakPhonemes: weakWords,
     feedback: buildFeedback(score, weakWords),
+    words,
   };
 }

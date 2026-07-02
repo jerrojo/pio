@@ -46,6 +46,13 @@ export interface PronunciationScore {
   phonemes: PhonemeScore[];
   weakPhonemes: string[];
   feedback: string;
+  /** Feedback visual palabra por palabra (estilo ELSA) */
+  words?: WordFeedback[];
+}
+
+export interface WordFeedback {
+  word: string; // palabra original del texto objetivo
+  quality: 'good' | 'weak' | 'bad';
 }
 
 export interface PhonemeScore {

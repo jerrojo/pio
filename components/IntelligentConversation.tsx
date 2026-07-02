@@ -1,15 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LanguageCode, ConversationMode, PronunciationScore } from '@/types';
-import { VoiceRecorder } from '@/components/VoiceRecorder';
 import { MainCircle } from '@/components/MainCircle';
 import { getLanguage } from '@/lib/languages';
-import { NATIVE_SAMPLES, TARGET_SAMPLES } from '@/lib/phrases';
-import { evaluatePronunciation, shouldRepeat, hasMastered, canChallenge } from '@/lib/pronunciation';
+import { useAutoListen } from '@/lib/useAutoListen';
+import { evaluatePronunciation, shouldRepeat, hasMastered } from '@/lib/pronunciation';
 import { translateText } from '@/lib/agent';
-import { SkipForward, Trophy, Volume2, Languages, RotateCcw, Sparkles } from 'lucide-react';
+import { Languages, MicOff, Volume2 } from 'lucide-react';
 
 interface IntelligentConversationProps {
   userLanguage: LanguageCode;
@@ -17,16 +16,21 @@ interface IntelligentConversationProps {
   onChangeLanguages?: () => void;
 }
 
-/** Fases del pipeline visibles al usuario (show the work, LukeW) */
 type Phase = 'idle' | 'listening' | 'transcribing' | 'translating' | 'evaluating' | 'done';
 
 const PHASE_LABELS: Record<Exclude<Phase, 'idle' | 'done'>, string> = {
-  listening: 'Escuchando',
-  transcribing: 'Transcribiendo tu voz',
+  listening: 'Te escucho',
+  transcribing: 'Un momento',
   translating: 'Traduciendo',
-  evaluating: 'Evaluando pronunciación',
+  evaluating: 'Evaluando tu pronunciación',
 };
 
+/**
+ * Conversación manos libres: sin botones. El micrófono se activa solo,
+ * la detección de voz decide cuándo empezaste y terminaste de hablar,
+ * y el loop traducción ↔ evaluación fluye como una conversación real.
+ * Tocar el orbe reinicia el turno (o desbloquea el audio en iOS).
+ */
 export function IntelligentConversation({
   userLanguage,
   targetLanguage,
@@ -38,11 +42,14 @@ export function IntelligentConversation({
   const [currentText, setCurrentText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
   const [pronunciationScore, setPronunciationScore] = useState<PronunciationScore | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [interactionCount, setInteractionCount] = useState(0);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [needsAudioUnlock, setNeedsAudioUnlock] = useState(false);
+
+  const pendingAudioRef = useRef<HTMLAudioElement | null>(null);
+  const translatedRef = useRef('');
 
   useEffect(() => {
     if (!errorMsg) return;
@@ -50,14 +57,37 @@ export function IntelligentConversation({
     return () => clearTimeout(t);
   }, [errorMsg]);
 
-  const detectLanguage = async (text: string): Promise<LanguageCode> => {
-    const response = await fetch('/api/detect-language', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    });
-    const data = await response.json();
-    return data.language || userLanguage;
+  const busy = isProcessing || isSpeaking || showCelebration;
+
+  const { permission, isCapturing, retryPermission } = useAutoListen({
+    enabled: !busy,
+    onSpeechEnd: blob => handleSpeech(blob),
+  });
+
+  const handleSpeech = async (audioBlob: Blob) => {
+    setMode('detection');
+    setPhase('transcribing');
+    setIsProcessing(true);
+    try {
+      const formData = new FormData();
+      formData.append('audio', audioBlob);
+
+      const response = await fetch('/api/speech-to-text', { method: 'POST', body: formData });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+
+      if (data.text) {
+        await routeByLanguage(data.text, data.language || userLanguage, audioBlob);
+      } else {
+        setPhase('idle');
+      }
+    } catch (error) {
+      console.error('Error processing audio:', error);
+      setPhase('idle');
+      setErrorMsg('Hubo un problema procesando tu voz. Sigue hablando, te escucho.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const routeByLanguage = async (text: string, detected: LanguageCode, audioBlob?: Blob) => {
@@ -71,79 +101,31 @@ export function IntelligentConversation({
     } else {
       setMode('translation');
       setPhase('translating');
-      await translateAndSpeak(text);
+      const translated = await translateText(text, targetLanguage, userLanguage);
+      setTranslatedText(translated);
+      translatedRef.current = translated;
+      await speak(translated);
     }
     setPhase('done');
   };
 
-  const handleTextRecognized = async (text: string, audioBlob?: Blob) => {
-    setMode('detection');
-    setPhase('transcribing');
-    const detected = await detectLanguage(text);
-    await routeByLanguage(text, detected, audioBlob);
-  };
-
-  const handleRecordingComplete = async (audioBlob: Blob) => {
-    setMode('detection');
-    setPhase('transcribing');
-    setIsProcessing(true);
-    try {
-      const formData = new FormData();
-      formData.append('audio', audioBlob);
-
-      const response = await fetch('/api/speech-to-text', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
-
-      if (data.text) {
-        await routeByLanguage(data.text, data.language || userLanguage, audioBlob);
-      } else {
-        setPhase('idle');
-        setErrorMsg('No escuché nada. Intenta de nuevo más cerca del micrófono.');
-      }
-    } catch (error: any) {
-      console.error('Error processing audio:', error);
-      setPhase('idle');
-      setErrorMsg('Hubo un problema procesando tu voz. Intenta de nuevo.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const translateAndSpeak = async (text: string) => {
-    const translated = await translateText(text, targetLanguage, userLanguage);
-    setTranslatedText(translated);
-    await playElevenLabsAudio(translated);
-  };
-
   const evaluateUserPronunciation = async (userText: string, audioBlob?: Blob) => {
-    const targetText = translatedText || userText;
+    const targetText = translatedRef.current || userText;
     const score = await evaluatePronunciation(audioBlob ?? null, targetText, targetLanguage, userText);
-
     setPronunciationScore(score);
-    setInteractionCount(prev => prev + 1);
 
     if (hasMastered(score.score)) {
       playCelebrationSound();
       setShowCelebration(true);
       setTimeout(() => setShowCelebration(false), 2200);
-
-      setTimeout(() => {
-        setMode('detection');
-        setPhase('idle');
-        setPronunciationScore(null);
-        setCurrentText('');
-        setTranslatedText('');
-      }, 3000);
+      setTimeout(() => resetTurn(), 3000);
     }
   };
 
-  const playElevenLabsAudio = async (text: string) => {
+  /** Reproduce TTS y espera a que TERMINE antes de volver a escuchar */
+  const speak = async (text: string) => {
     try {
+      setIsSpeaking(true);
       const response = await fetch('/api/elevenlabs-tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -158,60 +140,92 @@ export function IntelligentConversation({
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
-      await audio.play();
-      audio.onended = () => URL.revokeObjectURL(audioUrl);
+
+      await new Promise<void>(resolve => {
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          resolve();
+        };
+        audio.onerror = () => resolve();
+        audio
+          .play()
+          .then(() => setNeedsAudioUnlock(false))
+          .catch(() => {
+            // Autoplay bloqueado (iOS): guardamos el audio y pedimos un toque
+            pendingAudioRef.current = audio;
+            setNeedsAudioUnlock(true);
+            resolve();
+          });
+      });
     } catch (error) {
       console.error('Error playing audio:', error);
+    } finally {
+      // Pequeño colchón para que el mic no capture la cola del altavoz
+      setTimeout(() => setIsSpeaking(false), 350);
     }
   };
 
   const playCelebrationSound = () => {
     const audio = new Audio('/sounds/celebration.mp3');
-    audio.play().catch(() => {
-      const context = new AudioContext();
-      const oscillator = context.createOscillator();
-      const gainNode = context.createGain();
-      oscillator.connect(gainNode);
-      gainNode.connect(context.destination);
-      oscillator.frequency.value = 523.25;
-      oscillator.type = 'sine';
-      gainNode.gain.setValueAtTime(0.3, context.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.5);
-      oscillator.start(context.currentTime);
-      oscillator.stop(context.currentTime + 0.5);
-    });
+    audio.play().catch(() => {});
   };
 
-  const handleSkip = () => {
+  const resetTurn = () => {
     setMode('detection');
     setPhase('idle');
     setPronunciationScore(null);
     setCurrentText('');
     setTranslatedText('');
+    translatedRef.current = '';
   };
 
-  const handleRepeat = () => {
-    if (mode === 'translation') {
-      playElevenLabsAudio(translatedText);
-    } else if (mode === 'evaluation') {
-      setIsRecording(true);
+  const handleOrbTap = () => {
+    if (needsAudioUnlock && pendingAudioRef.current) {
+      const audio = pendingAudioRef.current;
+      pendingAudioRef.current = null;
+      setNeedsAudioUnlock(false);
+      setIsSpeaking(true);
+      audio.onended = () => setTimeout(() => setIsSpeaking(false), 350);
+      audio.play().catch(() => setIsSpeaking(false));
+      return;
     }
+    resetTurn();
   };
 
-  const idle = mode === 'detection' && !currentText && !isRecording && !isProcessing;
-  const aiActive = isRecording || isProcessing || phase === 'translating' || phase === 'evaluating';
-  const statusLabel = isRecording
+  const statusLabel = isCapturing
     ? PHASE_LABELS.listening
     : phase !== 'idle' && phase !== 'done'
     ? PHASE_LABELS[phase]
+    : isSpeaking
+    ? 'Repite después de mí'
     : null;
 
-  const nativeSamples = NATIVE_SAMPLES[userLanguage] ?? [];
-  const targetSample = TARGET_SAMPLES[targetLanguage];
+  const aiActive = isCapturing || isProcessing || isSpeaking;
+
+  // ── Permiso de micrófono ──
+  if (permission === 'denied') {
+    return (
+      <div className="min-h-dvh flex items-center justify-center px-6">
+        <div className="glass rounded-3xl p-8 text-center max-w-sm">
+          <MicOff className="w-10 h-10 mx-auto text-slate-400 mb-4" />
+          <h2 className="text-xl font-medium tracking-tight text-white mb-2">
+            Pío necesita escucharte
+          </h2>
+          <p className="text-slate-400 text-sm mb-6">
+            Permite el acceso al micrófono en tu navegador para conversar. Todo funciona con tu
+            voz: no hay nada que escribir.
+          </p>
+          <button onClick={retryPermission} className="btn-primary w-full px-6 py-3">
+            Permitir micrófono
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh flex flex-col">
-      {/* Edge glow: la pantalla entera se enciende cuando la IA trabaja */}
+      {/* Edge glow cuando la IA está activa */}
       <AnimatePresence>
         {(aiActive || showCelebration) && (
           <motion.div
@@ -225,7 +239,7 @@ export function IntelligentConversation({
         )}
       </AnimatePresence>
 
-      {/* Header */}
+      {/* Header mínimo */}
       <header className="flex items-center justify-between px-5 py-4 max-w-2xl w-full mx-auto">
         <div className="flex items-center gap-2.5">
           <span className="w-2.5 h-2.5 rounded-full orb-gradient" aria-hidden />
@@ -234,34 +248,52 @@ export function IntelligentConversation({
 
         <button
           onClick={onChangeLanguages}
-          className="glass rounded-full px-4 py-2 flex items-center gap-2 text-sm font-medium text-slate-200 hover:bg-white/10 transition-colors"
+          className="glass rounded-full px-4 py-2 flex items-center gap-2 text-sm font-medium text-slate-300 hover:bg-white/10 transition-colors"
           aria-label="Cambiar idiomas"
         >
           <Languages className="w-4 h-4 text-slate-400" />
-          {getLanguage(userLanguage).name} → {getLanguage(targetLanguage).name}
+          {getLanguage(targetLanguage).name}
         </button>
-
-        <div
-          className="glass rounded-full px-3.5 py-2 text-xs font-medium text-slate-300 tabular-nums flex items-center gap-1.5"
-          title="Frases practicadas"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-slate-400" />
-          {interactionCount}
-        </div>
       </header>
 
-      {/* Contenido */}
-      <main className="flex-1 flex flex-col items-center justify-center px-6 pb-8 max-w-2xl w-full mx-auto">
-        <MainCircle
-          mode={mode}
-          score={pronunciationScore?.score}
-          isListening={isRecording || isProcessing}
-        />
+      {/* Centro: solo el orbe */}
+      <main className="flex-1 flex flex-col items-center justify-center px-6 pb-10 max-w-2xl w-full mx-auto">
+        <button
+          onClick={handleOrbTap}
+          className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8b9cf9]/60"
+          aria-label={needsAudioUnlock ? 'Tocar para activar el audio' : 'Tocar para nueva frase'}
+        >
+          <MainCircle
+            mode={mode}
+            score={pronunciationScore?.score}
+            isListening={isCapturing || isProcessing}
+          />
+        </button>
 
-        {/* Estado del pipeline (show the work) */}
+        {/* Estado */}
         <div className="h-6 mt-3">
           <AnimatePresence mode="wait">
-            {statusLabel && (
+            {permission === 'pending' ? (
+              <motion.p
+                key="pending"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-sm text-slate-500"
+              >
+                Activando micrófono…
+              </motion.p>
+            ) : needsAudioUnlock ? (
+              <motion.p
+                key="unlock"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="text-sm font-medium text-spectrum"
+              >
+                Toca el orbe para escuchar la respuesta
+              </motion.p>
+            ) : statusLabel ? (
               <motion.p
                 key={statusLabel}
                 initial={{ opacity: 0, y: 6 }}
@@ -271,53 +303,22 @@ export function IntelligentConversation({
               >
                 {statusLabel}…
               </motion.p>
+            ) : (
+              <motion.p
+                key="idle"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-sm text-slate-500"
+              >
+                Habla cuando quieras — en {getLanguage(userLanguage).name.toLowerCase()} traduzco,
+                en {getLanguage(targetLanguage).name.toLowerCase()} te evalúo
+              </motion.p>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Estado en reposo: frases sugeridas accionables, no instrucciones */}
-        <AnimatePresence>
-          {idle && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="mt-6 w-full max-w-md"
-            >
-              <p className="text-slate-500 text-center text-sm mb-4">
-                Habla o toca una frase para empezar
-              </p>
-              <div className="flex flex-col items-stretch gap-2">
-                {nativeSamples.map(phrase => (
-                  <button
-                    key={phrase}
-                    onClick={() => handleTextRecognized(phrase)}
-                    className="glass rounded-2xl px-4 py-3 text-left text-sm text-slate-200 hover:bg-white/10 transition-colors flex items-center justify-between gap-3"
-                  >
-                    <span>«{phrase}»</span>
-                    <span className="text-[11px] uppercase tracking-wider text-slate-500 shrink-0">
-                      Traducir
-                    </span>
-                  </button>
-                ))}
-                {targetSample && (
-                  <button
-                    onClick={() => handleTextRecognized(targetSample)}
-                    className="glass rounded-2xl px-4 py-3 text-left text-sm hover:bg-white/10 transition-colors flex items-center justify-between gap-3"
-                    style={{ borderColor: 'rgba(139,156,249,0.3)' }}
-                  >
-                    <span className="text-spectrum font-medium">«{targetSample}»</span>
-                    <span className="text-[11px] uppercase tracking-wider text-slate-500 shrink-0">
-                      Practicar
-                    </span>
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Transcripción y traducción */}
+        {/* Conversación */}
         <div className="w-full max-w-md mt-8 space-y-3">
           <AnimatePresence>
             {currentText && (
@@ -342,14 +343,17 @@ export function IntelligentConversation({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 className="glass rounded-2xl p-4"
-                style={{ borderColor: 'rgba(139,156,249,0.35)', boxShadow: '0 0 30px rgba(139,156,249,0.1)' }}
+                style={{
+                  borderColor: 'rgba(139,156,249,0.35)',
+                  boxShadow: '0 0 30px rgba(139,156,249,0.1)',
+                }}
               >
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-[11px] uppercase tracking-wider text-slate-400">
                     {getLanguage(targetLanguage).name} — repítelo en voz alta
                   </p>
                   <button
-                    onClick={() => playElevenLabsAudio(translatedText)}
+                    onClick={() => speak(translatedText)}
                     className="text-slate-300 hover:text-white transition-colors"
                     aria-label="Escuchar de nuevo"
                   >
@@ -382,7 +386,7 @@ export function IntelligentConversation({
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-medium text-white">
                     {pronunciationScore.score < 7
-                      ? 'Vamos de nuevo'
+                      ? 'Casi — inténtalo otra vez'
                       : pronunciationScore.score < 9
                       ? 'Bien'
                       : 'Excelente'}
@@ -420,23 +424,9 @@ export function IntelligentConversation({
                 )}
 
                 {shouldRepeat(pronunciationScore.score) && (
-                  <button
-                    onClick={handleRepeat}
-                    className="btn-primary mt-4 w-full px-4 py-2.5 flex items-center justify-center gap-2"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    Repetir
-                  </button>
-                )}
-
-                {canChallenge(pronunciationScore.score) && (
-                  <button
-                    onClick={handleRepeat}
-                    className="btn-ghost mt-4 w-full px-4 py-2.5 flex items-center justify-center gap-2"
-                  >
-                    <Trophy className="w-4 h-4 text-amber-300" />
-                    Ir por 9/10
-                  </button>
+                  <p className="mt-3 text-xs text-slate-400">
+                    Solo dilo de nuevo — te sigo escuchando.
+                  </p>
                 )}
               </motion.div>
             )}
@@ -450,7 +440,7 @@ export function IntelligentConversation({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="fixed bottom-28 left-1/2 -translate-x-1/2 glass-deep rounded-2xl px-4 py-3 text-sm text-red-200 z-50 w-[calc(100%-3rem)] max-w-sm text-center"
+              className="fixed bottom-10 left-1/2 -translate-x-1/2 glass-deep rounded-2xl px-4 py-3 text-sm text-red-200 z-50 w-[calc(100%-3rem)] max-w-sm text-center"
               style={{ borderColor: 'rgba(248,113,113,0.35)' }}
             >
               {errorMsg}
@@ -458,30 +448,6 @@ export function IntelligentConversation({
           )}
         </AnimatePresence>
       </main>
-
-      {/* Controles */}
-      <footer className="sticky bottom-0 pb-6 pt-3 px-6">
-        <div className="max-w-2xl mx-auto flex items-center justify-center gap-4">
-          <VoiceRecorder
-            onRecordingComplete={handleRecordingComplete}
-            isRecording={isRecording}
-            onStartRecording={() => setIsRecording(true)}
-            onStopRecording={() => setIsRecording(false)}
-            language={getLanguage(mode === 'evaluation' ? targetLanguage : userLanguage).locale}
-            onTextRecognized={text => handleTextRecognized(text)}
-          />
-
-          {!idle && (
-            <button
-              onClick={handleSkip}
-              className="btn-ghost px-5 py-3.5 flex items-center gap-2 text-sm"
-            >
-              <SkipForward className="w-4 h-4" />
-              Nueva frase
-            </button>
-          )}
-        </div>
-      </footer>
     </div>
   );
 }

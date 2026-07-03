@@ -54,6 +54,9 @@ export function IntelligentConversation({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [needsAudioUnlock, setNeedsAudioUnlock] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
+  // Práctica aislada: palabra ROJA que se trabaja sola hasta subir a amarillo
+  const [drillWord, setDrillWord] = useState<string | null>(null);
+  const drillWordRef = useRef<string | null>(null);
 
   useEffect(() => {
     setProgress(loadProgress());
@@ -136,7 +139,9 @@ export function IntelligentConversation({
       formData.append('audio', audioBlob, `speech.${ext}`);
       formData.append('target', targetLanguage);
       formData.append('native', userLanguage);
-      if (translatedRef.current) {
+      if (drillWordRef.current) {
+        formData.append('expected', drillWordRef.current);
+      } else if (translatedRef.current) {
         formData.append('expected', translatedRef.current);
       }
 
@@ -190,7 +195,30 @@ export function IntelligentConversation({
     setPhase('done');
   };
 
+  const cleanWord = (w: string) =>
+    w.replace(/^[¿¡"'«(]+/u, '').replace(/[.,!?…"'»)]+$/u, '');
+
   const evaluateUserPronunciation = async (userText: string) => {
+    // ── Modo práctica aislada: solo la palabra roja en turno ──
+    if (drillWordRef.current) {
+      const word = drillWordRef.current;
+      const s = await evaluatePronunciation(null, word, targetLanguage, userText, userLanguage);
+      setPronunciationScore(s);
+      setPhase('done');
+
+      if (s.score >= 6) {
+        // subió a amarillo (o mejor): de vuelta a la frase completa
+        drillWordRef.current = null;
+        setDrillWord(null);
+        await speak('¡Mucho mejor! Ahora la frase completa.', userLanguage);
+        if (translatedRef.current) await speak(translatedRef.current, targetLanguage);
+      } else {
+        await speak(s.feedback || 'Otra vez. Escucha con atención.', userLanguage);
+        await speak(word, targetLanguage);
+      }
+      return;
+    }
+
     const targetText = translatedRef.current || userText;
     const score = await evaluatePronunciation(null, targetText, targetLanguage, userText, userLanguage);
     setPronunciationScore(score);
@@ -216,10 +244,22 @@ export function IntelligentConversation({
       setTimeout(() => resetTurn(), 800);
     } else {
       scheduleReview(nativeRef.current, targetText, false);
-      // Feedback hablado en tu idioma + Pío re-modela la frase en el idioma objetivo
-      await speak(score.feedback || 'Casi. Inténtalo otra vez.', userLanguage);
-      if (translatedRef.current) {
-        await speak(translatedRef.current, targetLanguage);
+      const reds = (score.words ?? []).filter(w => w.quality === 'bad');
+
+      if (reds.length > 0) {
+        // ROJA → se aísla y se trabaja sola hasta subir a amarillo
+        const word = cleanWord(reds[0].word);
+        drillWordRef.current = word;
+        setDrillWord(word);
+        await speak(score.feedback || 'Vamos a trabajar una palabra.', userLanguage);
+        await speak('Repite solo esta palabra:', userLanguage);
+        await speak(word, targetLanguage);
+      } else {
+        // solo AMARILLAS → se pulen en conjunto con la frase completa
+        await speak(score.feedback || 'Casi. Inténtalo otra vez.', userLanguage);
+        if (translatedRef.current) {
+          await speak(translatedRef.current, targetLanguage);
+        }
       }
     }
   };
@@ -299,6 +339,9 @@ export function IntelligentConversation({
     setTranslatedText('');
     translatedRef.current = '';
     nativeRef.current = '';
+    drillWordRef.current = '' as any;
+    drillWordRef.current = null;
+    setDrillWord(null);
   };
 
   const handleOrbTap = () => {
@@ -470,6 +513,31 @@ export function IntelligentConversation({
             )}
           </AnimatePresence>
         </div>
+
+        {/* Práctica aislada activa */}
+        <AnimatePresence>
+          {drillWord && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="mt-6 glass rounded-2xl px-5 py-3 flex items-center gap-3"
+              style={{ borderColor: 'rgba(248,113,113,0.4)' }}
+            >
+              <span className="text-[11px] uppercase tracking-wider text-red-300/80">
+                Práctica aislada
+              </span>
+              <button
+                onClick={() => speak(drillWord, targetLanguage)}
+                className="text-2xl font-medium tracking-tight text-white active:scale-95 transition-transform"
+                aria-label={`Escuchar ${drillWord}`}
+              >
+                {drillWord}
+              </button>
+              <Volume2 className="w-4 h-4 text-slate-500" aria-hidden />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Conversación */}
         <div className="w-full max-w-md mt-8 space-y-3">

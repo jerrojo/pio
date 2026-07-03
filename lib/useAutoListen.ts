@@ -13,11 +13,13 @@ interface Options {
 
 const SPEECH_THRESHOLD = 0.018; // RMS mínimo absoluto para considerar voz
 const SILENCE_MS = 1100;        // silencio que cierra el turno (ágil pero seguro)
-const MIN_SPEECH_MS = 240;      // suficiente para una palabra corta; el ruido lo filtran Silero + dominancia
+const MIN_SPEECH_MS = 150;      // solo anti-click: el corte real es el DESNIVEL de energía, no la duración
 const MAX_SPEECH_MS = 20000;    // failsafe
 const NOISE_FLOOR_RATIO = 2.4;  // la voz debe superar el piso de ruido por este factor
-const DOMINANT_MEAN_RATIO = 1.3;  // volumen medio mínimo vs umbral (voz cercana/dominante)
-const DOMINANT_PEAK_RATIO = 2.2;  // o pico mínimo vs umbral
+const DOMINANT_MEAN_RATIO = 1.3;  // volumen medio mínimo vs umbral (habla sostenida)
+const RISE_RATIO = 2.1;           // DESNIVEL: el pico debe levantarse claramente sobre el umbral
+                                  // (≈5x el piso ambiente) — una palabra corta bien dicha pasa,
+                                  // el murmullo plano de fondo no, sin importar cuánto dure
 
 /**
  * Escucha continua manos libres con dos defensas específicas para iOS Safari:
@@ -230,16 +232,17 @@ export function useAutoListen({ enabled, onSpeechEnd }: Options) {
         const spoke =
           speechStartRef.current !== null &&
           now - speechStartRef.current - SILENCE_MS > MIN_SPEECH_MS;
-        // Compuerta de dominancia: una voz lejana o de fondo apenas supera
-        // el umbral; la voz que lleva la conversación lo supera con margen
+        // Compuerta por DESNIVEL de energía: la voz dirigida sube con
+        // claridad sobre el ambiente y vuelve a caer (pico marcado);
+        // el ruido/murmullo de fondo es plano aunque dure. La duración
+        // ya no decide — solo el contraste
         const meanRms =
           captureRmsCountRef.current > 0
             ? captureRmsSumRef.current / captureRmsCountRef.current
             : 0;
-        const dominant =
-          meanRms >= threshold * DOMINANT_MEAN_RATIO ||
-          capturePeakRef.current >= threshold * DOMINANT_PEAK_RATIO;
-        stopRecorder(!spoke || !dominant);
+        const clearRise = capturePeakRef.current >= threshold * RISE_RATIO;
+        const sustained = meanRms >= threshold * DOMINANT_MEAN_RATIO;
+        stopRecorder(!spoke || !(clearRise || sustained));
       }
     }
   }, [startRecorder, stopRecorder, reacquire]);

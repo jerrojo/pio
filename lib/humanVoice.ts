@@ -13,7 +13,7 @@ const VAD_CDN = 'https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.30/dist/';
 const ORT_CDN = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/';
 
 /** ms mínimos de voz detectada por Silero para aceptar el turno */
-const MIN_HUMAN_SPEECH_MS = 350;
+const MIN_HUMAN_SPEECH_MS = 200; // una palabra corta ('dich') debe pasar
 
 type VadInstance = {
   run: (audio: Float32Array, sampleRate: number) => AsyncGenerator<{

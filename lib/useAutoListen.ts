@@ -13,7 +13,7 @@ interface Options {
 
 const SPEECH_THRESHOLD = 0.018; // RMS mínimo absoluto para considerar voz
 const SILENCE_MS = 1100;        // silencio que cierra el turno (ágil pero seguro)
-const MIN_SPEECH_MS = 450;      // descartar blips de ruido
+const MIN_SPEECH_MS = 240;      // suficiente para una palabra corta; el ruido lo filtran Silero + dominancia
 const MAX_SPEECH_MS = 20000;    // failsafe
 const NOISE_FLOOR_RATIO = 2.4;  // la voz debe superar el piso de ruido por este factor
 const DOMINANT_MEAN_RATIO = 1.3;  // volumen medio mínimo vs umbral (voz cercana/dominante)

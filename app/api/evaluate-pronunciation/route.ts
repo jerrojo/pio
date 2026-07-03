@@ -33,7 +33,7 @@ async function coachFeedback(
           content: `Eres un coach de pronunciación experto y cálido. El alumno habla ${LANG_NAMES[nativeLanguage] || nativeLanguage} y aprende ${LANG_NAMES[targetLanguage] || targetLanguage}.
 Frase objetivo: "${targetText}"
 Lo que se entendió de su intento: "${heardText}"
-Responde SOLO en ${LANG_NAMES[nativeLanguage] || nativeLanguage}, máximo 35 palabras, sin saludos: identifica el sonido o palabra clave que falló y explica CÓMO producirlo con la boca/lengua, incluyendo cómo se pronuncia escrito "a la ${LANG_NAMES[nativeLanguage] || nativeLanguage}" (ej. 'ich' → "ij").`,
+IMPORTANTE: el consejo debe seguir la fonética del ${LANG_NAMES[targetLanguage] || targetLanguage} (el idioma que aprende), NUNCA las reglas del ${LANG_NAMES[nativeLanguage] || nativeLanguage} (ej.: la 'h' alemana o inglesa SÍ se aspira, aunque en español sea muda).\nResponde SOLO en ${LANG_NAMES[nativeLanguage] || nativeLanguage}, máximo 35 palabras, sin saludos: identifica el sonido que falló y explica CÓMO producirlo con la boca/lengua, incluyendo cómo suena escrito "a la ${LANG_NAMES[nativeLanguage] || nativeLanguage}" (ej. 'ich' → "ij").`,
         },
         { role: 'user', content: 'Dame el consejo.' },
       ],

@@ -36,8 +36,14 @@ export async function POST(req: NextRequest) {
     // Pasada 1: detección libre
     const free = await transcribeAudio(audio, language, prompt);
 
-    // Compuerta de calidad: ruido, música o voces de fondo no cuentan
-    if (!isReliable(free)) {
+    // Compuerta de calidad: ruido, música o voces de fondo no cuentan.
+    // EXCEPCIÓN: con una frase/palabra corta esperada (drill), las métricas
+    // de Whisper son poco fiables por naturaleza (una palabra con acento
+    // parece 'no-voz') y Silero ya validó voz humana en el cliente —
+    // en ese caso seguimos y dejamos decidir a la comparación forzada.
+    const expWordsEarly = expected ? expected.trim().split(/\s+/).length : 0;
+    const shortDrill = expected !== undefined && expWordsEarly <= 3;
+    if (!isReliable(free) && !shortDrill) {
       return NextResponse.json({ text: '', reason: 'unreliable' });
     }
 

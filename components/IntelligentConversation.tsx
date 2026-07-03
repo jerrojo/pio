@@ -182,6 +182,7 @@ export function IntelligentConversation({
 
       if (!data.text) {
         setPhase('idle');
+        setErrorMsg('No te escuché bien — inténtalo otra vez.');
         return;
       }
 

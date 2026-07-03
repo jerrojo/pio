@@ -11,6 +11,15 @@
   --dawn: #f6b26b;
   --rose: #f28cc0;
   --gold: #f5c86b;
+
+  /* ─── Lenguaje de movimiento: un solo vocabulario de curvas ─── */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);   /* rebote sutil */
+  --ease-glide: cubic-bezier(0.22, 1, 0.36, 1);       /* deceleración larga */
+  --ease-organic: cubic-bezier(0.37, 0, 0.63, 1);     /* seno — respiración */
+  --ease-swift: cubic-bezier(0.4, 0, 0.2, 1);         /* utilitaria */
+  --dur-quick: 180ms;
+  --dur-base: 320ms;
+  --dur-slow: 700ms;
 }
 
 html {
@@ -31,27 +40,64 @@ body {
   min-height: 100dvh;
   color: #e7e9f0;
   background:
-    radial-gradient(900px 600px at 50% -20%, rgba(139, 156, 249, 0.07), transparent 60%),
-    radial-gradient(800px 600px at 100% 110%, rgba(246, 178, 107, 0.05), transparent 55%),
+    radial-gradient(900px 600px at 50% -20%, rgba(139, 156, 249, 0.085), transparent 60%),
+    radial-gradient(700px 500px at -10% 40%, rgba(108, 212, 255, 0.04), transparent 55%),
+    radial-gradient(800px 600px at 100% 110%, rgba(246, 178, 107, 0.055), transparent 55%),
+    radial-gradient(600px 500px at 0% 105%, rgba(242, 140, 192, 0.035), transparent 55%),
     linear-gradient(180deg, var(--void-2) 0%, var(--void) 100%);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   letter-spacing: -0.011em;
 }
 
-/* Material glass (Liquid Glass) */
+/* Grain fotográfico: mata el banding de los gradientes sobre void.
+   SVG turbulence inline — sin assets, sin red. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/* Focus accesible y consistente en toda la app */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 2px solid rgba(139, 156, 249, 0.85);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Material glass (Liquid Glass): lámina fina con luz en el canto superior */
 .glass {
-  background: rgba(255, 255, 255, 0.055);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(18px) saturate(1.4);
-  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  background: linear-gradient(
+    155deg,
+    rgba(255, 255, 255, 0.075),
+    rgba(255, 255, 255, 0.035) 55%,
+    rgba(255, 255, 255, 0.05)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.095);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 16px 40px -20px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
 }
 
 .glass-deep {
-  background: rgba(10, 12, 20, 0.72);
+  background: linear-gradient(160deg, rgba(14, 17, 27, 0.82), rgba(8, 10, 17, 0.78));
   border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 20px 50px -24px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(22px) saturate(1.4);
+  -webkit-backdrop-filter: blur(22px) saturate(1.4);
 }
 
 /* Texto con gradiente del espectro */
@@ -95,8 +141,8 @@ body {
   opacity: 0.9;
 }
 .edge-glow::after {
-  filter: blur(26px);
-  opacity: 0.55;
+  filter: blur(22px);
+  opacity: 0.5;
 }
 .edge-glow.edge-glow-gold::before,
 .edge-glow.edge-glow-gold::after {
@@ -111,17 +157,19 @@ body {
   animation-name: glow-shift-soft;
 }
 @keyframes glow-shift-soft {
-  0% { filter: hue-rotate(0deg) blur(26px); }
-  100% { filter: hue-rotate(360deg) blur(26px); }
+  0% { filter: hue-rotate(0deg) blur(22px); }
+  100% { filter: hue-rotate(360deg) blur(22px); }
 }
 
 /* ─── Orbe aurora ─── */
 @keyframes orb-spin {
   to { transform: rotate(360deg); }
 }
+/* Respiración orgánica: inhala rápido, exhala lento (curva seno asimétrica) */
 @keyframes orb-breathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.035); }
+  0% { transform: scale(1); }
+  42% { transform: scale(1.04); }
+  100% { transform: scale(1); }
 }
 .orb-gradient {
   background: conic-gradient(
@@ -140,7 +188,7 @@ body {
   50% { transform: scaleY(1); }
 }
 .wave-bar {
-  animation: wave 0.9s ease-in-out infinite;
+  animation: wave 0.9s var(--ease-organic) infinite;
   transform-origin: center;
 }
 
@@ -156,12 +204,19 @@ body {
 
 /* Botones base */
 .btn-primary {
-  @apply text-white font-medium rounded-2xl transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none;
+  @apply text-white font-medium rounded-2xl active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none;
+  transition: box-shadow var(--dur-base) var(--ease-glide), transform var(--dur-quick) var(--ease-swift);
   background: linear-gradient(120deg, rgba(139,156,249,0.9), rgba(108,212,255,0.85));
-  box-shadow: 0 0 24px rgba(108, 212, 255, 0.22), inset 0 1px 0 rgba(255,255,255,0.25);
+  box-shadow:
+    0 0 24px rgba(108, 212, 255, 0.22),
+    0 10px 24px -14px rgba(108, 212, 255, 0.5),
+    inset 0 1px 0 rgba(255,255,255,0.25);
 }
 .btn-primary:hover {
-  box-shadow: 0 0 34px rgba(108, 212, 255, 0.35), inset 0 1px 0 rgba(255,255,255,0.3);
+  box-shadow:
+    0 0 34px rgba(108, 212, 255, 0.35),
+    0 12px 28px -14px rgba(108, 212, 255, 0.6),
+    inset 0 1px 0 rgba(255,255,255,0.3);
 }
 .btn-ghost {
   @apply bg-white/5 text-slate-200 font-medium rounded-2xl border border-white/10 transition-all hover:bg-white/10 active:scale-[0.98];
@@ -173,5 +228,8 @@ body {
   .wave-bar,
   .orb-spin-layer {
     animation: none !important;
+  }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
   }
 }

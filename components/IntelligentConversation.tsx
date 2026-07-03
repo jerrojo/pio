@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { LanguageCode, ConversationMode, PronunciationScore } from '@/types';
 import { MainCircle } from '@/components/MainCircle';
 import { getLanguage } from '@/lib/languages';
@@ -471,6 +471,7 @@ export function IntelligentConversation({
   }
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="min-h-dvh flex flex-col">
       {/* Edge glow cuando la IA está activa */}
       <AnimatePresence>
@@ -599,30 +600,43 @@ export function IntelligentConversation({
         <AnimatePresence>
           {drillWord && (
             <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="mt-6 glass rounded-2xl px-5 py-3 flex items-center gap-3"
+              initial={{ opacity: 0, y: 14, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+              className="mt-7 w-full max-w-md glass rounded-3xl px-6 py-5 flex flex-col items-center gap-2.5 text-center"
               style={{
                 borderColor:
-                  drillStage === 'amber' ? 'rgba(246,178,107,0.45)' : 'rgba(248,113,113,0.4)',
+                  drillStage === 'amber' ? 'rgba(246,178,107,0.5)' : 'rgba(248,113,113,0.45)',
+                boxShadow:
+                  drillStage === 'amber'
+                    ? '0 0 48px -10px rgba(246,178,107,0.35), inset 0 1px 0 rgba(255,255,255,0.09)'
+                    : '0 0 48px -10px rgba(248,113,113,0.32), inset 0 1px 0 rgba(255,255,255,0.09)',
               }}
             >
               <span
-                className={`text-[11px] uppercase tracking-wider ${
-                  drillStage === 'amber' ? 'text-amber-300/80' : 'text-red-300/80'
+                className={`text-[10px] font-semibold uppercase tracking-[0.22em] ${
+                  drillStage === 'amber' ? 'text-amber-200/90' : 'text-red-200/90'
                 }`}
               >
                 {drillStage === 'amber' ? 'Ahora juntas' : 'Práctica aislada'}
               </span>
-              <button
+              <motion.button
+                key={drillWord}
+                initial={{ opacity: 0, scale: 0.82 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                whileTap={{ scale: 0.94 }}
                 onClick={() => speak(drillWord, targetLanguage)}
-                className="text-2xl font-medium tracking-tight text-white active:scale-95 transition-transform"
+                className="text-3xl sm:text-4xl font-medium tracking-tight text-white leading-tight"
                 aria-label={`Escuchar ${drillWord}`}
               >
                 {drillWord}
-              </button>
-              <Volume2 className="w-4 h-4 text-slate-500" aria-hidden />
+              </motion.button>
+              <span className="flex items-center gap-1.5 text-[11px] text-slate-400">
+                <Volume2 className="w-3.5 h-3.5" aria-hidden />
+                toca la palabra para oírla
+              </span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -633,9 +647,10 @@ export function IntelligentConversation({
             {currentText && (
               <motion.div
                 key="user-text"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -12 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 28 }}
                 className="glass rounded-2xl p-4"
               >
                 <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-1">
@@ -648,13 +663,14 @@ export function IntelligentConversation({
             {translatedText && mode === 'translation' && (
               <motion.div
                 key="translation"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -12 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 28, delay: 0.08 }}
                 className="glass rounded-2xl p-4"
                 style={{
-                  borderColor: 'rgba(139,156,249,0.35)',
-                  boxShadow: '0 0 30px rgba(139,156,249,0.1)',
+                  borderColor: 'rgba(139,156,249,0.4)',
+                  boxShadow: '0 0 36px -6px rgba(139,156,249,0.18), inset 0 1px 0 rgba(255,255,255,0.1)',
                 }}
               >
                 <div className="flex items-center justify-between mb-1">
@@ -679,9 +695,10 @@ export function IntelligentConversation({
             {pronunciationScore && (
               <motion.div
                 key="feedback"
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 18, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 26 }}
                 className="glass rounded-2xl p-4"
                 style={{
                   borderColor: !(pronunciationScore.passed ?? pronunciationScore.score >= 7)
@@ -699,7 +716,11 @@ export function IntelligentConversation({
                       ? 'Bien'
                       : 'Excelente'}
                   </span>
-                  <span
+                  <motion.span
+                    key={pronunciationScore.score}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: 'spring', stiffness: 420, damping: 20 }}
                     className={`text-xl font-semibold tabular-nums ${
                       pronunciationScore.score < 7
                         ? 'text-red-300'
@@ -709,7 +730,7 @@ export function IntelligentConversation({
                     }`}
                   >
                     {pronunciationScore.score}/10
-                  </span>
+                  </motion.span>
                 </div>
                 {/* Feedback visual palabra por palabra (estilo ELSA):
                     verde = bien, ámbar = mejorable, rojo = falló.
@@ -717,11 +738,16 @@ export function IntelligentConversation({
                 {pronunciationScore.words && pronunciationScore.words.length > 0 && (
                   <div className="flex flex-wrap gap-x-2 gap-y-1.5 my-2">
                     {pronunciationScore.words.map((w, i) => (
-                      <button
+                      <motion.button
                         key={`${w.word}-${i}`}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ type: 'spring', stiffness: 420, damping: 26, delay: 0.12 + i * 0.04 }}
+                        whileHover={{ y: -2, scale: 1.06 }}
+                        whileTap={{ scale: 0.88 }}
                         onClick={() => speak(w.word, targetLanguage)}
                         aria-label={`Escuchar "${w.word}"`}
-                        className={`text-xl font-medium tracking-tight transition-transform active:scale-95 ${
+                        className={`text-xl font-medium tracking-tight ${
                           w.quality === 'good'
                             ? 'text-green-300'
                             : w.quality === 'weak'
@@ -730,7 +756,7 @@ export function IntelligentConversation({
                         }`}
                       >
                         {w.word}
-                      </button>
+                      </motion.button>
                     ))}
                   </div>
                 )}
@@ -777,5 +803,6 @@ export function IntelligentConversation({
         </AnimatePresence>
       </main>
     </div>
+    </MotionConfig>
   );
 }

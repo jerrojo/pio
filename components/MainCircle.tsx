@@ -215,11 +215,10 @@ export function MainCircle({ mode, score, isListening = false, passed }: MainCir
             initial={{ scale: 0.4, y: 10, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.4, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 24 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             className="absolute -bottom-1 glass-deep rounded-full px-4 py-1.5"
             style={{
-              borderColor: mastered ? `${GOLD}88` : `${scoreColor(score)}55`,
-              boxShadow: `0 0 24px -8px ${mastered ? GOLD : scoreColor(score)}`,
+              borderColor: mastered ? `${GOLD}66` : `${scoreColor(score)}55`,
             }}
           >
             <span

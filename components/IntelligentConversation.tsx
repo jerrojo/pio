@@ -582,7 +582,7 @@ export function IntelligentConversation({
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="text-sm font-medium text-spectrum"
+                className="text-sm font-medium text-signal"
               >
                 Toca el orbe una vez para comenzar
               </motion.button>
@@ -592,7 +592,7 @@ export function IntelligentConversation({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="text-sm text-slate-500"
+                className="text-sm text-slate-400"
               >
                 Activando micrófono…
               </motion.p>
@@ -602,7 +602,7 @@ export function IntelligentConversation({
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="text-sm font-medium text-spectrum"
+                className="text-sm font-medium text-signal"
               >
                 Toca el orbe para escuchar la respuesta
               </motion.p>
@@ -612,7 +612,7 @@ export function IntelligentConversation({
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
-                className="text-sm font-medium text-spectrum"
+                className="text-sm font-medium text-signal"
               >
                 {statusLabel}…
               </motion.p>
@@ -622,7 +622,7 @@ export function IntelligentConversation({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="text-sm text-slate-500"
+                className="text-sm text-slate-400"
               >
                 Habla cuando quieras — en {getLanguage(userLanguage).name.toLowerCase()} traduzco,
                 en {getLanguage(targetLanguage).name.toLowerCase()} te evalúo
@@ -635,18 +635,14 @@ export function IntelligentConversation({
         <AnimatePresence>
           {drillWord && (
             <motion.div
-              initial={{ opacity: 0, y: 14, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.98 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               className="mt-7 w-full max-w-md glass rounded-3xl px-6 py-5 flex flex-col items-center gap-2.5 text-center"
               style={{
                 borderColor:
-                  drillStage === 'amber' ? 'rgba(246,178,107,0.5)' : 'rgba(248,113,113,0.45)',
-                boxShadow:
-                  drillStage === 'amber'
-                    ? '0 0 48px -10px rgba(246,178,107,0.35), inset 0 1px 0 rgba(255,255,255,0.09)'
-                    : '0 0 48px -10px rgba(248,113,113,0.32), inset 0 1px 0 rgba(255,255,255,0.09)',
+                  drillStage === 'amber' ? 'rgba(246,178,107,0.45)' : 'rgba(248,113,113,0.4)',
               }}
             >
               <span
@@ -658,9 +654,9 @@ export function IntelligentConversation({
               </span>
               <motion.button
                 key={drillWord}
-                initial={{ opacity: 0, scale: 0.82 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                 whileTap={{ scale: 0.94 }}
                 onClick={() => speak(drillWord, targetLanguage)}
                 className="text-3xl sm:text-4xl font-medium tracking-tight text-white leading-tight"
@@ -682,13 +678,13 @@ export function IntelligentConversation({
             {currentText && (
               <motion.div
                 key="user-text"
-                initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                 className="glass rounded-2xl p-4"
               >
-                <p className="text-[11px] uppercase tracking-wider text-slate-500 mb-1">
+                <p className="text-[11px] uppercase tracking-wider text-slate-400 mb-1">
                   Escuché{detectedLanguage ? ` · ${getLanguage(detectedLanguage).name}` : ''}
                 </p>
                 <p className="text-slate-100">{currentText}</p>
@@ -698,15 +694,12 @@ export function IntelligentConversation({
             {translatedText && mode === 'translation' && (
               <motion.div
                 key="translation"
-                initial={{ opacity: 0, y: 16, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ type: 'spring', stiffness: 320, damping: 28, delay: 0.08 }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1], delay: 0.08 }}
                 className="glass rounded-2xl p-4"
-                style={{
-                  borderColor: 'rgba(139,156,249,0.4)',
-                  boxShadow: '0 0 36px -6px rgba(139,156,249,0.18), inset 0 1px 0 rgba(255,255,255,0.1)',
-                }}
+                style={{ borderColor: 'rgba(139,156,249,0.45)' }}
               >
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-[11px] uppercase tracking-wider text-slate-400">
@@ -730,10 +723,10 @@ export function IntelligentConversation({
             {pronunciationScore && (
               <motion.div
                 key="feedback"
-                initial={{ opacity: 0, y: 18, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 26 }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                 className="glass rounded-2xl p-4"
                 style={{
                   borderColor: !(pronunciationScore.passed ?? pronunciationScore.score >= 7)
@@ -753,9 +746,9 @@ export function IntelligentConversation({
                   </span>
                   <motion.span
                     key={pronunciationScore.score}
-                    initial={{ scale: 0.5, opacity: 0 }}
+                    initial={{ scale: 0.7, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: 'spring', stiffness: 420, damping: 20 }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                     className={`text-xl font-semibold tabular-nums ${
                       pronunciationScore.score < 7
                         ? 'text-red-300'
@@ -775,11 +768,11 @@ export function IntelligentConversation({
                     {pronunciationScore.words.map((w, i) => (
                       <motion.button
                         key={`${w.word}-${i}`}
-                        initial={{ opacity: 0, y: 8 }}
+                        initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ type: 'spring', stiffness: 420, damping: 26, delay: 0.12 + i * 0.04 }}
-                        whileHover={{ y: -2, scale: 1.06 }}
-                        whileTap={{ scale: 0.88 }}
+                        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1], delay: 0.1 + i * 0.03 }}
+                        whileHover={{ y: -1 }}
+                        whileTap={{ scale: 0.94 }}
                         onClick={() => speak(w.word, targetLanguage)}
                         aria-label={`Escuchar "${w.word}"`}
                         className={`text-xl font-medium tracking-tight ${
@@ -797,7 +790,7 @@ export function IntelligentConversation({
                 )}
 
                 {pronunciationScore.heardText && (
-                  <p className="text-xs text-slate-500 mb-1.5">
+                  <p className="text-xs text-slate-400 mb-1.5">
                     Dijiste: <span className="text-slate-400 italic">"{pronunciationScore.heardText}"</span>
                   </p>
                 )}
@@ -805,7 +798,7 @@ export function IntelligentConversation({
 
                 {pronunciationScore.words &&
                   pronunciationScore.words.some(w => w.quality !== 'good') && (
-                    <p className="mt-2 text-[11px] text-slate-500">
+                    <p className="mt-2 text-[11px] text-slate-400">
                       Toca una palabra para escucharla sola
                     </p>
                   )}

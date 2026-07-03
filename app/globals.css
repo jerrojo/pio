@@ -5,21 +5,27 @@
 :root {
   --void: #05060a;
   --void-2: #0a0c14;
-  /* Espectro de inteligencia (Siri-like, con el ámbar heredado de Pío) */
+  /* Espectro aurora — la identidad. Vive SOLO en el orbe, en hairlines de
+     acento cuando algo está activo y en el focus ring. Nada más. */
   --iris: #8b9cf9;
   --ice: #6cd4ff;
   --dawn: #f6b26b;
   --rose: #f28cc0;
   --gold: #f5c86b;
 
-  /* ─── Lenguaje de movimiento: un solo vocabulario de curvas ─── */
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);   /* rebote sutil */
-  --ease-glide: cubic-bezier(0.22, 1, 0.36, 1);       /* deceleración larga */
-  --ease-organic: cubic-bezier(0.37, 0, 0.63, 1);     /* seno — respiración */
-  --ease-swift: cubic-bezier(0.4, 0, 0.2, 1);         /* utilitaria */
-  --dur-quick: 180ms;
-  --dur-base: 320ms;
-  --dur-slow: 700ms;
+  /* Superficies: casi monocromas, definidas por hairlines, no por luz */
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-raised: rgba(255, 255, 255, 0.06);
+  --hairline: rgba(255, 255, 255, 0.08);
+  --hairline-strong: rgba(255, 255, 255, 0.14);
+
+  /* ─── Lenguaje de movimiento: pocas curvas, bien usadas ─── */
+  --ease-glide: cubic-bezier(0.22, 1, 0.36, 1);   /* deceleración larga */
+  --ease-organic: cubic-bezier(0.37, 0, 0.63, 1); /* seno — respiración */
+  --ease-swift: cubic-bezier(0.4, 0, 0.2, 1);     /* utilitaria */
+  --dur-quick: 200ms;
+  --dur-base: 300ms;
+  --dur-slow: 350ms;
 }
 
 html {
@@ -39,18 +45,17 @@ body {
 body {
   min-height: 100dvh;
   color: #e7e9f0;
+  /* Fondo casi monocromo: void con un solo susurro de iris arriba.
+     El color de verdad vive en el orbe. */
   background:
-    radial-gradient(900px 600px at 50% -20%, rgba(139, 156, 249, 0.085), transparent 60%),
-    radial-gradient(700px 500px at -10% 40%, rgba(108, 212, 255, 0.04), transparent 55%),
-    radial-gradient(800px 600px at 100% 110%, rgba(246, 178, 107, 0.055), transparent 55%),
-    radial-gradient(600px 500px at 0% 105%, rgba(242, 140, 192, 0.035), transparent 55%),
+    radial-gradient(1000px 700px at 50% -25%, rgba(139, 156, 249, 0.045), transparent 60%),
     linear-gradient(180deg, var(--void-2) 0%, var(--void) 100%);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   letter-spacing: -0.011em;
 }
 
-/* Grain fotográfico: mata el banding de los gradientes sobre void.
+/* Grain fotográfico: mata el banding sobre void.
    SVG turbulence inline — sin assets, sin red. */
 body::after {
   content: '';
@@ -64,7 +69,7 @@ body::after {
   background-size: 180px 180px;
 }
 
-/* Focus accesible y consistente en toda la app */
+/* Focus accesible y consistente: el único acento siempre disponible */
 :focus {
   outline: none;
 }
@@ -74,54 +79,43 @@ body::after {
   border-radius: 4px;
 }
 
-/* Material glass (Liquid Glass): lámina fina con luz en el canto superior */
+/* Superficie hairline: tarjeta plana, definida por un borde de 1px.
+   Sin blur, sin luz interior — tipo visionOS / iOS settings. */
 .glass {
-  background: linear-gradient(
-    155deg,
-    rgba(255, 255, 255, 0.075),
-    rgba(255, 255, 255, 0.035) 55%,
-    rgba(255, 255, 255, 0.05)
-  );
-  border: 1px solid rgba(255, 255, 255, 0.095);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.09),
-    0 16px 40px -20px rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(16px) saturate(1.5);
-  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 12px 32px -24px rgba(0, 0, 0, 0.6);
 }
 
+/* Variante flotante (toasts, badges sobre contenido): más opaca,
+   blur mínimo solo para separarse de lo que tiene debajo. */
 .glass-deep {
-  background: linear-gradient(160deg, rgba(14, 17, 27, 0.82), rgba(8, 10, 17, 0.78));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 20px 50px -24px rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(22px) saturate(1.4);
-  -webkit-backdrop-filter: blur(22px) saturate(1.4);
+  background: rgba(10, 12, 20, 0.88);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 16px 40px -24px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-/* Texto con gradiente del espectro */
-.text-spectrum {
-  background: linear-gradient(100deg, var(--iris), var(--ice) 35%, var(--dawn) 70%, var(--rose));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+/* Texto de señal: iris sólido, solo para estados activos de la IA */
+.text-signal {
+  color: #aeb9fb;
 }
 
-/* ─── Edge glow: borde luminoso de pantalla cuando la IA está activa ─── */
+/* ─── Edge frame: hairline de acento en el perímetro cuando la IA está activa.
+   1px de espectro — presencia, no espectáculo. ─── */
 .edge-glow {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 60;
 }
-.edge-glow::before,
-.edge-glow::after {
+.edge-glow::before {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 28px;
-  padding: 3px;
+  border-radius: 24px;
+  padding: 1px;
   background: conic-gradient(
     from 220deg,
     var(--iris),
@@ -134,42 +128,38 @@ body::after {
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask-composite: exclude;
-  animation: glow-shift 7s linear infinite;
+  opacity: 0.55;
+  animation: glow-shift 9s linear infinite;
 }
-.edge-glow::before {
-  filter: blur(4px);
+/* Celebración: el dorado sí puede ser generoso — es significado */
+.edge-glow.edge-glow-gold::before {
+  background: conic-gradient(from 220deg, var(--gold), #fff3d6, var(--gold), var(--dawn), var(--gold));
+  padding: 2px;
   opacity: 0.9;
 }
-.edge-glow::after {
-  filter: blur(22px);
-  opacity: 0.5;
-}
-.edge-glow.edge-glow-gold::before,
 .edge-glow.edge-glow-gold::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 24px;
+  padding: 2px;
   background: conic-gradient(from 220deg, var(--gold), #fff3d6, var(--gold), var(--dawn), var(--gold));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  filter: blur(16px);
+  opacity: 0.35;
 }
 
 @keyframes glow-shift {
-  0% { filter: hue-rotate(0deg) blur(4px); }
-  100% { filter: hue-rotate(360deg) blur(4px); }
-}
-.edge-glow::after {
-  animation-name: glow-shift-soft;
-}
-@keyframes glow-shift-soft {
-  0% { filter: hue-rotate(0deg) blur(22px); }
-  100% { filter: hue-rotate(360deg) blur(22px); }
+  0% { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
 }
 
-/* ─── Orbe aurora ─── */
+/* ─── Orbe aurora: la firma. Único lugar donde el gradiente es superficie ─── */
 @keyframes orb-spin {
   to { transform: rotate(360deg); }
-}
-/* Respiración orgánica: inhala rápido, exhala lento (curva seno asimétrica) */
-@keyframes orb-breathe {
-  0% { transform: scale(1); }
-  42% { transform: scale(1.04); }
-  100% { transform: scale(1); }
 }
 .orb-gradient {
   background: conic-gradient(
@@ -202,24 +192,23 @@ body::after {
   background: rgba(139, 156, 249, 0.4);
 }
 
-/* Botones base */
+/* Botones base: monocromos. El primario es lámina clara sobre void —
+   jerarquía por contraste, no por color ni glow. */
 .btn-primary {
-  @apply text-white font-medium rounded-2xl active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none;
-  transition: box-shadow var(--dur-base) var(--ease-glide), transform var(--dur-quick) var(--ease-swift);
-  background: linear-gradient(120deg, rgba(139,156,249,0.9), rgba(108,212,255,0.85));
-  box-shadow:
-    0 0 24px rgba(108, 212, 255, 0.22),
-    0 10px 24px -14px rgba(108, 212, 255, 0.5),
-    inset 0 1px 0 rgba(255,255,255,0.25);
+  @apply font-medium rounded-2xl active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none;
+  color: #0a0c14;
+  background: #eef0f6;
+  transition: background var(--dur-base) var(--ease-glide), transform var(--dur-quick) var(--ease-swift);
 }
 .btn-primary:hover {
-  box-shadow:
-    0 0 34px rgba(108, 212, 255, 0.35),
-    0 12px 28px -14px rgba(108, 212, 255, 0.6),
-    inset 0 1px 0 rgba(255,255,255,0.3);
+  background: #ffffff;
 }
 .btn-ghost {
-  @apply bg-white/5 text-slate-200 font-medium rounded-2xl border border-white/10 transition-all hover:bg-white/10 active:scale-[0.98];
+  @apply bg-white/5 text-slate-200 font-medium rounded-2xl border border-white/10 active:scale-[0.98];
+  transition: background-color var(--dur-base) var(--ease-glide), border-color var(--dur-base) var(--ease-glide);
+}
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.09);
 }
 
 @media (prefers-reduced-motion: reduce) {

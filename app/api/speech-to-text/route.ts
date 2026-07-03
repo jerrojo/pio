@@ -70,7 +70,22 @@ export async function POST(req: NextRequest) {
     // hispanohablante suena a "inglés") — eso NUNCA debe traducirse.
     if (target && expected) {
       const forced = await transcribeAudio(audio, target, expected);
-      const forcedClean = stripFillers(forced.text);
+      let forcedClean = stripFillers(forced.text);
+      const freeClean = stripFillers(free.text);
+
+      // Anti-trampa: el prompt sesga a Whisper a "autocompletar" la frase
+      // esperada aunque el usuario se brinque palabras. Si la transcripción
+      // LIBRE (sin sesgo) es claramente más corta o muy distinta, se
+      // re-transcribe forzada al objetivo pero SIN prompt: lo que no se
+      // dijo, no existe — y saldrá en rojo.
+      const expWords = expected.trim().split(/\s+/).length;
+      const freeWords = freeClean.split(/\s+/).filter(Boolean).length;
+      const simFree = similarity(normalize(freeClean), normalize(expected));
+      if (freeWords + 1 < expWords || simFree < 0.25) {
+        const unbiased = await transcribeAudio(audio, target);
+        forcedClean = stripFillers(unbiased.text);
+      }
+
       const sim = similarity(normalize(forcedClean), normalize(expected));
 
       // Se parece a la frase esperada → intento claro

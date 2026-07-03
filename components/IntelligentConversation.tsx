@@ -83,6 +83,32 @@ export function IntelligentConversation({
     onSpeechEnd: blob => handleSpeech(blob),
   });
 
+  // Auto-actualización: si hay una versión nueva desplegada, recarga al
+  // volver a la pestaña (en reposo). Evita sesiones con código viejo.
+  useEffect(() => {
+    let current: string | null = null;
+    const check = async () => {
+      try {
+        const r = await fetch('/api/version', { cache: 'no-store' });
+        const { v } = await r.json();
+        if (!current) current = v;
+        else if (v && v !== current && !busyRef.current) window.location.reload();
+      } catch {
+        /* offline: ignorar */
+      }
+    };
+    void check();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void check();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    const t = setInterval(check, 5 * 60_000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(t);
+    };
+  }, []);
+
   // Repaso espaciado proactivo: en reposo, Pío te pide PRODUCIR una frase
   // pendiente ("¿Cómo se dice X?") — recall activo, la forma que enseña
   useEffect(() => {

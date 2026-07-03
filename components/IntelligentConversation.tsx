@@ -8,7 +8,7 @@ import { getLanguage } from '@/lib/languages';
 import { useAutoListen } from '@/lib/useAutoListen';
 import { evaluatePronunciation, hasMastered } from '@/lib/pronunciation';
 import { translateText } from '@/lib/agent';
-import { Languages, MicOff, Volume2, Flame, Check } from 'lucide-react';
+import { Languages, MicOff, Volume2, Check } from 'lucide-react';
 import { loadProgress, recordMastery, masteredToday, Progress, DAILY_GOAL } from '@/lib/progress';
 import { scheduleReview, getDueReview } from '@/lib/review';
 
@@ -495,14 +495,11 @@ export function IntelligentConversation({
         </div>
 
         <div className="flex items-center gap-2">
-          {progress && (progress.streak > 0 || progress.mastered > 0) && (
+          {progress && (progress.mastered > 0 || masteredToday(progress) > 0) && (
             <div
               className="glass rounded-full px-3 py-2 flex items-center gap-2 text-xs font-medium text-slate-300 tabular-nums"
-              title={`Racha de ${progress.streak} día(s) · ${progress.mastered} frases dominadas`}
+              title={`${progress.mastered} frases dominadas`}
             >
-              <Flame className="w-3.5 h-3.5 text-amber-300" aria-hidden />
-              {progress.streak}
-              <span className="text-slate-600">·</span>
               <Check className="w-3.5 h-3.5 text-green-300" aria-hidden />
               {progress.mastered}
               <span className="text-slate-600">·</span>

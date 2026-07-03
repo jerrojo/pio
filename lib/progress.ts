@@ -6,7 +6,6 @@
  */
 
 export interface Progress {
-  streak: number;
   lastDay: string; // YYYY-MM-DD del último día activo
   mastered: number;
   phrases: string[];
@@ -33,15 +32,12 @@ export function loadProgress(): Progress {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
-      const p = JSON.parse(raw) as Progress;
-      // La racha se rompe si el último día activo no fue hoy ni ayer
-      if (p.lastDay !== day() && p.lastDay !== day(-1)) p.streak = 0;
-      return p;
+      return JSON.parse(raw) as Progress;
     }
   } catch {
     /* localStorage no disponible */
   }
-  return { streak: 0, lastDay: '', mastered: 0, phrases: [], todayCount: 0 };
+  return { lastDay: '', mastered: 0, phrases: [], todayCount: 0 };
 }
 
 function save(p: Progress) {
@@ -52,11 +48,10 @@ function save(p: Progress) {
   }
 }
 
-/** Marca actividad de hoy: extiende la racha (ayer→hoy) o la reinicia */
+/** Marca actividad de hoy (sin rachas: el progreso solo suma, nunca castiga) */
 function touchDay(p: Progress) {
   const today = day();
   if (p.lastDay === today) return;
-  p.streak = p.lastDay === day(-1) ? p.streak + 1 : 1;
   p.lastDay = today;
   p.todayCount = 0; // nuevo día, nueva meta
 }

@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
       // Suena a un TERCER idioma (ni objetivo ni nativo) → intento con
       // acento fuerte: evaluar contra lo esperado (score bajo + coaching),
       // jamás traducir el malentendido
-      if (free.language !== native) {
+      if (free.language !== native && sim >= 0.28) {
         return NextResponse.json({
           text: forcedClean || cleaned.text,
           language: target,

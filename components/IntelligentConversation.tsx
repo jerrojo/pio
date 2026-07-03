@@ -195,6 +195,16 @@ export function IntelligentConversation({
         await evaluateUserPronunciation(data.text);
         setPhase('done');
       } else {
+        // Frase nueva en tu idioma: el turno anterior (y su drill) se disuelve
+        if (drillWordRef.current) {
+          drillWordRef.current = null;
+          setDrillWord(null);
+          setDrillStage(null);
+          drillQueueRef.current = [];
+          amberGroupRef.current = [];
+          itemFailsRef.current = 0;
+          phraseFailsRef.current = 0;
+        }
         await routeByLanguage(data.text, data.language || userLanguage);
       }
     } catch (error) {
@@ -233,8 +243,31 @@ export function IntelligentConversation({
     // ── Modo práctica aislada: solo la palabra roja en turno ──
     if (drillWordRef.current) {
       const item = drillWordRef.current;
+      const phrase = translatedRef.current;
       const wantCoach = itemFailsRef.current >= 2; // consejo al 3er intento
-      const s = await evaluatePronunciation(null, item, targetLanguage, userText, userLanguage, wantCoach);
+
+      // Oído abierto: aunque el foco sea una palabra, se evalúa en paralelo
+      // contra la frase completa. Se califica lo que REALMENTE dijiste.
+      const [s, sPhrase] = await Promise.all([
+        evaluatePronunciation(null, item, targetLanguage, userText, userLanguage, wantCoach),
+        phrase && cleanWord(phrase).toLowerCase() !== item.toLowerCase()
+          ? evaluatePronunciation(null, phrase, targetLanguage, userText, userLanguage, false)
+          : Promise.resolve(null),
+      ]);
+
+      if (sPhrase && (sPhrase.passed || sPhrase.score > s.score)) {
+        // Dijiste la frase (o más que la palabra): el drill se disuelve
+        // y se califica la frase completa tal como salió
+        drillWordRef.current = null;
+        setDrillWord(null);
+        setDrillStage(null);
+        drillQueueRef.current = [];
+        amberGroupRef.current = [];
+        itemFailsRef.current = 0;
+        await finishPhraseEvaluation(sPhrase, phrase);
+        return;
+      }
+
       setPronunciationScore(s);
       setPhase('done');
 
@@ -275,6 +308,11 @@ export function IntelligentConversation({
 
     const targetText = translatedRef.current || userText;
     const score = await evaluatePronunciation(null, targetText, targetLanguage, userText, userLanguage, phraseFailsRef.current >= 2);
+    await finishPhraseEvaluation(score, targetText);
+  };
+
+  /** Flujo de resultado de la frase completa (pase o ciclo de drill) */
+  const finishPhraseEvaluation = async (score: PronunciationScore, targetText: string) => {
     setPronunciationScore(score);
     setPhase('done'); // la evaluación terminó; lo que sigue es feedback
 

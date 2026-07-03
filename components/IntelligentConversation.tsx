@@ -5,6 +5,7 @@ import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import { LanguageCode, ConversationMode, PronunciationScore } from '@/types';
 import { MainCircle } from '@/components/MainCircle';
 import { getLanguage } from '@/lib/languages';
+import { t, langName } from '@/lib/i18n';
 import { useAutoListen } from '@/lib/useAutoListen';
 import { evaluatePronunciation, hasMastered } from '@/lib/pronunciation';
 import { translateText } from '@/lib/agent';
@@ -24,12 +25,6 @@ interface IntelligentConversationProps {
 
 type Phase = 'idle' | 'listening' | 'transcribing' | 'translating' | 'evaluating' | 'done';
 
-const PHASE_LABELS: Record<Exclude<Phase, 'idle' | 'done'>, string> = {
-  listening: 'Te escucho',
-  transcribing: 'Un momento',
-  translating: 'Traduciendo',
-  evaluating: 'Evaluando tu pronunciación',
-};
 
 /**
  * Conversación manos libres: sin botones. El micrófono se activa solo,
@@ -117,7 +112,7 @@ export function IntelligentConversation({
   // Repaso espaciado proactivo: en reposo, Pío te pide PRODUCIR una frase
   // pendiente ("¿Cómo se dice X?") — recall activo, la forma que enseña
   useEffect(() => {
-    const t = setInterval(() => {
+    const timer = setInterval(() => {
       if (busyRef.current) return;
       if (translatedRef.current) return; // ya hay frase en curso
       if (Date.now() - lastProposalRef.current < 90_000) return;
@@ -134,14 +129,14 @@ export function IntelligentConversation({
       setPhase('done');
       void speak(
         due.native
-          ? `Repasemos. ¿Cómo se dice: ${due.native}?`
-          : 'Repasemos esta frase. Escucha y repite.',
+          ? t(userLanguage, 'speakReviewAsk', { phrase: due.native })
+          : t(userLanguage, 'speakReviewListen'),
         userLanguage
       ).then(() => {
         if (!due.native) return speak(due.target, targetLanguage);
       });
     }, 12_000);
-    return () => clearInterval(t);
+    return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -182,7 +177,7 @@ export function IntelligentConversation({
 
       if (!data.text) {
         setPhase('idle');
-        setErrorMsg('No te escuché bien — inténtalo otra vez.');
+        setErrorMsg(t(userLanguage, 'errNotHeard'));
         return;
       }
 
@@ -211,7 +206,7 @@ export function IntelligentConversation({
     } catch (error) {
       console.error('Error processing audio:', error);
       setPhase('idle');
-      setErrorMsg('Hubo un problema procesando tu voz. Sigue hablando, te escucho.');
+      setErrorMsg(t(userLanguage, 'errProcessing'));
     } finally {
       setIsProcessing(false);
     }
@@ -280,7 +275,7 @@ export function IntelligentConversation({
           drillWordRef.current = next;
           setDrillWord(next);
           setDrillStage('red');
-          await speak('¡Esa ya está! Siguiente palabra:', userLanguage);
+          await speak(t(userLanguage, 'speakNextWord'), userLanguage);
           await speak(next, targetLanguage);
         } else if (amberGroupRef.current.length > 0) {
           // AMARILLAS: todas juntas
@@ -289,19 +284,19 @@ export function IntelligentConversation({
           drillWordRef.current = chunk;
           setDrillWord(chunk);
           setDrillStage('amber');
-          await speak('Ahora estas palabras juntas:', userLanguage);
+          await speak(t(userLanguage, 'speakTogether'), userLanguage);
           await speak(chunk, targetLanguage);
         } else {
           // de vuelta a la frase completa
           drillWordRef.current = null;
           setDrillWord(null);
           setDrillStage(null);
-          await speak('¡Muy bien! Ahora la frase completa.', userLanguage);
+          await speak(t(userLanguage, 'speakFullPhrase'), userLanguage);
           if (translatedRef.current) await speak(translatedRef.current, targetLanguage);
         }
       } else {
         itemFailsRef.current += 1;
-        await speak(s.feedback || 'Otra vez. Escucha con atención.', userLanguage);
+        await speak(s.feedback || t(userLanguage, 'speakListenAgain'), userLanguage);
         await speak(item, targetLanguage);
       }
       return;
@@ -329,10 +324,10 @@ export function IntelligentConversation({
       const today = masteredToday(updated);
       await speak(
         today === DAILY_GOAL
-          ? '¡Meta del día cumplida! Tres frases dominadas.'
+          ? t(userLanguage, 'speakDailyGoal')
           : score.score >= 9
-          ? '¡Excelente! Lo dominaste.'
-          : '¡Muy bien! Lo lograste.',
+          ? t(userLanguage, 'speakExcellent')
+          : t(userLanguage, 'speakWellDone'),
         userLanguage
       );
       setTimeout(() => resetTurn(), 800);
@@ -362,7 +357,7 @@ export function IntelligentConversation({
         await speak(
           phraseFailsRef.current >= 3 && score.feedback
             ? score.feedback
-            : 'Vamos por partes. Repite solo:',
+            : t(userLanguage, 'speakByParts'),
           userLanguage
         );
         await speak(first, targetLanguage);
@@ -371,10 +366,10 @@ export function IntelligentConversation({
         drillWordRef.current = chunk;
         setDrillWord(chunk);
         setDrillStage('amber');
-        await speak('Casi. Estas palabras juntas:', userLanguage);
+        await speak(t(userLanguage, 'speakAlmostTogether'), userLanguage);
         await speak(chunk, targetLanguage);
       } else {
-        await speak(score.feedback || 'Casi. Inténtalo otra vez.', userLanguage);
+        await speak(score.feedback || t(userLanguage, 'speakTryAgain'), userLanguage);
         if (translatedRef.current) await speak(translatedRef.current, targetLanguage);
       }
     }
@@ -398,7 +393,7 @@ export function IntelligentConversation({
         });
         if (!response.ok) {
           // Sin voz (ej. cuota agotada): la app sigue funcionando en texto
-          setErrorMsg('La voz no está disponible ahora — lee la frase en pantalla.');
+          setErrorMsg(t(userLanguage, 'errNoVoice'));
           return;
         }
         data = await response.arrayBuffer();
@@ -478,13 +473,26 @@ export function IntelligentConversation({
     resetTurn();
   };
 
+  const phaseLabels: Record<Exclude<Phase, 'idle' | 'done'>, string> = {
+    listening: t(userLanguage, 'phaseListening'),
+    transcribing: t(userLanguage, 'phaseTranscribing'),
+    translating: t(userLanguage, 'phaseTranslating'),
+    evaluating: t(userLanguage, 'phaseEvaluating'),
+  };
+
   const statusLabel = isCapturing
-    ? PHASE_LABELS.listening
+    ? phaseLabels.listening
     : phase !== 'idle' && phase !== 'done'
-    ? PHASE_LABELS[phase]
+    ? phaseLabels[phase]
     : isSpeaking
-    ? 'Repite después de mí'
+    ? t(userLanguage, 'repeatAfterMe')
     : null;
+
+  // Nombres para el hint: minúsculas salvo en alemán (los sustantivos van en mayúscula)
+  const hintName = (code: LanguageCode) => {
+    const n = langName(userLanguage, code);
+    return userLanguage === 'de' ? n : n.toLowerCase();
+  };
 
   const aiActive = isCapturing || isProcessing || isSpeaking;
 
@@ -495,14 +503,11 @@ export function IntelligentConversation({
         <div className="glass rounded-3xl p-8 text-center max-w-sm">
           <MicOff className="w-10 h-10 mx-auto text-slate-400 mb-4" />
           <h2 className="text-xl font-medium tracking-tight text-white mb-2">
-            Pío necesita escucharte
+            {t(userLanguage, 'micTitle')}
           </h2>
-          <p className="text-slate-400 text-sm mb-6">
-            Permite el acceso al micrófono en tu navegador para conversar. Todo funciona con tu
-            voz: no hay nada que escribir.
-          </p>
+          <p className="text-slate-400 text-sm mb-6">{t(userLanguage, 'micBody')}</p>
           <button onClick={retryPermission} className="btn-primary w-full px-6 py-3">
-            Permitir micrófono
+            {t(userLanguage, 'micAllow')}
           </button>
         </div>
       </div>
@@ -537,23 +542,26 @@ export function IntelligentConversation({
           {progress && (progress.mastered > 0 || masteredToday(progress) > 0) && (
             <div
               className="glass rounded-full px-3 py-2 flex items-center gap-2 text-xs font-medium text-slate-300 tabular-nums"
-              title={`${progress.mastered} frases dominadas`}
+              title={t(userLanguage, 'masteredTitle', { n: progress.mastered })}
             >
               <Check className="w-3.5 h-3.5 text-green-300" aria-hidden />
               {progress.mastered}
               <span className="text-slate-600">·</span>
               <span className={masteredToday(progress) >= DAILY_GOAL ? 'text-[#f5c86b]' : ''}>
-                hoy {Math.min(masteredToday(progress), DAILY_GOAL)}/{DAILY_GOAL}
+                {t(userLanguage, 'todayChip', {
+                  n: Math.min(masteredToday(progress), DAILY_GOAL),
+                  goal: DAILY_GOAL,
+                })}
               </span>
             </div>
           )}
           <button
             onClick={onChangeLanguages}
             className="glass rounded-full px-4 py-2 flex items-center gap-2 text-sm font-medium text-slate-300 hover:bg-white/10 transition-colors"
-            aria-label="Cambiar idiomas"
+            aria-label={t(userLanguage, 'ariaChangeLanguages')}
           >
             <Languages className="w-4 h-4 text-slate-400" />
-            {getLanguage(targetLanguage).name}
+            {langName(userLanguage, targetLanguage)}
           </button>
         </div>
       </header>
@@ -563,7 +571,9 @@ export function IntelligentConversation({
         <button
           onClick={handleOrbTap}
           className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8b9cf9]/60"
-          aria-label={needsAudioUnlock ? 'Tocar para activar el audio' : 'Tocar para nueva frase'}
+          aria-label={
+            needsAudioUnlock ? t(userLanguage, 'ariaUnlockAudio') : t(userLanguage, 'ariaNewPhrase')
+          }
         >
           <MainCircle
             mode={mode}
@@ -585,7 +595,7 @@ export function IntelligentConversation({
                 exit={{ opacity: 0 }}
                 className="text-sm font-medium text-signal"
               >
-                Toca el orbe una vez para comenzar
+                {t(userLanguage, 'orbTouchStart')}
               </motion.button>
             ) : permission === 'pending' ? (
               <motion.p
@@ -595,7 +605,7 @@ export function IntelligentConversation({
                 exit={{ opacity: 0 }}
                 className="text-sm text-slate-400"
               >
-                Activando micrófono…
+                {t(userLanguage, 'micActivating')}
               </motion.p>
             ) : needsAudioUnlock ? (
               <motion.p
@@ -605,7 +615,7 @@ export function IntelligentConversation({
                 exit={{ opacity: 0 }}
                 className="text-sm font-medium text-signal"
               >
-                Toca el orbe para escuchar la respuesta
+                {t(userLanguage, 'orbTouchHear')}
               </motion.p>
             ) : statusLabel ? (
               <motion.p
@@ -625,8 +635,10 @@ export function IntelligentConversation({
                 exit={{ opacity: 0 }}
                 className="text-sm text-slate-400"
               >
-                Habla cuando quieras — en {getLanguage(userLanguage).name.toLowerCase()} traduzco,
-                en {getLanguage(targetLanguage).name.toLowerCase()} te evalúo
+                {t(userLanguage, 'idleHint', {
+                  native: hintName(userLanguage),
+                  target: hintName(targetLanguage),
+                })}
               </motion.p>
             )}
           </AnimatePresence>
@@ -651,7 +663,7 @@ export function IntelligentConversation({
                   drillStage === 'amber' ? 'text-amber-200/90' : 'text-red-200/90'
                 }`}
               >
-                {drillStage === 'amber' ? 'Ahora juntas' : 'Práctica aislada'}
+                {drillStage === 'amber' ? t(userLanguage, 'drillTogether') : t(userLanguage, 'drillIsolated')}
               </span>
               <motion.button
                 key={drillWord}
@@ -661,13 +673,13 @@ export function IntelligentConversation({
                 whileTap={{ scale: 0.94 }}
                 onClick={() => speak(drillWord, targetLanguage)}
                 className="text-3xl sm:text-4xl font-medium tracking-tight text-white leading-tight"
-                aria-label={`Escuchar ${drillWord}`}
+                aria-label={t(userLanguage, 'ariaListenWord', { word: drillWord })}
               >
                 {drillWord}
               </motion.button>
               <span className="flex items-center gap-1.5 text-[11px] text-slate-400">
                 <Volume2 className="w-3.5 h-3.5" aria-hidden />
-                toca la palabra para oírla
+                {t(userLanguage, 'drillTapWord')}
               </span>
             </motion.div>
           )}
@@ -686,7 +698,8 @@ export function IntelligentConversation({
                 className="glass rounded-2xl p-4"
               >
                 <p className="text-[11px] uppercase tracking-wider text-slate-400 mb-1">
-                  Escuché{detectedLanguage ? ` · ${getLanguage(detectedLanguage).name}` : ''}
+                  {t(userLanguage, 'heardLabel')}
+                  {detectedLanguage ? ` · ${langName(userLanguage, detectedLanguage)}` : ''}
                 </p>
                 <p className="text-slate-100">{currentText}</p>
               </motion.div>
@@ -704,12 +717,12 @@ export function IntelligentConversation({
               >
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-[11px] uppercase tracking-wider text-slate-400">
-                    {getLanguage(targetLanguage).name} — repítelo en voz alta
+                    {langName(userLanguage, targetLanguage)} {t(userLanguage, 'repeatAloudSuffix')}
                   </p>
                   <button
                     onClick={() => speak(translatedText)}
                     className="text-slate-300 hover:text-white transition-colors"
-                    aria-label="Escuchar de nuevo"
+                    aria-label={t(userLanguage, 'ariaListenAgain')}
                   >
                     <Volume2 className="w-4 h-4" />
                   </button>
@@ -740,10 +753,10 @@ export function IntelligentConversation({
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-medium text-white">
                     {!(pronunciationScore.passed ?? pronunciationScore.score >= 7)
-                      ? 'Casi — inténtalo otra vez'
+                      ? t(userLanguage, 'resultAlmost')
                       : pronunciationScore.score < 9
-                      ? 'Bien'
-                      : 'Excelente'}
+                      ? t(userLanguage, 'resultGood')
+                      : t(userLanguage, 'resultExcellent')}
                   </span>
                   <motion.span
                     key={pronunciationScore.score}
@@ -775,7 +788,7 @@ export function IntelligentConversation({
                         whileHover={{ y: -1 }}
                         whileTap={{ scale: 0.94 }}
                         onClick={() => speak(w.word, targetLanguage)}
-                        aria-label={`Escuchar "${w.word}"`}
+                        aria-label={t(userLanguage, 'ariaListenWord', { word: w.word })}
                         className={`text-xl font-medium tracking-tight ${
                           w.quality === 'good'
                             ? 'text-green-300'
@@ -792,7 +805,8 @@ export function IntelligentConversation({
 
                 {pronunciationScore.heardText && (
                   <p className="text-xs text-slate-400 mb-1.5">
-                    Dijiste: <span className="text-slate-400 italic">"{pronunciationScore.heardText}"</span>
+                    {t(userLanguage, 'youSaid')}{' '}
+                    <span className="text-slate-400 italic">"{pronunciationScore.heardText}"</span>
                   </p>
                 )}
                 <p className="text-sm text-slate-300">{pronunciationScore.feedback}</p>
@@ -800,13 +814,13 @@ export function IntelligentConversation({
                 {pronunciationScore.words &&
                   pronunciationScore.words.some(w => w.quality !== 'good') && (
                     <p className="mt-2 text-[11px] text-slate-400">
-                      Toca una palabra para escucharla sola
+                      {t(userLanguage, 'tapWordSolo')}
                     </p>
                   )}
 
                 {!(pronunciationScore.passed ?? pronunciationScore.score >= 7) && (
                   <p className="mt-3 text-xs text-slate-400">
-                    Solo dilo de nuevo — te sigo escuchando.
+                    {t(userLanguage, 'sayAgainHint')}
                   </p>
                 )}
               </motion.div>

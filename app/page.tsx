@@ -6,13 +6,13 @@ import { IntelligentConversation } from '@/components/IntelligentConversation';
 import { LanguageCode } from '@/types';
 
 /**
- * Cero fricción: la app abre directo en la conversación (es → en por defecto)
+ * Cero fricción: la app abre directo en la conversación (en → es por defecto)
  * y pide el micrófono automáticamente. El idioma se cambia desde el header.
  */
 export default function App() {
   const [showLanguages, setShowLanguages] = useState(false);
-  const [userLanguage, setUserLanguage] = useState<LanguageCode>('es');
-  const [targetLanguage, setTargetLanguage] = useState<LanguageCode>('en');
+  const [userLanguage, setUserLanguage] = useState<LanguageCode>('en');
+  const [targetLanguage, setTargetLanguage] = useState<LanguageCode>('es');
 
   if (showLanguages) {
     return (

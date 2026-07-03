@@ -831,9 +831,9 @@ export function IntelligentConversation({
         {/* Error toast */}
         <AnimatePresence>
           {errorMsg && (
-            <div className="fixed bottom-10 inset-x-0 z-50 flex justify-center px-6 pointer-events-none">
+            <div className="fixed top-20 inset-x-0 z-50 flex justify-center px-6 pointer-events-none">
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
                 className="glass-deep rounded-2xl px-4 py-3 text-sm text-red-200 w-full max-w-sm text-center"

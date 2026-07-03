@@ -7,7 +7,8 @@ export async function evaluatePronunciation(
   targetText: string,
   targetLanguage: LanguageCode,
   spokenText?: string,
-  nativeLanguage?: LanguageCode
+  nativeLanguage?: LanguageCode,
+  coachHint?: boolean
 ): Promise<PronunciationScore> {
   try {
     const formData = new FormData();
@@ -21,6 +22,9 @@ export async function evaluatePronunciation(
     formData.append('targetLanguage', targetLanguage);
     if (nativeLanguage) {
       formData.append('nativeLanguage', nativeLanguage);
+    }
+    if (coachHint) {
+      formData.append('coach', '1');
     }
 
     const response = await fetch('/api/evaluate-pronunciation', {

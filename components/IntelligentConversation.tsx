@@ -54,9 +54,14 @@ export function IntelligentConversation({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [needsAudioUnlock, setNeedsAudioUnlock] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
-  // Práctica aislada: palabra ROJA que se trabaja sola hasta subir a amarillo
+  // Drill por etapas: ROJAS una por una → AMARILLAS juntas → frase completa
   const [drillWord, setDrillWord] = useState<string | null>(null);
+  const [drillStage, setDrillStage] = useState<'red' | 'amber' | null>(null);
   const drillWordRef = useRef<string | null>(null);
+  const drillQueueRef = useRef<string[]>([]);   // rojas pendientes
+  const amberGroupRef = useRef<string[]>([]);   // amarillas para el conjunto
+  const phraseFailsRef = useRef(0);             // fallos de la frase completa
+  const itemFailsRef = useRef(0);               // fallos del elemento en drill
 
   useEffect(() => {
     setProgress(loadProgress());
@@ -227,31 +232,55 @@ export function IntelligentConversation({
   const evaluateUserPronunciation = async (userText: string) => {
     // ── Modo práctica aislada: solo la palabra roja en turno ──
     if (drillWordRef.current) {
-      const word = drillWordRef.current;
-      const s = await evaluatePronunciation(null, word, targetLanguage, userText, userLanguage);
+      const item = drillWordRef.current;
+      const wantCoach = itemFailsRef.current >= 2; // consejo al 3er intento
+      const s = await evaluatePronunciation(null, item, targetLanguage, userText, userLanguage, wantCoach);
       setPronunciationScore(s);
       setPhase('done');
 
       if (s.score >= 6) {
-        // subió a amarillo (o mejor): de vuelta a la frase completa
-        drillWordRef.current = null;
-        setDrillWord(null);
-        await speak('¡Mucho mejor! Ahora la frase completa.', userLanguage);
-        if (translatedRef.current) await speak(translatedRef.current, targetLanguage);
+        itemFailsRef.current = 0;
+        const next = drillQueueRef.current.shift();
+        if (next) {
+          // siguiente ROJA
+          drillWordRef.current = next;
+          setDrillWord(next);
+          setDrillStage('red');
+          await speak('¡Esa ya está! Siguiente palabra:', userLanguage);
+          await speak(next, targetLanguage);
+        } else if (amberGroupRef.current.length > 0) {
+          // AMARILLAS: todas juntas
+          const chunk = amberGroupRef.current.join(' ');
+          amberGroupRef.current = [];
+          drillWordRef.current = chunk;
+          setDrillWord(chunk);
+          setDrillStage('amber');
+          await speak('Ahora estas palabras juntas:', userLanguage);
+          await speak(chunk, targetLanguage);
+        } else {
+          // de vuelta a la frase completa
+          drillWordRef.current = null;
+          setDrillWord(null);
+          setDrillStage(null);
+          await speak('¡Muy bien! Ahora la frase completa.', userLanguage);
+          if (translatedRef.current) await speak(translatedRef.current, targetLanguage);
+        }
       } else {
+        itemFailsRef.current += 1;
         await speak(s.feedback || 'Otra vez. Escucha con atención.', userLanguage);
-        await speak(word, targetLanguage);
+        await speak(item, targetLanguage);
       }
       return;
     }
 
     const targetText = translatedRef.current || userText;
-    const score = await evaluatePronunciation(null, targetText, targetLanguage, userText, userLanguage);
+    const score = await evaluatePronunciation(null, targetText, targetLanguage, userText, userLanguage, phraseFailsRef.current >= 2);
     setPronunciationScore(score);
     setPhase('done'); // la evaluación terminó; lo que sigue es feedback
 
     const passed = score.passed ?? hasMastered(score.score);
     if (passed) {
+      phraseFailsRef.current = 0;
       const updated = recordMastery(targetText);
       setProgress(updated);
       scheduleReview(nativeRef.current, targetText, true);
@@ -270,22 +299,44 @@ export function IntelligentConversation({
       setTimeout(() => resetTurn(), 800);
     } else {
       scheduleReview(nativeRef.current, targetText, false);
-      const reds = (score.words ?? []).filter(w => w.quality === 'bad');
+      phraseFailsRef.current += 1;
+      itemFailsRef.current = 0;
 
+      const reds = (score.words ?? [])
+        .filter(w => w.quality === 'bad')
+        .map(w => cleanWord(w.word))
+        .filter(Boolean);
+      const ambers = (score.words ?? [])
+        .filter(w => w.quality === 'weak')
+        .map(w => cleanWord(w.word))
+        .filter(Boolean);
+
+      // La pantalla ya muestra lo que dijiste vs. la frase coloreada;
+      // el consejo largo del coach solo llega al tercer fallo
       if (reds.length > 0) {
-        // ROJA → se aísla y se trabaja sola hasta subir a amarillo
-        const word = cleanWord(reds[0].word);
-        drillWordRef.current = word;
-        setDrillWord(word);
-        await speak(score.feedback || 'Vamos a trabajar una palabra.', userLanguage);
-        await speak('Repite solo esta palabra:', userLanguage);
-        await speak(word, targetLanguage);
+        drillQueueRef.current = reds.slice(1);
+        amberGroupRef.current = ambers;
+        const first = reds[0];
+        drillWordRef.current = first;
+        setDrillWord(first);
+        setDrillStage('red');
+        await speak(
+          phraseFailsRef.current >= 3 && score.feedback
+            ? score.feedback
+            : 'Vamos por partes. Repite solo:',
+          userLanguage
+        );
+        await speak(first, targetLanguage);
+      } else if (ambers.length > 0) {
+        const chunk = ambers.join(' ');
+        drillWordRef.current = chunk;
+        setDrillWord(chunk);
+        setDrillStage('amber');
+        await speak('Casi. Estas palabras juntas:', userLanguage);
+        await speak(chunk, targetLanguage);
       } else {
-        // solo AMARILLAS → se pulen en conjunto con la frase completa
         await speak(score.feedback || 'Casi. Inténtalo otra vez.', userLanguage);
-        if (translatedRef.current) {
-          await speak(translatedRef.current, targetLanguage);
-        }
+        if (translatedRef.current) await speak(translatedRef.current, targetLanguage);
       }
     }
   };
@@ -365,9 +416,13 @@ export function IntelligentConversation({
     setTranslatedText('');
     translatedRef.current = '';
     nativeRef.current = '';
-    drillWordRef.current = '' as any;
     drillWordRef.current = null;
     setDrillWord(null);
+    setDrillStage(null);
+    drillQueueRef.current = [];
+    amberGroupRef.current = [];
+    phraseFailsRef.current = 0;
+    itemFailsRef.current = 0;
   };
 
   const handleOrbTap = () => {
@@ -548,10 +603,17 @@ export function IntelligentConversation({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               className="mt-6 glass rounded-2xl px-5 py-3 flex items-center gap-3"
-              style={{ borderColor: 'rgba(248,113,113,0.4)' }}
+              style={{
+                borderColor:
+                  drillStage === 'amber' ? 'rgba(246,178,107,0.45)' : 'rgba(248,113,113,0.4)',
+              }}
             >
-              <span className="text-[11px] uppercase tracking-wider text-red-300/80">
-                Práctica aislada
+              <span
+                className={`text-[11px] uppercase tracking-wider ${
+                  drillStage === 'amber' ? 'text-amber-300/80' : 'text-red-300/80'
+                }`}
+              >
+                {drillStage === 'amber' ? 'Ahora juntas' : 'Práctica aislada'}
               </span>
               <button
                 onClick={() => speak(drillWord, targetLanguage)}

@@ -106,9 +106,9 @@ export function scorePronunciation(targetText: string, heardText: string): Pronu
   // curva: similitud 1.0 → 10, 0.85 → ~8.5, 0.6 → ~5
   const score = Math.max(0, Math.min(10, Math.round(sim * 10)));
 
-  // Estricto (regla anti-Babbel): nunca aprobar con una palabra fallida.
-  // Pasa con 8+, o con 7 si TODAS las palabras fueron al menos aceptables.
-  const passed = score >= 8 || (score >= 7 && badWords.length === 0);
+  // Estricto total: la frase pasa solo cuando TODAS las palabras están
+  // en verde (el flujo rojas→amarillas→frase se repite hasta lograrlo)
+  const passed = score >= 7 && words.every(w => w.quality === 'good');
 
   return {
     score,

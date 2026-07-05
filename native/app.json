@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Pío",
+    "slug": "pio",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Pío necesita el micrófono para escuchar tu voz y evaluar tu pronunciación."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "backgroundColor": "#05060a",
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Pío necesita el micrófono para escuchar tu voz y evaluar tu pronunciación."
+        }
+      ]
+    ]
+  }
+}

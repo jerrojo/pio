@@ -392,7 +392,30 @@ export function IntelligentConversation({
           }),
         });
         if (!response.ok) {
-          // Sin voz (ej. cuota agotada): la app sigue funcionando en texto
+          // Sin ElevenLabs (ej. cuota agotada): fallback a la voz del sistema
+          if ('speechSynthesis' in window) {
+            try {
+              const locale = getLanguage(lang).locale;
+              window.speechSynthesis.cancel();
+              const utterance = new SpeechSynthesisUtterance(text);
+              utterance.lang = locale;
+              utterance.rate = 0.95;
+              const voice = window.speechSynthesis
+                .getVoices()
+                .find(v => v.lang.startsWith(locale));
+              if (voice) utterance.voice = voice;
+              // Crítico: esperar a que TERMINE para no reactivar el mic antes
+              await new Promise<void>(resolve => {
+                utterance.onend = () => resolve();
+                utterance.onerror = () => resolve();
+                window.speechSynthesis.speak(utterance);
+              });
+              return;
+            } catch {
+              // cae al toast de abajo
+            }
+          }
+          // Sin voz posible: la app sigue funcionando en texto
           setErrorMsg(t(userLanguage, 'errNoVoice'));
           return;
         }

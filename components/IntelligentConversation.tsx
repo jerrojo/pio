@@ -392,31 +392,55 @@ export function IntelligentConversation({
           }),
         });
         if (!response.ok) {
-          // Sin ElevenLabs (ej. cuota agotada): fallback a la voz del sistema
-          if ('speechSynthesis' in window) {
-            try {
-              const locale = getLanguage(lang).locale;
-              window.speechSynthesis.cancel();
-              const utterance = new SpeechSynthesisUtterance(text);
-              utterance.lang = locale;
-              utterance.rate = 0.95;
-              const voice = window.speechSynthesis
-                .getVoices()
-                .find(v => v.lang.startsWith(locale));
-              if (voice) utterance.voice = voice;
-              // Crítico: esperar a que TERMINE para no reactivar el mic antes
-              await new Promise<void>(resolve => {
-                utterance.onend = () => resolve();
-                utterance.onerror = () => resolve();
-                window.speechSynthesis.speak(utterance);
-              });
+          // Sin ElevenLabs (ej. cuota agotada): fallback a la voz del sistema.
+          // TODO el bloque va dentro de try/catch: speechSynthesis es fragil
+          // (sobre todo en iOS) y nunca debe romper el flujo de la app.
+          try {
+            if (
+              typeof window === 'undefined' ||
+              !('speechSynthesis' in window) ||
+              !window.speechSynthesis
+            ) {
+              setErrorMsg(t(userLanguage, 'errNoVoice'));
               return;
-            } catch {
-              // cae al toast de abajo
             }
+            const locale = getLanguage(lang).locale.toLowerCase();
+            const base = locale.split('-')[0];
+            const voices = window.speechSynthesis.getVoices() || [];
+            const voice =
+              voices.find(v => v.lang?.toLowerCase().startsWith(locale)) ||
+              voices.find(v => v.lang?.toLowerCase().startsWith(base));
+            if (!voice) {
+              // Sin voz para este idioma: la app sigue funcionando en texto
+              setErrorMsg(t(userLanguage, 'errNoVoice'));
+              return;
+            }
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = voice.lang || locale;
+            utterance.voice = voice;
+            utterance.rate = 0.95;
+            // Esperar a que TERMINE para no reactivar el mic antes,
+            // con timeout de seguridad de 15s: en iOS onend a veces
+            // nunca dispara y dejaria la app colgada para siempre
+            await new Promise<void>(resolve => {
+              let done = false;
+              let timer: ReturnType<typeof setTimeout> | undefined;
+              const finish = () => {
+                if (done) return;
+                done = true;
+                if (timer) clearTimeout(timer);
+                resolve();
+              };
+              timer = setTimeout(finish, 15000);
+              utterance.onend = finish;
+              utterance.onerror = finish;
+              window.speechSynthesis.speak(utterance);
+            });
+          } catch {
+            // Cualquier fallo del sintetizador: aviso suave y seguimos
+            setErrorMsg(t(userLanguage, 'errNoVoice'));
           }
-          // Sin voz posible: la app sigue funcionando en texto
-          setErrorMsg(t(userLanguage, 'errNoVoice'));
           return;
         }
         data = await response.arrayBuffer();

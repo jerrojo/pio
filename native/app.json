@@ -10,7 +10,9 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Pío necesita el micrófono para escuchar tu voz y evaluar tu pronunciación."
-      }
+      },
+      "bundleIdentifier": "today.pio.app",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {

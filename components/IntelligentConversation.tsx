@@ -68,6 +68,10 @@ export function IntelligentConversation({
   const audioUnlockedRef = useRef(false);
   const lastProposalRef = useRef(0);
   const busyRef = useRef(false);
+  // Anti-eco: ventana de supresión tras el TTS y última frase reproducida,
+  // para que el audio de la bocina no se evalúe como si fuera el usuario
+  const echoGuardUntilRef = useRef(0);
+  const lastSpokenRef = useRef<{ text: string; at: number }>({ text: '', at: 0 });
 
   useEffect(() => {
     if (!errorMsg) return;
@@ -153,6 +157,10 @@ export function IntelligentConversation({
   };
 
   const handleSpeech = async (audioBlob: Blob) => {
+    // Candado 1: dentro de la ventana de supresión post-TTS todo lo captado
+    // es cola del altavoz, no el usuario. Se descarta en silencio.
+    const arrivedAt = Date.now();
+    if (arrivedAt < echoGuardUntilRef.current) return;
     // Regla de Pío: idioma natal → traduce; idioma objetivo → evalúa.
     // El servidor desambigua el acento comparando contra la frase pendiente
     // (si la hay), así que aquí solo seguimos su decisión.
@@ -179,6 +187,36 @@ export function IntelligentConversation({
         setPhase('idle');
         setErrorMsg(t(userLanguage, 'errNotHeard'));
         return;
+      }
+
+      // Candado 2 (el fuerte): si lo transcrito es casi idéntico a lo que
+      // acaba de decir la bocina Y el turno llegó inmediatamente después del
+      // TTS (<2.5s), es eco del altavoz: un humano tarda más en reaccionar.
+      // La ventana corta evita bloquear la repetición legítima en evaluación.
+      const spoken = lastSpokenRef.current;
+      if (spoken.text && arrivedAt - spoken.at < 2500) {
+        const normalizeEcho = (str: string) =>
+          str
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^\p{L}\p{N}\s]/gu, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+        const heard = normalizeEcho(data.text);
+        const said = normalizeEcho(spoken.text);
+        const isEcho =
+          heard.length > 0 &&
+          said.length > 0 &&
+          (heard === said ||
+            ((heard.includes(said) || said.includes(heard)) &&
+              Math.abs(heard.length - said.length) <=
+                Math.max(heard.length, said.length) * 0.15));
+        if (isEcho) {
+          lastSpokenRef.current = { text: '', at: 0 };
+          setPhase('idle');
+          return;
+        }
       }
 
       if (data.intent === 'evaluate') {
@@ -479,8 +517,12 @@ export function IntelligentConversation({
     } catch (error) {
       console.error('Error playing audio:', error);
     } finally {
+      // Al terminar la reproducción: registrar qué se dijo y abrir la
+      // ventana de supresión anti-eco antes de reactivar el micrófono
+      lastSpokenRef.current = { text, at: Date.now() };
+      echoGuardUntilRef.current = Date.now() + 900;
       // Pequeño colchón para que el mic no capture la cola del altavoz
-      setTimeout(() => setIsSpeaking(false), 350);
+      setTimeout(() => setIsSpeaking(false), 600);
     }
   };
 
@@ -513,7 +555,10 @@ export function IntelligentConversation({
       pendingAudioRef.current = null;
       setNeedsAudioUnlock(false);
       setIsSpeaking(true);
-      audio.onended = () => setTimeout(() => setIsSpeaking(false), 350);
+      audio.onended = () => {
+        echoGuardUntilRef.current = Date.now() + 900;
+        setTimeout(() => setIsSpeaking(false), 600);
+      };
       audio.play().catch(() => setIsSpeaking(false));
       return;
     }

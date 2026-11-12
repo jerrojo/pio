@@ -65,8 +65,10 @@ export function Icon({
 
 const spark = "M0-6 1.5-1.5 6 0 1.5 1.5 0 6-1.5 1.5-6 0-1.5-1.5z";
 
-// Pío, the only illustration in the product. Its face and posture mirror the
-// session state; every animated part is toggled from CSS by the mood class.
+// Pío, the only illustration in the product. Drawn with the lighting of a 3D
+// animated film: key light from the upper left, warm bounce below, a rim light
+// on the right and large glossy eyes. Its face and posture mirror the session
+// state; every animated part is toggled from CSS by the mood class.
 export function Mascot({ mood = "idle" }: { mood?: Mood | "still" }) {
   return (
     <svg
@@ -75,69 +77,162 @@ export function Mascot({ mood = "idle" }: { mood?: Mood | "still" }) {
       aria-hidden="true"
       focusable="false"
     >
+      <defs>
+        <radialGradient id="pio-body" cx="0.36" cy="0.28" r="0.85">
+          <stop offset="0" stopColor="#fff6c4" />
+          <stop offset="0.38" stopColor="#ffe083" />
+          <stop offset="0.76" stopColor="#f8bd4b" />
+          <stop offset="1" stopColor="#e2902f" />
+        </radialGradient>
+        <radialGradient id="pio-belly" cx="0.5" cy="0.45" r="0.55">
+          <stop offset="0" stopColor="#fffbe0" stopOpacity="0.85" />
+          <stop offset="1" stopColor="#fffbe0" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="pio-wing" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#fbcb5c" />
+          <stop offset="1" stopColor="#dd8a2b" />
+        </linearGradient>
+        <linearGradient id="pio-beak" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ffbd6e" />
+          <stop offset="1" stopColor="#f37a26" />
+        </linearGradient>
+        <radialGradient id="pio-sclera" cx="0.42" cy="0.36" r="0.75">
+          <stop offset="0.55" stopColor="#ffffff" />
+          <stop offset="1" stopColor="#dfe6ea" />
+        </radialGradient>
+        <radialGradient id="pio-iris" cx="0.5" cy="0.62" r="0.62">
+          <stop offset="0" stopColor="#c98445" />
+          <stop offset="0.7" stopColor="#8a4d20" />
+          <stop offset="1" stopColor="#4f2a10" />
+        </radialGradient>
+        <radialGradient id="pio-blush">
+          <stop offset="0" stopColor="#ff8a80" stopOpacity="0.85" />
+          <stop offset="1" stopColor="#ff8a80" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="pio-ground">
+          <stop offset="0" stopColor="#0d2e26" stopOpacity="0.55" />
+          <stop offset="1" stopColor="#0d2e26" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="pio-ao">
+          <stop offset="0" stopColor="#b9651c" stopOpacity="0.5" />
+          <stop offset="1" stopColor="#b9651c" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <ellipse cx="60" cy="111" rx="27" ry="5" fill="url(#pio-ground)" />
       <g
         className="m-feet"
-        stroke="#f08a3c"
-        strokeWidth="4"
+        stroke="#ee7f2a"
+        strokeWidth="3.6"
         strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
       >
-        <path d="M50 100v9M70 100v9" />
+        <path d="M49 101v8m-5 1 5-1 5 1M71 101v8m-5 1 5-1 5 1" />
       </g>
       <g className="m-body">
         <path
           className="m-tuft"
-          d="M60 34c-6-8-3-15 1-18 0 5 2 7 5 9 1-4 4-6 8-6-3 5-3 10-6 15z"
-          fill="#f5b94a"
+          d="M57 33c-7-7-6-15-2-19 1 5 3 7 6 9 0-5 3-9 8-10-3 6-2 10-4 14 3-3 6-4 10-3-5 3-7 7-10 10z"
+          fill="url(#pio-wing)"
         />
-        <ellipse
+        <path
           className="m-wing m-wing-l"
-          cx="24"
-          cy="72"
-          rx="9"
-          ry="14"
-          fill="#f5b94a"
+          d="M25 60c-9 6-11 20-5 29 5-2 9-8 10-15z"
+          fill="url(#pio-wing)"
         />
-        <ellipse
+        <path
           className="m-wing m-wing-r"
-          cx="96"
-          cy="72"
-          rx="9"
-          ry="14"
-          fill="#f5b94a"
+          d="M95 60c9 6 11 20 5 29-5-2-9-8-10-15z"
+          fill="url(#pio-wing)"
         />
-        <ellipse cx="60" cy="68" rx="38" ry="36" fill="#ffd978" />
-        <ellipse cx="50" cy="56" rx="22" ry="17" fill="#fff0b3" opacity=".55" />
-        <ellipse cx="38" cy="78" rx="7" ry="4.5" fill="#ff9f8e" opacity=".8" />
-        <ellipse cx="82" cy="78" rx="7" ry="4.5" fill="#ff9f8e" opacity=".8" />
+        <path
+          d="M60 30c24 0 38 20 38 42 0 21-16 33-38 33S22 93 22 72c0-22 14-42 38-42z"
+          fill="url(#pio-body)"
+        />
+        <ellipse cx="60" cy="90" rx="24" ry="15" fill="url(#pio-belly)" />
+        <ellipse
+          cx="45"
+          cy="43"
+          rx="13"
+          ry="6.5"
+          fill="#fff"
+          opacity=".38"
+          transform="rotate(-24 45 43)"
+        />
+        <path
+          d="M93 54c7 12 7 30-4 42"
+          stroke="#fff3c4"
+          strokeWidth="2.6"
+          strokeLinecap="round"
+          fill="none"
+          opacity=".6"
+        />
+        <ellipse cx="32" cy="82" rx="9" ry="6" fill="url(#pio-blush)" />
+        <ellipse cx="88" cy="82" rx="9" ry="6" fill="url(#pio-blush)" />
+        <g
+          className="m-brows"
+          stroke="#cf8e2d"
+          strokeWidth="2.6"
+          strokeLinecap="round"
+          fill="none"
+        >
+          <path className="m-brow-l" d="M37 49q8-4 15-1" />
+          <path className="m-brow-r" d="M68 48q7-3 15 1" />
+        </g>
         <g className="m-eyes m-eyes-open">
-          <circle cx="45" cy="64" r="5.5" fill="#2b2118" />
-          <circle cx="75" cy="64" r="5.5" fill="#2b2118" />
-          <circle cx="47" cy="62" r="1.8" fill="#fff" />
-          <circle cx="77" cy="62" r="1.8" fill="#fff" />
+          <ellipse cx="45" cy="65" rx="10.5" ry="12" fill="url(#pio-sclera)" />
+          <ellipse cx="75" cy="65" rx="10.5" ry="12" fill="url(#pio-sclera)" />
+          <g className="m-iris">
+            <circle cx="46" cy="66.5" r="8" fill="url(#pio-iris)" />
+            <circle cx="74" cy="66.5" r="8" fill="url(#pio-iris)" />
+            <circle cx="46" cy="66.5" r="4.6" fill="#1c0f07" />
+            <circle cx="74" cy="66.5" r="4.6" fill="#1c0f07" />
+            <circle cx="43" cy="62.5" r="2.7" fill="#fff" />
+            <circle cx="71" cy="62.5" r="2.7" fill="#fff" />
+            <circle cx="49.5" cy="70" r="1.2" fill="#fff" opacity=".8" />
+            <circle cx="77.5" cy="70" r="1.2" fill="#fff" opacity=".8" />
+          </g>
+          <path
+            d="M34.6 62q10.4-14 20.8 0M64.6 62q10.4-14 20.8 0"
+            stroke="#b9772a"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            fill="none"
+            opacity=".7"
+          />
         </g>
         <g
           className="m-eyes m-eyes-happy"
-          stroke="#2b2118"
-          strokeWidth="3.4"
+          stroke="#4a2a12"
+          strokeWidth="3.6"
           strokeLinecap="round"
           fill="none"
         >
-          <path d="M39 66q6-8 12 0M69 66q6-8 12 0" />
+          <path d="M36 68q9-12 18 0M66 68q9-12 18 0" />
         </g>
         <g
           className="m-eyes m-eyes-closed"
-          stroke="#2b2118"
+          stroke="#4a2a12"
           strokeWidth="3.4"
           strokeLinecap="round"
           fill="none"
         >
-          <path d="M39 64q6 6 12 0M69 64q6 6 12 0" />
+          <path d="M36 65q9 8 18 0M66 65q9 8 18 0" />
         </g>
-        <path className="m-beak-low" d="M53 76q7 9 14 0z" fill="#e2772e" />
+        <ellipse cx="60" cy="86" rx="10" ry="4" fill="url(#pio-ao)" />
+        <path className="m-beak-low" d="M53.5 80q6.5 8 13 0z" fill="#d5621c" />
         <path
           className="m-beak"
-          d="M51 74q9-9 18 0q-9 6-18 0z"
-          fill="#ff9d4d"
+          d="M50 78q10-10 20 0q-10 7-20 0z"
+          fill="url(#pio-beak)"
+        />
+        <ellipse
+          cx="56.5"
+          cy="75.6"
+          rx="3.2"
+          ry="1.2"
+          fill="#fff"
+          opacity=".55"
         />
       </g>
       <g className="m-zzz" fill="#14352a" fontWeight="800">
@@ -155,13 +250,13 @@ export function Mascot({ mood = "idle" }: { mood?: Mood | "still" }) {
         strokeLinecap="round"
         fill="none"
       >
-        <path d="M104 60q5 8 0 16" />
-        <path d="M110 54q9 14 0 28" />
+        <path d="M104 62q5 8 0 16" />
+        <path d="M110 56q9 14 0 28" />
       </g>
       <g className="m-dots" fill="#14352a">
-        <circle cx="84" cy="32" r="2.6" />
-        <circle cx="91" cy="24" r="3.4" />
-        <circle cx="99" cy="15" r="4.2" />
+        <circle cx="86" cy="30" r="2.6" />
+        <circle cx="93" cy="22" r="3.4" />
+        <circle cx="101" cy="13" r="4.2" />
       </g>
       <g className="m-sparks" fill="#fffbe6">
         <path d={spark} transform="translate(13 28)" />

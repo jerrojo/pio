@@ -293,9 +293,29 @@ p {
 .mood-listening .m-wing-r {
   transform: translate(3px, -14px) rotate(-28deg);
 }
-.mood-thinking .m-eyes-open {
-  animation: none;
+.m-iris,
+.m-brows path {
+  transition: transform 0.3s var(--spring);
+}
+.mood-thinking .m-iris {
   transform: translate(2.5px, -3px);
+}
+.mood-thinking .m-brow-r,
+.mood-curious .m-brow-r {
+  transform: translateY(-3px) rotate(8deg);
+}
+.mood-listening .m-iris {
+  transform: translateX(2.5px);
+}
+.mood-listening .m-brows path,
+.mood-speaking .m-brows path {
+  transform: translateY(-1.5px);
+}
+.mood-happy .m-brows path {
+  transform: translateY(-3px);
+}
+.mood-sleepy .m-brows path {
+  transform: translateY(2.5px);
 }
 .mood-thinking .m-dots {
   display: block;

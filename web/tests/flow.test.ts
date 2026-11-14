@@ -14,6 +14,7 @@ import {
 } from "../lib/domain.ts";
 import { runTurn, type Services } from "../lib/turn.ts";
 import { parseAzure } from "../lib/azure-result.ts";
+import { parseScribe, scribeEvidence } from "../lib/scribe-result.ts";
 import { encodeWav, validateWav } from "../lib/wav.ts";
 const p: Preferences = { version: 3, native: "es-MX", target: "de-DE" };
 const id = "00112233-4455-4677-8899-aabbccddeeff";
@@ -396,4 +397,122 @@ test("overlong utterance fails before creating an unusable exercise", async () =
       ),
     /phrase-too-long/,
   );
+});
+
+test("Scribe clarity evidence accepts a clearly heard reference and flags omitted, replaced and unclear words", () => {
+  const t = turnSchema.parse({
+    id: crypto.randomUUID(),
+    preferences: { version: 3, native: "es-MX", target: "de-DE" },
+    reference: {
+      id: crypto.randomUUID(),
+      text: "Ich möchte einen Kaffee bestellen.",
+      locale: "de-DE",
+    },
+  });
+  const w = (text: string, logprob: number) => ({
+    text,
+    type: "word",
+    logprob,
+  });
+  const response = (words: unknown[]) =>
+    parseScribe({
+      text: "x",
+      language_code: "deu",
+      language_probability: 0.99,
+      words,
+    });
+  const clear = scribeEvidence(
+    response([
+      w("Ich", -0.02),
+      { text: " ", type: "spacing" },
+      w("möchte", -0.03),
+      w("einen", -0.05),
+      w("Kaffee", -0.02),
+      w("bestellen.", -0.04),
+    ]),
+    t,
+  );
+  assert.equal(clear.source, "scribe-clarity");
+  assert.equal(clear.completeness, 100);
+  assert.equal(judge(clear, t.id, "de-DE", t.reference), "accepted");
+  const omitted = scribeEvidence(
+    response([
+      w("Ich", -0.02),
+      w("möchte", -0.03),
+      w("Kaffee", -0.02),
+      w("bestellen", -0.04),
+    ]),
+    t,
+  );
+  assert.equal(omitted.completeness, 80);
+  assert.deepEqual(
+    omitted.words.filter((x) => x.error === "Omission").map((x) => x.text),
+    ["einen"],
+  );
+  assert.equal(judge(omitted, t.id, "de-DE", t.reference), "practice");
+  const replaced = scribeEvidence(
+    response([
+      w("Ich", -0.02),
+      w("möchte", -0.03),
+      w("einen", -0.05),
+      w("Tee", -0.02),
+      w("bestellen", -0.04),
+    ]),
+    t,
+  );
+  assert.deepEqual(
+    replaced.words
+      .filter((x) => x.error !== "None")
+      .map((x) => x.error)
+      .sort(),
+    ["Insertion", "Omission"],
+  );
+  assert.equal(judge(replaced, t.id, "de-DE", t.reference), "practice");
+  const unclear = scribeEvidence(
+    response([
+      w("Ich", -0.02),
+      w("möchte", -1.2),
+      w("einen", -0.05),
+      w("Kaffee", -0.02),
+      w("bestellen", -0.04),
+    ]),
+    t,
+  );
+  assert.equal(unclear.completeness, 100);
+  assert.equal(judge(unclear, t.id, "de-DE", t.reference), "practice");
+});
+test("Scribe clarity never grades without per-word audio confidence, and free speech has no invented completeness", () => {
+  const t = turnSchema.parse({
+    id: crypto.randomUUID(),
+    preferences: { version: 3, native: "es-MX", target: "de-DE" },
+    reference: null,
+  });
+  const base = {
+    text: "Guten Morgen",
+    language_code: "deu",
+    language_probability: 0.99,
+  };
+  for (const words of [
+    [],
+    [{ text: "Guten", type: "word" }],
+    [{ text: "Guten", type: "word", logprob: null }],
+    [{ text: "(Musik)", type: "audio_event", logprob: -0.1 }],
+  ])
+    assert.throws(
+      () => scribeEvidence(parseScribe({ ...base, words }), t),
+      /assessment-unavailable/,
+    );
+  const free = scribeEvidence(
+    parseScribe({
+      ...base,
+      words: [
+        { text: "Guten", type: "word", logprob: -0.03 },
+        { text: "Morgen", type: "word", logprob: -0.05 },
+      ],
+    }),
+    t,
+  );
+  assert.equal(free.mode, "unscripted");
+  assert.equal(free.completeness, null);
+  assert.equal(judge(free, t.id, "de-DE", null), "accepted");
 });

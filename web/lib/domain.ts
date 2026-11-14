@@ -69,7 +69,9 @@ export type Turn = z.infer<typeof turnSchema>;
 export type Transcript = { text: string; language: string; confidence: number };
 export type Word = { text: string; accuracy: number; error: string };
 export type Evidence = {
-  source: "azure-acoustic";
+  // azure-acoustic: phoneme-level assessment. scribe-clarity: per-word
+  // recognizer confidence on the learner's audio (intelligibility).
+  source: "azure-acoustic" | "scribe-clarity";
   audioId: string;
   referenceId: string | null;
   locale: Locale;
@@ -106,7 +108,7 @@ export function judge(
   reference: Reference | null,
 ): "accepted" | "practice" | "unavailable" {
   if (
-    e.source !== "azure-acoustic" ||
+    !["azure-acoustic", "scribe-clarity"].includes(e.source) ||
     e.audioId !== audioId ||
     e.locale !== locale ||
     e.referenceId !== (reference?.id ?? null) ||

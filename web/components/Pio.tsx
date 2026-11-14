@@ -705,13 +705,13 @@ export function Pio() {
                   botón no lo enciende.
                 </p>
                 <p>
-                  Tu audio se envía a ElevenLabs y Microsoft para transcribir y
-                  evaluar; el texto se envía a OpenAI para traducir o conversar.
-                  Pío conserva temporalmente la última grabación en memoria para
-                  que puedas reintentar. Se descarta al cambiar idiomas, iniciar
-                  una nueva conversación o cerrar la página; no se guarda en una
-                  base de datos. La retención de cada proveedor depende de la
-                  cuenta configurada.
+                  Tu audio se envía a ElevenLabs para transcribir y evaluar qué
+                  tan claro se entendió cada palabra; el texto se envía a OpenAI
+                  para traducir o conversar. Pío conserva temporalmente la
+                  última grabación en memoria para que puedas reintentar. Se
+                  descarta al cambiar idiomas, iniciar una nueva conversación o
+                  cerrar la página; no se guarda en una base de datos. La
+                  retención de cada proveedor depende de la cuenta configurada.
                 </p>
               </details>
             </section>

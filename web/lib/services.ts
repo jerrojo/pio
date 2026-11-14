@@ -4,6 +4,11 @@ import { z } from "zod";
 import type { Services } from "./turn.ts";
 import { base, type Locale, type Turn } from "./domain.ts";
 import { parseAzure } from "./azure-result.ts";
+import {
+  parseScribe,
+  scribeEvidence,
+  type ScribeResponse,
+} from "./scribe-result.ts";
 
 function secret(name: string): string {
   const value = process.env[name];
@@ -15,12 +20,14 @@ export function voiceFor(locale: Locale) {
     `ELEVENLABS_VOICE_${locale.replace("-", "_").toUpperCase()}`
   ];
 }
+// Azure Speech is an optional upgrade to phoneme-level assessment. Without it
+// Pío grades clarity from ElevenLabs Scribe's per-word confidence.
+const azureConfigured = () =>
+  !!(process.env.AZURE_SPEECH_KEY && process.env.AZURE_SPEECH_REGION);
 export function readyFor(locale: Locale) {
   return !!(
     process.env.OPENAI_API_KEY &&
     process.env.ELEVENLABS_API_KEY &&
-    process.env.AZURE_SPEECH_KEY &&
-    process.env.AZURE_SPEECH_REGION &&
     voiceFor(locale)
   );
 }
@@ -49,37 +56,51 @@ const iso3: Record<string, string> = {
   ita: "it",
   por: "pt",
 };
+// The routing transcription is reused for grading when it already is in the
+// target language, so a turn costs one recognition instead of two.
+const heardCache = new WeakMap<Buffer, ScribeResponse>();
+async function scribe(audio: Buffer, signal: AbortSignal, language?: string) {
+  const body = new FormData();
+  body.set("model_id", process.env.PIO_STT_MODEL || "scribe_v3");
+  body.set(
+    "file",
+    new Blob([new Uint8Array(audio)], { type: "audio/wav" }),
+    "turn.wav",
+  );
+  body.set("tag_audio_events", "false");
+  body.set("diarize", "false");
+  body.set("timestamps_granularity", "word");
+  // Never seed recognition with the expected phrase. Only the language may be fixed.
+  if (language) body.set("language_code", language);
+  const response = await checkedFetch(
+    "https://api.elevenlabs.io/v1/speech-to-text",
+    {
+      method: "POST",
+      headers: { "xi-api-key": secret("ELEVENLABS_API_KEY") },
+      body,
+    },
+    signal,
+  );
+  return parseScribe(await response.json());
+}
+const heardLanguage = (r: ScribeResponse) =>
+  iso3[r.language_code] || r.language_code;
+async function assessScribe(audio: Buffer, turn: Turn, signal: AbortSignal) {
+  const target = base(turn.preferences.target);
+  const first = heardCache.get(audio);
+  const response =
+    first && heardLanguage(first) === target
+      ? first
+      : await scribe(audio, signal, target);
+  return scribeEvidence(response, turn);
+}
 export const services: Services = {
   async transcribe(audio, signal) {
-    const body = new FormData();
-    body.set("model_id", "scribe_v2");
-    body.set(
-      "file",
-      new Blob([new Uint8Array(audio)], { type: "audio/wav" }),
-      "turn.wav",
-    );
-    body.set("tag_audio_events", "false");
-    body.set("diarize", "false");
-    // Never seed recognition with the expected phrase. Language detection stays independent.
-    const response = await checkedFetch(
-      "https://api.elevenlabs.io/v1/speech-to-text",
-      {
-        method: "POST",
-        headers: { "xi-api-key": secret("ELEVENLABS_API_KEY") },
-        body,
-      },
-      signal,
-    );
-    const parsed = z
-      .object({
-        text: z.string().max(2000),
-        language_code: z.string(),
-        language_probability: z.number().min(0).max(1),
-      })
-      .parse(await response.json());
+    const parsed = await scribe(audio, signal);
+    heardCache.set(audio, parsed);
     return {
       text: parsed.text.trim(),
-      language: iso3[parsed.language_code] || parsed.language_code,
+      language: heardLanguage(parsed),
       confidence: parsed.language_probability,
     };
   },
@@ -106,6 +127,7 @@ export const services: Services = {
     return output.text;
   },
   async assess(audio, turn, signal) {
+    if (!azureConfigured()) return assessScribe(audio, turn, signal);
     // Lazy server-only import: the speech SDK must never reach the browser bundle.
     const sdk = await import("microsoft-cognitiveservices-speech-sdk");
     signal.throwIfAborted();

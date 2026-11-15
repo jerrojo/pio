@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Evidence, Turn, Word } from "./domain.ts";
-import { canon, isFiller, pieces, sameWord } from "./words.ts";
+import { canon, isFiller, nearWord, pieces, sameWord } from "./words.ts";
 
 // ElevenLabs Scribe response, limited to the fields Pío relies on.
 const schema = z.object({
@@ -110,6 +110,26 @@ export function scribeEvidence(response: ScribeResponse, turn: Turn): Evidence {
   const wanted = new Set(expected.map((w) => w.key));
   scored = scored.filter((w) => !isFiller(w.key) || wanted.has(w.key));
   if (!scored.length) throw new Error("assessment-unavailable");
+  // One word practised alone: whatever was heard that sounds like it counts.
+  if (expected.length === 1) {
+    const hit = scored
+      .filter((w) => nearWord(expected[0].key, w.key))
+      .sort((a, b) => b.accuracy - a.accuracy)[0];
+    return {
+      ...common,
+      mode: "scripted",
+      text: turn.reference.text,
+      accuracy: hit ? hit.accuracy : 0,
+      completeness: hit ? 100 : 0,
+      words: [
+        {
+          text: expected[0].text,
+          accuracy: hit ? hit.accuracy : 0,
+          error: hit ? "None" : "Omission",
+        },
+      ],
+    };
+  }
   // Longest common subsequence keeps word order. Reference words the learner
   // skipped or replaced are omissions; extra words (a repeated word, a
   // "please" at the end) are simply not part of the grade.

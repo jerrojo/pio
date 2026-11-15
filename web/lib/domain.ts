@@ -81,6 +81,11 @@ export type Result = {
   reference: Reference | null;
   evidence: Evidence | null;
   focus: string[];
+  // Every word of the phrase that did not come through, in order: what the
+  // guided practice goes through one by one.
+  weak?: string[];
+  // What Pío's reply means, in the learner's own language.
+  gloss?: string;
   // Proof that the server produced `text`, required to ask for its voice.
   voice?: string;
 };
@@ -111,6 +116,11 @@ export function judge(
   // most one in four words merely doubtful: short function words are often
   // heard with low confidence even when they were said well.
   const doubtful = e.words.filter((w) => w.accuracy < 70).length;
+  // A single word practised alone only has to be recognisable.
+  if (reference && e.words.length === 1)
+    return e.words[0].error === "None" && e.words[0].accuracy >= 45
+      ? "accepted"
+      : "practice";
   return e.accuracy >= 72 &&
     (!reference || e.completeness! >= 95) &&
     doubtful <= Math.floor(e.words.length / 4) &&

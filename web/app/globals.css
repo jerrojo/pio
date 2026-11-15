@@ -1716,3 +1716,20 @@ select {
 .conversation.has-phrase .celebrate {
   top: 66px;
 }
+
+/* Guided practice and the meaning of Pío's replies */
+.phrase-card mark.now {
+  padding: 0.05em 0.25em;
+  color: var(--action-ink);
+  background: var(--action);
+  text-decoration: none;
+  box-shadow: 0 0 0 3px #ffffff1f;
+  animation: bump 0.4s var(--spring);
+}
+.phrase-card > p.gloss {
+  margin-top: 6px;
+  color: var(--muted);
+  font:
+    400 1rem/1.4 var(--font-text),
+    sans-serif;
+}

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { locales } from "../../../lib/domain";
 import { synthesize } from "../../../lib/services";
 import { anySignal } from "../../../lib/signal";
-import { canon, pieces } from "../../../lib/words";
+import { canon } from "../../../lib/words";
 import {
   guard,
   errorResponse,
@@ -39,9 +39,7 @@ export async function POST(request: Request) {
     const { text, locale, proof, word } = input.data;
     if (
       !voiceSigned(text, locale, proof) ||
-      (word &&
-        !pieces(text).some((piece) => canon(piece) === canon(word)) &&
-        !text.includes(word))
+      (word && !canon(text).includes(canon(word)))
     )
       return Response.json(
         { code: "forbidden" },

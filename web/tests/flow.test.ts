@@ -686,14 +686,25 @@ test("with a phrase on screen, the turn goes where the learner meant", async () 
     ),
     "practice",
   );
-  // Something else entirely in the target language is conversation.
+  // Anything that is not clearly the learner's own language is an attempt:
+  // a beginner must get help with the phrase, never a reply in a language
+  // they do not speak yet.
   assert.equal(
     await outcome(
       "Ich möchte einen Kaffee bestellen.",
       "Wie spät ist es",
       "de",
     ),
-    "conversation",
+    "practice",
+  );
+  assert.equal(
+    await outcome(
+      "Ich möchte einen Kaffee bestellen.",
+      "Is mokte ain cafe",
+      "es",
+      0.55,
+    ),
+    "practice",
   );
 });
 test("asking to hear it again replays the phrase instead of translating the request", async () => {
@@ -783,4 +794,58 @@ test("the same phrase counts once however it was punctuated, and only when accep
   assert.equal(streak(entries, p, new Date(2026, 10, 15)), 1);
   assert.equal(streak(entries, p, new Date(2026, 10, 16)), 1);
   assert.equal(streak(entries, p, new Date(2026, 10, 18)), 0);
+});
+
+test("a failed attempt lists every word to work on, in order, for the guided practice", async () => {
+  const t = scripted("Ich möchte bitte einen Kaffee mit Milch bestellen.");
+  const heard = said("Is mokte ain cafe");
+  const result = await runTurn(
+    Buffer.alloc(1),
+    t,
+    mock({
+      transcribe: async () => ({
+        text: heard.text,
+        language: "nl",
+        confidence: 0.4,
+      }),
+      assess: async (_audio, current) => scribeEvidence(heard, current),
+    }),
+    signal(),
+  );
+  assert.equal(result.outcome, "practice");
+  assert.deepEqual(result.weak, [
+    "Ich",
+    "möchte",
+    "bitte",
+    "einen",
+    "Kaffee",
+    "mit",
+    "Milch",
+    "bestellen",
+  ]);
+});
+test("a word practised on its own passes when it is recognisable, and fails when it is another word", () => {
+  for (const [word, heard, verdict] of [
+    ["bestellen", "bestellen", "accepted"],
+    ["bestellen", "bestelen", "accepted"],
+    ["möchte", "Ähm mochte", "accepted"],
+    ["Kaffee", "Kaffe", "accepted"],
+    ["Milch", "Mich", "accepted"],
+    ["bestellen", "Hallo", "practice"],
+    ["Milch", "Kaffee", "practice"],
+  ] as const) {
+    const t = scripted(word);
+    const e = scribeEvidence(said(heard, -0.3), t);
+    assert.equal(judge(e, t.id, "de-DE", t.reference), verdict, heard);
+  }
+});
+test("Pío's reply in conversation comes with its meaning in the learner's language", async () => {
+  const result = await runTurn(
+    Buffer.alloc(1),
+    turn,
+    mock({ generate: async () => "Gern! Mit Milch?\n¡Con gusto! ¿Con leche?" }),
+    signal(),
+  );
+  assert.equal(result.text, "Gern! Mit Milch?");
+  assert.equal(result.gloss, "¡Con gusto! ¿Con leche?");
 });

@@ -41,7 +41,6 @@ export const keysOf = (text: string, language = "") =>
     .filter(Boolean);
 
 function distance(a: string, b: string) {
-  if (Math.abs(a.length - b.length) > 1) return 2;
   let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
   for (let i = 1; i <= a.length; i++) {
     const row = [i];
@@ -108,3 +107,10 @@ export function cleanReply(reply: string) {
       text = text.slice(1, -1).trim();
   return text;
 }
+
+// A word said on its own gives the recognizer no context, so its spelling is
+// allowed to drift a little further: one letter in four.
+export const nearWord = (a: string, b: string) =>
+  sameWord(a, b) ||
+  (!/\d/.test(a + b) &&
+    distance(a, b) <= Math.floor(Math.max(a.length, b.length) / 4));

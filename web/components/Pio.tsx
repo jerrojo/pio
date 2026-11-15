@@ -112,7 +112,21 @@ export function Pio() {
     // The last attempt was not heard; the phrase on screen is unchanged.
     [missed, setMissed] = useState(false),
     // Failed attempts in a row at the phrase on screen.
-    [tries, setTries] = useState(0);
+    [tries, setTries] = useState(0),
+    // Guided practice: the word on turn, for the screen.
+    [step, setStep] = useState<{
+      word: string;
+      at: number;
+      total: number;
+      again: boolean;
+    } | null>(null),
+    // The words were just practised one by one; next comes the whole phrase.
+    [whole, setWhole] = useState(false);
+  // Guided practice: the words of the phrase that did not come through, the
+  // one being worked on, and how many times it has been missed.
+  const drill = useRef<{ words: string[]; at: number; tries: number } | null>(
+    null,
+  );
   const [entries, setEntries] = useState<Mastered[]>([]),
     [slow, setSlow] = useState(false),
     [settingsRevision, setSettingsRevision] = useState(0),
@@ -296,6 +310,9 @@ export function Pio() {
     reference.current = null;
     history.current = [];
     retained.current = null;
+    drill.current = null;
+    setStep(null);
+    setWhole(false);
     voices.current.clear();
     proofs.current.clear();
     lastPlayback.current = null;
@@ -391,9 +408,9 @@ export function Pio() {
       player.src = audioUrl.current;
       audio.current = player;
       const pace = () => {
-        player.defaultPlaybackRate = player.playbackRate = slowNow.current
-          ? 0.8
-          : 1;
+        // A word Pío repeats after a miss is said more slowly.
+        player.defaultPlaybackRate = player.playbackRate =
+          slowNow.current || (drill.current?.tries ?? 0) > 0 ? 0.8 : 1;
       };
       pace();
       player.preservesPitch = true;
@@ -467,6 +484,40 @@ export function Pio() {
         { role: "assistant" as const, text: reply.text.slice(0, 400) },
       ].slice(-8);
   }
+  // Guided practice. Pío says the word on turn and listens for it.
+  function sayWord(token: number) {
+    const d = drill.current,
+      phrase = reference.current;
+    if (!d || !phrase) return Promise.resolve();
+    setStep({
+      word: d.words[d.at],
+      at: d.at + 1,
+      total: d.words.length,
+      again: d.tries > 0,
+    });
+    return play(phrase.text, token, true, null, d.words[d.at]);
+  }
+  // After an attempt at a word: on to the next one when it came through (or
+  // after three misses, so nobody gets stuck), otherwise the same word again.
+  // When every word is done, back to the whole phrase.
+  function nextWord(token: number, passed: boolean) {
+    const d = drill.current,
+      phrase = reference.current;
+    if (!d || !phrase) return Promise.resolve();
+    if (passed) {
+      buzz(12);
+      chime([880]);
+    }
+    if (passed || d.tries >= 2) {
+      d.at++;
+      d.tries = 0;
+    } else d.tries++;
+    if (d.at < d.words.length) return sayWord(token);
+    drill.current = null;
+    setStep(null);
+    setWhole(true);
+    return play(phrase.text, token, true);
+  }
   async function submit(blob: Blob, token: number) {
     if (!preferences || token !== epoch.current) return;
     retained.current = blob;
@@ -477,6 +528,8 @@ export function Pio() {
     const control = new AbortController();
     controller.current = control;
     const id = crypto.randomUUID();
+    // In guided practice the attempt is graded against the word on turn.
+    const word = drill.current ? drill.current.words[drill.current.at] : null;
     const form = new FormData();
     form.set("audio", blob, "turn.wav");
     form.set("voice", "1");
@@ -485,8 +538,10 @@ export function Pio() {
       JSON.stringify({
         id,
         preferences,
-        reference: reference.current,
-        intent: "auto",
+        reference: word
+          ? { id: crypto.randomUUID(), text: word, locale: preferences.target }
+          : reference.current,
+        intent: word ? "target" : "auto",
         history: history.current,
       }),
     );
@@ -506,7 +561,7 @@ export function Pio() {
         ready = await readTurn(response, (reply) => {
           if (token !== epoch.current || reply.id !== id) return;
           got.result = reply;
-          if (!reply.text) return;
+          if (!reply.text || word) return;
           // Show the phrase the moment it arrives, while its voice downloads.
           keep(reply);
           if (spoken(reply)) go("preparing-voice");
@@ -519,8 +574,27 @@ export function Pio() {
       const next = got.result;
       if (!next || token !== epoch.current) return;
       retained.current = null;
-      if (spoken(next)) {
+      if (
+        word &&
+        (next.outcome === "accepted" || next.outcome === "practice")
+      ) {
         misses.current = 0;
+        setMissed(false);
+        await nextWord(token, next.outcome === "accepted");
+      } else if (
+        next.outcome === "practice" &&
+        next.weak?.length &&
+        next.text.trim().split(/\s+/).length > 1
+      ) {
+        // The phrase did not come through: work on exactly the words that
+        // failed, one at a time, before trying the whole phrase again.
+        misses.current = 0;
+        drill.current = { words: next.weak, at: 0, tries: 0 };
+        setWhole(false);
+        await sayWord(token);
+      } else if (spoken(next)) {
+        misses.current = 0;
+        setWhole(false);
         await play(next.text, token, true, ready);
       } else if (next.outcome === "accepted") {
         // Celebrate, then return to the clean starting state and listen again.
@@ -590,11 +664,11 @@ export function Pio() {
   const manualStop = useRef<() => void>(() => {});
   // Two rising notes when a phrase is accepted. Uses the audio context the
   // first tap already unlocked; silently skipped where it is unavailable.
-  function chime() {
+  function chime(notes = [659.25, 987.77]) {
     const context = captureContext.current;
     if (!context || context.state !== "running") return;
     try {
-      [659.25, 987.77].forEach((frequency, index) => {
+      notes.forEach((frequency, index) => {
         const at = context.currentTime + index * 0.13;
         const tone = context.createOscillator();
         const volume = context.createGain();
@@ -785,6 +859,8 @@ export function Pio() {
             ),
             tries,
             streak: days,
+            drill: step,
+            whole,
           });
   // Short spoken updates for screen readers, only when something changed for
   // the learner. The visible instructions are not read over the microphone.
@@ -947,6 +1023,7 @@ export function Pio() {
                   else if (value && phase !== "thinking") listen();
                 }}
                 onPlay={listen}
+                current={step?.word}
               />
             )}
             {issue && recovery && ready && !active && (

@@ -44,27 +44,21 @@ export async function runTurn(
   if (said === "no-speech") return initial;
   const ref = turn.reference,
     target = turn.preferences.target;
-  // An attempt at the phrase on screen is graded whatever language the
-  // detector guessed for a short accented clip. The bar is higher when the
-  // detector is sure it heard the learner's own language, and for one- or
-  // two-word phrases, where a shared word proves little.
+  // With a phrase on screen, whatever the learner says is an attempt at it:
+  // a beginner's accent makes the detector guess other languages and the
+  // recognizer write other words, and that must lead to help with the phrase,
+  // never to a reply in a language they do not speak yet. Only speech the
+  // detector is sure is the learner's own language, and that does not match
+  // the phrase, is a new thing to translate.
   let intent: "native" | "target" | "repeat" = said;
   if (ref && turn.intent === "auto") {
     const size = keysOf(ref.text, target).length,
-      heard = keysOf(transcript.text, target).length,
       share = overlap(transcript.text, ref.text, target),
-      sureNative = said === "native" && transcript.confidence >= 0.9;
-    const bar =
-      said === "native"
-        ? size < 3
-          ? 1
-          : sureNative
-            ? 0.75
-            : 0.5
-        : size < 3
-          ? 0.5
-          : 0.3;
-    if (share >= bar && heard <= size * 1.5 + 2) intent = "repeat";
+      sure = said === "native" && transcript.confidence >= 0.8;
+    const bar = size < 3 ? 1 : transcript.confidence >= 0.9 ? 0.75 : 0.5;
+    // Many more words than the phrase has is a new sentence, not an attempt.
+    const long = keysOf(transcript.text, target).length > size * 1.5 + 2;
+    intent = sure && (share < bar || long) ? "native" : "repeat";
   } else if (ref && said === "target") intent = "repeat";
   if (intent === "native" && ref && again.test(canon(transcript.text)))
     return { ...initial, outcome: "translation", text: ref.text };
@@ -93,18 +87,17 @@ export async function runTurn(
     signal.throwIfAborted();
     if (judge(evidence, turn.id, target, null) === "unavailable")
       return { ...initial, outcome: "unavailable" };
-    const text = await services.generate(
-      "converse",
-      evidence.text,
-      free,
-      signal,
-    );
+    // First line: what Pío says. Second line, if any: what it means.
+    const [text, gloss] = (
+      await services.generate("converse", evidence.text, free, signal)
+    ).split("\n");
     signal.throwIfAborted();
     return {
       ...initial,
       outcome: "conversation",
       heard: evidence.text,
       text,
+      ...(gloss ? { gloss } : {}),
       evidence,
       reference: null,
     };
@@ -120,6 +113,10 @@ export async function runTurn(
   const weak = evidence.words.filter(
     (w) => w.error !== "None" || w.accuracy < 70,
   );
+  const all = weak
+    .map((w) => w.text)
+    .filter((word, at, list) => list.indexOf(word) === at)
+    .slice(0, 12);
   const focus = (
     weak.length
       ? weak
@@ -128,5 +125,12 @@ export async function runTurn(
     .map((w) => w.text)
     .filter((word, at, all) => all.indexOf(word) === at)
     .slice(0, 3);
-  return { ...initial, outcome: "practice", text: ref.text, evidence, focus };
+  return {
+    ...initial,
+    outcome: "practice",
+    text: ref.text,
+    evidence,
+    focus,
+    weak: all,
+  };
 }

@@ -9,6 +9,7 @@ export function PhraseCard({
   slow,
   onSlow,
   onPlay,
+  current,
 }: {
   result: Result;
   locale: Locale;
@@ -16,9 +17,12 @@ export function PhraseCard({
   slow: boolean;
   onSlow: (value: boolean) => void;
   onPlay: (word?: string) => void;
+  // The word being practised on its own right now.
+  current?: string;
 }) {
   const accepted = result.outcome === "accepted";
   const weak = new Set(result.focus.map((word) => canon(word, locale)));
+  const now = current ? canon(current, locale) : "";
   const missing = result.evidence?.words.some((w) => w.error === "Omission");
   return (
     <article
@@ -40,21 +44,23 @@ export function PhraseCard({
         </span>
       </div>
       <p lang={locale}>
-        {/* The words to work on are marked inside the phrase itself. */}
-        {result.text
-          .split(/(\s+)/)
-          .map((part, index) =>
-            weak.size &&
+        {/* The words to work on are marked inside the phrase itself, and the
+            one being practised right now stands out. */}
+        {result.text.split(/(\s+)/).map((part, index) => {
+          const keys = part.split(/[-/]/).map((piece) => canon(piece, locale));
+          return now && keys.includes(now) ? (
+            <mark key={index} className="now">
+              {part}
+            </mark>
+          ) : weak.size && keys.some((key) => weak.has(key)) ? (
+            <mark key={index}>{part}</mark>
+          ) : (
             part
-              .split(/[-/]/)
-              .some((piece) => weak.has(canon(piece, locale))) ? (
-              <mark key={index}>{part}</mark>
-            ) : (
-              part
-            ),
-          )}
+          );
+        })}
       </p>
-      {result.focus.length > 0 && (
+      {result.gloss && <p className="gloss">{result.gloss}</p>}
+      {result.focus.length > 0 && !current && (
         <div className="focus-words">
           <span>{missing ? "Te faltó decir:" : "No se entendieron bien:"}</span>
           {result.focus.map((word, index) => (

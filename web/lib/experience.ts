@@ -106,6 +106,11 @@ export type Moment = {
   // Failed attempts in a row at the phrase on screen.
   tries?: number;
   streak?: number;
+  // Guided practice: the word being worked on, its place, and whether Pío is
+  // saying it again after a miss.
+  drill?: { word: string; at: number; total: number; again: boolean } | null;
+  // Every word has just been practised: time for the whole phrase.
+  whole?: boolean;
 };
 // What Pío says about the moment. It never claims to be listening unless the
 // microphone is really open, and it always names the learner's next step.
@@ -119,6 +124,38 @@ export function sessionCopy(m: Moment): { title: string; description: string } {
     };
   if (m.phase === "thinking")
     return { title: "Déjame pensar…", description: "Un segundito." };
+  if (m.drill) {
+    const { word, at, total, again } = m.drill;
+    const place = total > 1 ? ` Palabra ${at} de ${total}.` : "";
+    if (m.phase === "preparing-voice" || m.phase === "speaking")
+      return {
+        title: again ? "Otra vez, despacito" : "Vamos por partes",
+        description: `Escucha: «${word}».${place}`,
+      };
+    if (m.phase === "listening")
+      return {
+        title: m.missed ? "No te alcancé a oír" : "Te escucho",
+        description: `Di solo: «${word}».`,
+      };
+    return m.paused
+      ? {
+          title: "Aquí sigo",
+          description: `Toca el micrófono y di: «${word}».`,
+        }
+      : { title: `«${word}»`, description: `Ahora dila tú.${place}` };
+  }
+  if (m.whole && m.outcome === "practice" && !m.paused) {
+    if (m.phase === "preparing-voice" || m.phase === "speaking")
+      return {
+        title: "¡Ya las tienes!",
+        description: "Escucha la frase completa una vez más.",
+      };
+    if (m.phase !== "listening")
+      return {
+        title: "¡Ahora completa!",
+        description: "Ya dijiste bien cada palabra. Dila toda junta.",
+      };
+  }
   if (m.phase === "preparing-voice" || m.phase === "speaking") {
     if (m.outcome === "practice")
       return {

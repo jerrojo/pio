@@ -3,6 +3,8 @@ import { locales, type Locale, type Result } from "./domain.ts";
 export type Phase =
   | "idle"
   | "permission"
+  // The microphone is opening: Pío is about to listen but is not yet.
+  | "waking"
   | "listening"
   | "thinking"
   | "preparing-voice"
@@ -39,13 +41,6 @@ export function connectionState(
     ? "ready"
     : "unconfigured";
 }
-export const connectionLabels: Record<Connection, string> = {
-  checking: "Comprobando conexión",
-  offline: "Sin conexión",
-  access: "Acceso pendiente",
-  unconfigured: "Voz por activar",
-  ready: "Listo para practicar",
-};
 export const connectionCopy: Record<
   Exclude<Connection, "ready">,
   { title: string; description: string }
@@ -55,18 +50,17 @@ export const connectionCopy: Record<
     description: "Esto puede tardar unos segundos.",
   },
   offline: {
-    title: "No pudimos conectar",
+    title: "No logro conectarme",
     description:
-      "Revisa tu conexión y vuelve a intentarlo. Tus idiomas siguen guardados.",
+      "Revisa tu internet y vuelve a intentar. Tus idiomas siguen guardados.",
   },
   access: {
-    title: "Entra a tu práctica",
-    description: "Usa tu código para abrir esta versión de Pío.",
+    title: "¡Hola! Necesito tu código",
+    description: "Escríbelo para empezar a practicar.",
   },
   unconfigured: {
-    title: "Falta activar la voz",
-    description:
-      "La práctica por voz aún no está disponible para este idioma. Tus idiomas quedaron guardados; puedes comprobar de nuevo cuando se active.",
+    title: "Todavía no hablo ese idioma",
+    description: "Elige otro idioma por ahora, arriba a la derecha.",
   },
 };
 export type Mood =
@@ -83,6 +77,7 @@ export function mascotMood(
   phase: Phase,
   connection: Connection,
   outcome?: Result["outcome"],
+  paused = false,
 ): Mood {
   if (phase === "listening") return "listening";
   if (phase === "permission") return "curious";
@@ -90,80 +85,136 @@ export function mascotMood(
   if (phase === "speaking") return "speaking";
   if (connection === "checking") return "thinking";
   if (connection !== "ready") return "sleepy";
+  if (phase === "waking") return "idle";
+  if (paused) return "sleepy";
   if (outcome === "accepted") return "happy";
-  if (outcome === "clarify") return "curious";
   return "idle";
 }
-export function sessionCopy(phase: Phase, outcome?: Result["outcome"]) {
-  if (phase === "permission")
+export type Moment = {
+  phase: Phase;
+  outcome?: Result["outcome"];
+  // The session stopped listening by itself or was paused by the learner.
+  paused?: boolean;
+  // The last attempt could not be heard; the phrase on screen is unchanged.
+  missed?: boolean;
+  // Name of the language being learned, in lower case ("alemán").
+  target?: string;
+  // Words to work on after a failed repetition.
+  focus?: number;
+  // Reference words the learner left out.
+  missing?: boolean;
+  // Failed attempts in a row at the phrase on screen.
+  tries?: number;
+  streak?: number;
+};
+// What Pío says about the moment. It never claims to be listening unless the
+// microphone is really open, and it always names the learner's next step.
+export function sessionCopy(m: Moment): { title: string; description: string } {
+  const language = m.target || "el idioma que aprendes";
+  const phrase = m.outcome === "translation" || m.outcome === "practice";
+  if (m.phase === "permission")
     return {
       title: "Déjame escucharte",
       description: "Dale permiso al micrófono en el aviso de tu navegador.",
     };
-  if (phase === "listening")
+  if (m.phase === "thinking")
+    return { title: "Déjame pensar…", description: "Un segundito." };
+  if (m.phase === "preparing-voice" || m.phase === "speaking") {
+    if (m.outcome === "practice")
+      return {
+        title: "¡Casi! Escúchala otra vez",
+        description: m.missing
+          ? "Te faltó un pedacito. Luego dila completa."
+          : m.focus
+            ? "Fíjate en las palabras resaltadas."
+            : "Luego dila un poco más despacio.",
+      };
+    if (m.outcome === "conversation")
+      return {
+        title: "Pío te contesta",
+        description: `Escucha y luego contéstame en ${language}.`,
+      };
+    return m.phase === "speaking" || m.outcome
+      ? { title: "Escucha cómo suena", description: "Luego te toca a ti." }
+      : { title: "Ya casi…", description: "Estoy afinando la voz." };
+  }
+  if (m.phase === "listening") {
+    if (m.missed)
+      return {
+        title: "No te alcancé a oír",
+        description: "Dilo otra vez, un poquito más cerca del micrófono.",
+      };
+    if (phrase)
+      return {
+        title: "Te escucho",
+        description: "Repite la frase. Si prefieres otra, dila en tu idioma.",
+      };
+    if (m.outcome === "conversation")
+      return {
+        title: "Te escucho",
+        description: `Contéstame en ${language}. Si te atoras, dilo en tu idioma.`,
+      };
     return {
       title: "Te escucho",
       description: "Habla con calma. Cuando hagas una pausa, sigo yo.",
     };
-  if (phase === "thinking")
+  }
+  if (m.outcome === "accepted" && !m.paused)
     return {
-      title: "Déjame pensar…",
-      description: "Un segundito.",
-    };
-  if (phase === "preparing-voice")
-    return {
-      title: "Ya casi…",
-      description: "Estoy afinando la voz.",
-    };
-  if (phase === "speaking")
-    return {
-      title: "Escucha cómo suena",
-      description: "Luego te toca a ti.",
-    };
-  const outcomes = {
-    translation: {
-      title: "¡Ahora dilo tú!",
-      description: "Repite la frase completa. Te estoy escuchando.",
-    },
-    practice: {
-      title: "¡Casi! Vamos otra vez",
-      description: "Escucha las palabras marcadas y repite la frase completa.",
-    },
-    accepted: {
       title: "¡Bien dicho!",
-      description: "Te salió muy bien. Dime otra cosa cuando quieras.",
-    },
-    conversation: {
+      description: "Se te entendió todo. Vamos por otra.",
+    };
+  if (m.paused)
+    return {
+      title: "Aquí sigo",
+      description: phrase
+        ? "Me quedé esperando. Toca el micrófono y repite la frase."
+        : "Me quedé esperando. Toca el micrófono cuando quieras seguir.",
+    };
+  if (m.outcome === "practice")
+    return {
+      title: "Va de nuevo",
+      description:
+        (m.tries || 0) >= 3
+          ? "Dila con calma. Si prefieres, toca «Otra frase»."
+          : "Dila completa, con calma.",
+    };
+  if (m.outcome === "translation")
+    return {
+      title: "¡Ahora dilo tú!",
+      description: "Repite la frase completa.",
+    };
+  if (m.outcome === "conversation")
+    return {
       title: "Sigamos platicando",
-      description: "Se te entendió bien. Contéstame en el idioma que aprendes.",
-    },
-    clarify: {
-      title: "¿En qué idioma hablaste?",
-      description:
-        "Elige el idioma. Usaremos la misma grabación; no tienes que repetirla.",
-    },
-    unavailable: {
-      title: "Probemos otra vez",
-      description:
-        "No pude evaluar la pronunciación con seguridad. No se guardó una calificación.",
-    },
-    "no-speech": {
-      title: "No te escuché bien",
-      description: "Acércate un poco al micrófono e inténtalo otra vez.",
-    },
+      description: `Contéstame en ${language}. Si te atoras, dilo en tu idioma.`,
+    };
+  return {
+    title: "¿Qué quieres decir?",
+    description:
+      (m.streak || 0) >= 2
+        ? `Llevas ${m.streak} días seguidos. Dilo en tu idioma y te enseño cómo se dice.`
+        : "Dilo en tu idioma y te enseño cómo se dice.",
   };
-  return outcome
-    ? outcomes[outcome]
-    : {
-        title: "¿Qué quieres decir?",
-        description: "Dilo en tu idioma y te enseño cómo se dice.",
-      };
 }
+// The big button always names what a tap does right now.
 export const microphoneLabel = (phase: Phase) =>
-  phase === "listening"
-    ? "Terminar frase"
-    : phase === "idle"
-      ? "Hablar"
+  phase === "idle"
+    ? "Hablar"
+    : phase === "listening"
+      ? "Listo"
       : phase === "speaking" || phase === "preparing-voice"
-        ? "Hablar ya"
-        : "Pausar";
+        ? "Mi turno"
+        : phase === "thinking"
+          ? "Cancelar"
+          : "Un momento…";
+// Ideas for the first phrase, one per day.
+export const examples = [
+  "Quiero pedir un café, por favor",
+  "¿Dónde está el baño?",
+  "Mucho gusto, ¿cómo te llamas?",
+  "La cuenta, por favor",
+  "¿Cuánto cuesta esto?",
+  "No entiendo, ¿puedes repetirlo?",
+  "Buenos días, ¿cómo estás?",
+];

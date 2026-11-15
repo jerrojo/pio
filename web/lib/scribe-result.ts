@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Evidence, Turn, Word } from "./domain.ts";
+import { canon, isFiller, pieces, sameWord } from "./words.ts";
 
 // ElevenLabs Scribe response, limited to the fields Pío relies on.
 const schema = z.object({
@@ -19,11 +20,6 @@ const schema = z.object({
 export type ScribeResponse = z.infer<typeof schema>;
 export const parseScribe = (raw: unknown): ScribeResponse => schema.parse(raw);
 
-const key = (text: string) =>
-  text
-    .normalize("NFC")
-    .toLocaleLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, "");
 const display = (text: string) =>
   text.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
 const clarity = (logprob: number) =>
@@ -37,6 +33,8 @@ const mean = (values: number[]) =>
 // understood, never which sound was wrong. Without per-word audio confidence
 // there is no evidence and therefore no grade.
 export function scribeEvidence(response: ScribeResponse, turn: Turn): Evidence {
+  const language = turn.preferences.target;
+  const key = (text: string) => canon(text, language);
   const heard = response.words
     .filter((w) => (w.type ?? "word") === "word" && key(w.text))
     .map((w) => ({
@@ -49,7 +47,11 @@ export function scribeEvidence(response: ScribeResponse, turn: Turn): Evidence {
     heard.some((w) => typeof w.logprob !== "number" || w.logprob > 0)
   )
     throw new Error("assessment-unavailable");
-  const scored = heard.map((w) => ({ ...w, accuracy: clarity(w.logprob!) }));
+  let scored = heard.map((w) => ({
+    text: w.text,
+    key: w.key,
+    accuracy: clarity(w.logprob as number),
+  }));
   const common = {
     source: "scribe-clarity" as const,
     audioId: turn.id,
@@ -69,13 +71,48 @@ export function scribeEvidence(response: ScribeResponse, turn: Turn): Evidence {
         error: "None",
       })),
     };
-  const expected = turn.reference.text
-    .split(/\s+/)
+  let expected = pieces(turn.reference.text)
     .map((text) => ({ text: display(text), key: key(text) }))
     .filter((w) => w.key);
   if (!expected.length) throw new Error("assessment-unavailable");
-  // Longest common subsequence keeps word order: skipped words are omissions,
-  // extra or different words are insertions.
+  // The recognizer and the written phrase may cut words differently ("L'ami"
+  // against "L'" + "ami"): join neighbours when that makes them agree.
+  const join = <T extends { text: string; key: string }>(
+    list: T[],
+    other: { key: string }[],
+    merge: (a: T, b: T) => T,
+  ) => {
+    const known = new Set(other.map((w) => w.key));
+    const out: T[] = [];
+    for (let i = 0; i < list.length; i++) {
+      const next = list[i + 1];
+      if (
+        next &&
+        !known.has(list[i].key) &&
+        known.has(list[i].key + next.key)
+      ) {
+        out.push(merge(list[i], next));
+        i++;
+      } else out.push(list[i]);
+    }
+    return out;
+  };
+  scored = join(scored, expected, (a, b) => ({
+    text: a.text + b.text,
+    key: a.key + b.key,
+    accuracy: Math.min(a.accuracy, b.accuracy),
+  }));
+  expected = join(expected, scored, (a, b) => ({
+    text: `${a.text} ${b.text}`,
+    key: a.key + b.key,
+  }));
+  // Hesitations are not part of the attempt, unless the phrase has that word.
+  const wanted = new Set(expected.map((w) => w.key));
+  scored = scored.filter((w) => !isFiller(w.key) || wanted.has(w.key));
+  if (!scored.length) throw new Error("assessment-unavailable");
+  // Longest common subsequence keeps word order. Reference words the learner
+  // skipped or replaced are omissions; extra words (a repeated word, a
+  // "please" at the end) are simply not part of the grade.
   const rows = expected.length,
     cols = scored.length;
   const table = Array.from({ length: rows + 1 }, () =>
@@ -83,36 +120,26 @@ export function scribeEvidence(response: ScribeResponse, turn: Turn): Evidence {
   );
   for (let i = rows - 1; i >= 0; i--)
     for (let j = cols - 1; j >= 0; j--)
-      table[i][j] =
-        expected[i].key === scored[j].key
-          ? table[i + 1][j + 1] + 1
-          : Math.max(table[i + 1][j], table[i][j + 1]);
+      table[i][j] = sameWord(expected[i].key, scored[j].key)
+        ? table[i + 1][j + 1] + 1
+        : Math.max(table[i + 1][j], table[i][j + 1]);
   const words: Word[] = [];
   let i = 0,
     j = 0,
     matched = 0;
-  const expectedScores: number[] = [];
-  while (i < rows || j < cols) {
-    if (i < rows && j < cols && expected[i].key === scored[j].key) {
+  while (i < rows) {
+    if (j < cols && sameWord(expected[i].key, scored[j].key)) {
       words.push({
         text: expected[i].text,
         accuracy: scored[j].accuracy,
         error: "None",
       });
-      expectedScores.push(scored[j].accuracy);
       matched++;
       i++;
       j++;
-    } else if (j < cols && (i === rows || table[i][j + 1] >= table[i + 1][j])) {
-      words.push({
-        text: scored[j].text,
-        accuracy: scored[j].accuracy,
-        error: "Insertion",
-      });
-      j++;
-    } else {
+    } else if (j < cols && table[i][j + 1] >= table[i + 1][j]) j++;
+    else {
       words.push({ text: expected[i].text, accuracy: 0, error: "Omission" });
-      expectedScores.push(0);
       i++;
     }
   }
@@ -120,7 +147,7 @@ export function scribeEvidence(response: ScribeResponse, turn: Turn): Evidence {
     ...common,
     mode: "scripted",
     text: turn.reference.text,
-    accuracy: mean(expectedScores),
+    accuracy: mean(words.map((w) => w.accuracy)),
     completeness: Math.round((matched / rows) * 100),
     words,
   };

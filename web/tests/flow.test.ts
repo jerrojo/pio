@@ -7,14 +7,16 @@ import {
   readPreferences,
   readMastery,
   route,
-  turnSchema,
+  streak,
   type Evidence,
   type Preferences,
   type Turn,
 } from "../lib/domain.ts";
+import { turnSchema } from "../lib/schemas.ts";
 import { runTurn, type Services } from "../lib/turn.ts";
 import { parseAzure } from "../lib/azure-result.ts";
 import { parseScribe, scribeEvidence } from "../lib/scribe-result.ts";
+import { cleanReply } from "../lib/words.ts";
 import { encodeWav, validateWav } from "../lib/wav.ts";
 const p: Preferences = { version: 3, native: "es-MX", target: "de-DE" };
 const id = "00112233-4455-4677-8899-aabbccddeeff";
@@ -115,25 +117,23 @@ test("target speech without a reference is acoustically assessed and conversatio
   assert.equal(result.outcome, "conversation");
   assert.match(result.text, /Wie/);
 });
-test("incorrect free speech becomes a repeatable reference instead of continuing conversation", async () => {
+test("free speech is answered, and the learner's own sentence never becomes the model phrase", async () => {
   const result = await runTurn(
     Buffer.alloc(1),
     turn,
     mock({
       assess: async () =>
         evidence({
+          text: "Ich habe gestern gegeht",
           accuracy: 60,
-          words: [{ text: "Morgen", accuracy: 45, error: "Mispronunciation" }],
+          words: [{ text: "gegeht", accuracy: 45, error: "None" }],
         }),
-      generate: async () => {
-        throw new Error("must not converse");
-      },
     }),
     signal(),
   );
-  assert.equal(result.outcome, "practice");
-  assert.equal(result.reference?.text, "Guten Morgen");
-  assert.deepEqual(result.focus, ["Morgen"]);
+  assert.equal(result.outcome, "conversation");
+  assert.equal(result.reference, null);
+  assert.equal(result.heard, "Ich habe gestern gegeht");
 });
 test("scripted repetition stays in practice until it passes", async () => {
   const t = { ...turn, reference };
@@ -141,7 +141,7 @@ test("scripted repetition stays in practice until it passes", async () => {
     referenceId: reference.id,
     mode: "scripted",
     completeness: 100,
-    accuracy: 79,
+    accuracy: 60,
   });
   assert.equal(
     (
@@ -339,7 +339,20 @@ test("Azure transcript without assessment cannot pass parser", () =>
     ),
   ));
 test("progress is idempotent and unique per day and language pair", async () => {
-  const result = await runTurn(Buffer.alloc(1), turn, mock(), signal());
+  const result = await runTurn(
+    Buffer.alloc(1),
+    { ...turn, reference },
+    mock({
+      assess: async () =>
+        evidence({
+          referenceId: reference.id,
+          mode: "scripted",
+          completeness: 100,
+        }),
+    }),
+    signal(),
+  );
+  assert.equal(result.outcome, "accepted");
   const one = addMastery([], result, p, "2026-10-30");
   assert.equal(addMastery(one, result, p).length, 1);
   const duplicate = {
@@ -454,12 +467,11 @@ test("Scribe clarity evidence accepts a clearly heard reference and flags omitte
     ]),
     t,
   );
+  // Only words of the phrase are ever listed: the learner is shown "Kaffee",
+  // never the "Tee" they said instead.
   assert.deepEqual(
-    replaced.words
-      .filter((x) => x.error !== "None")
-      .map((x) => x.error)
-      .sort(),
-    ["Insertion", "Omission"],
+    replaced.words.filter((x) => x.error !== "None").map((x) => x.text),
+    ["Kaffee"],
   );
   assert.equal(judge(replaced, t.id, "de-DE", t.reference), "practice");
   const unclear = scribeEvidence(
@@ -524,4 +536,251 @@ test("a repetition of the phrase on screen is graded even if detected as native"
     signal(),
   );
   assert.notEqual(result.outcome, "translation");
+});
+
+const scripted = (text: string) =>
+  turnSchema.parse({
+    id: crypto.randomUUID(),
+    preferences: { version: 3, native: "es-MX", target: "de-DE" },
+    reference: { id: crypto.randomUUID(), text, locale: "de-DE" },
+  });
+const said = (words: string, logprob = -0.02) =>
+  parseScribe({
+    text: words,
+    language_code: "deu",
+    language_probability: 0.99,
+    words: words.split(" ").map((text) => ({ text, type: "word", logprob })),
+  });
+test("a clearly spoken phrase passes however the recognizer chose to spell it", () => {
+  for (const [phrase, heard] of [
+    ["Ich habe zwei Katzen.", "Ich habe 2 Katzen"],
+    ["Ich habe 2 Katzen.", "Ich habe zwei Katzen"],
+    ["Die Straße ist groß.", "Die Strasse ist gross"],
+    ["Un café, por favor.", "Un cafe por favor"],
+    ["Schreib mir eine E-Mail.", "Schreib mir eine E Mail"],
+    ["L'ami est là.", "L' ami est la"],
+    ["Ich weiß, dass das stimmt.", "Ich weiss das das stimmt"],
+    ["Kaffee und/oder Tee.", "Kaffee und oder Tee"],
+  ]) {
+    const t = scripted(phrase);
+    const e = scribeEvidence(said(heard), t);
+    assert.equal(judge(e, t.id, "de-DE", t.reference), "accepted", phrase);
+  }
+});
+test("hesitations, a repeated word or a polite extra do not fail a good repetition", () => {
+  const t = scripted("Ich möchte einen Kaffee.");
+  for (const heard of [
+    "Ähm ich möchte einen Kaffee",
+    "Ich möchte einen einen Kaffee",
+    "Ich möchte einen Kaffee bitte",
+    "Ich möchte einen Kaffee Ich möchte einen Kaffee",
+  ]) {
+    const e = scribeEvidence(said(heard), t);
+    assert.equal(judge(e, t.id, "de-DE", t.reference), "accepted", heard);
+    assert.ok(e.words.every((w) => t.reference!.text.includes(w.text)));
+  }
+});
+test("one doubtful short word does not fail a sentence, a lost word does", () => {
+  const t = scripted("Ich gehe heute in die Stadt.");
+  const words = (unclear: number) =>
+    parseScribe({
+      text: "x",
+      language_code: "deu",
+      language_probability: 0.99,
+      words: "Ich gehe heute in die Stadt".split(" ").map((text) => ({
+        text,
+        type: "word",
+        logprob: text === "in" ? unclear : -0.03,
+      })),
+    });
+  assert.equal(
+    judge(scribeEvidence(words(-0.4), t), t.id, "de-DE", t.reference),
+    "accepted",
+  );
+  assert.equal(
+    judge(scribeEvidence(words(-1.5), t), t.id, "de-DE", t.reference),
+    "practice",
+  );
+});
+test("practice always names words of the phrase to work on", async () => {
+  const t = scripted("Guten Morgen zusammen.");
+  const run = (heard: ReturnType<typeof said>) =>
+    runTurn(
+      Buffer.alloc(1),
+      t,
+      mock({
+        transcribe: async () => ({
+          text: heard.text,
+          language: "de",
+          confidence: 0.99,
+        }),
+        assess: async (_audio, current) => scribeEvidence(heard, current),
+      }),
+      signal(),
+    );
+  const replaced = await run(said("Guten Abend zusammen"));
+  assert.equal(replaced.outcome, "practice");
+  assert.deepEqual(replaced.focus, ["Morgen"]);
+  // Heard in full but none of it clearly: the weakest words are named.
+  const mumbled = await run(said("Guten Morgen zusammen", -0.45));
+  assert.equal(mumbled.outcome, "practice");
+  assert.ok(mumbled.focus.length > 0);
+});
+test("with a phrase on screen, the turn goes where the learner meant", async () => {
+  const outcome = async (
+    phrase: string,
+    text: string,
+    language: string,
+    confidence = 0.99,
+  ) =>
+    (
+      await runTurn(
+        Buffer.alloc(1),
+        scripted(phrase),
+        mock({
+          transcribe: async () => ({ text, language, confidence }),
+          assess: async (_audio, current) =>
+            current.reference
+              ? scribeEvidence(said(text), current)
+              : evidence({ audioId: current.id, text }),
+          generate: async (task) =>
+            task === "translate" ? "Übersetzung" : "Antwort",
+        }),
+        signal(),
+      )
+    ).outcome;
+  // A new sentence in the learner's language is translated even when it
+  // shares a word, a name or a cognate with the phrase.
+  assert.equal(
+    await outcome("Nein, danke.", "No, gracias", "es"),
+    "translation",
+  );
+  assert.equal(
+    await outcome("Hotel", "Quiero ir al hotel en taxi", "es"),
+    "translation",
+  );
+  assert.equal(
+    await outcome(
+      "Der Computer ist in Berlin.",
+      "Mi computer no funciona en Berlin",
+      "es",
+    ),
+    "translation",
+  );
+  // An accented attempt is graded even if the detector guessed Spanish.
+  assert.notEqual(
+    await outcome(
+      "Ich möchte einen Kaffee bestellen.",
+      "Ich möchte einen Kaffee bestellen",
+      "es",
+      0.6,
+    ),
+    "translation",
+  );
+  // A partial attempt in the target language is still an attempt.
+  assert.equal(
+    await outcome(
+      "Ich möchte einen Kaffee bestellen.",
+      "Ich möchte Kaffee",
+      "de",
+    ),
+    "practice",
+  );
+  // Something else entirely in the target language is conversation.
+  assert.equal(
+    await outcome(
+      "Ich möchte einen Kaffee bestellen.",
+      "Wie spät ist es",
+      "de",
+    ),
+    "conversation",
+  );
+});
+test("asking to hear it again replays the phrase instead of translating the request", async () => {
+  const t = scripted("Ich möchte einen Kaffee.");
+  const result = await runTurn(
+    Buffer.alloc(1),
+    t,
+    mock({
+      transcribe: async () => ({
+        text: "Repítelo, por favor.",
+        language: "es",
+        confidence: 0.99,
+      }),
+      generate: async () => {
+        throw new Error("must not translate");
+      },
+    }),
+    signal(),
+  );
+  assert.equal(result.outcome, "translation");
+  assert.equal(result.reference?.id, t.reference!.id);
+  assert.equal(result.text, "Ich möchte einen Kaffee.");
+});
+test("the detector's odd answers still route sensibly", () => {
+  const to = (language: string, text = "Quiero un café") =>
+    route({ text, language, confidence: 0.5 }, p, "auto");
+  for (const code of ["es", "ES", "es-419", "cat", "glg"])
+    assert.equal(to(code), "native", code);
+  for (const code of ["de", "nl", "und", ""]) assert.equal(to(code), "target");
+  assert.equal(to("es", "..."), "no-speech");
+  assert.equal(to("es", "  "), "no-speech");
+});
+test("the text model's reply is reduced to the sentence without damaging it", () => {
+  for (const [raw, clean] of [
+    ['"Guten Morgen"', "Guten Morgen"],
+    ["„Guten Morgen“", "Guten Morgen"],
+    ["«Buenos días»", "Buenos días"],
+    ["**Guten Morgen**", "Guten Morgen"],
+    ["[laughs] Hallo", "Hallo"],
+    ["Guten\nMorgen", "Guten Morgen"],
+    ["Aspetta un po'", "Aspetta un po'"],
+    ["Er sagte: „Komm her!“", "Er sagte: „Komm her!“"],
+    ['"Stop!" he shouted', '"Stop!" he shouted'],
+  ])
+    assert.equal(cleanReply(raw), clean);
+});
+test("the same phrase counts once however it was punctuated, and only when accepted", async () => {
+  const accepted = async (text: string, n: number) => {
+    const t = {
+      ...scripted(text),
+      id: `${n}0112233-4455-4677-8899-aabbccddeeff`,
+    };
+    const result = await runTurn(
+      Buffer.alloc(1),
+      t,
+      mock({
+        transcribe: async () => ({ text, language: "de", confidence: 0.99 }),
+        assess: async (_audio, current) =>
+          scribeEvidence(said(text.replace(/[.!]/g, "")), current),
+      }),
+      signal(),
+    );
+    assert.equal(result.outcome, "accepted");
+    return result;
+  };
+  let entries = addMastery(
+    [],
+    await accepted("Guten Morgen", 1),
+    p,
+    "2026-11-15",
+  );
+  entries = addMastery(
+    entries,
+    await accepted("Guten Morgen.", 2),
+    p,
+    "2026-11-15",
+  );
+  entries = addMastery(
+    entries,
+    await accepted("guten morgen!", 3),
+    p,
+    "2026-11-15",
+  );
+  assert.equal(countMastery(entries, p, "2026-11-15"), 1);
+  const chat = await runTurn(Buffer.alloc(1), turn, mock(), signal());
+  assert.equal(addMastery(entries, chat, p).length, entries.length);
+  assert.equal(streak(entries, p, new Date(2026, 10, 15)), 1);
+  assert.equal(streak(entries, p, new Date(2026, 10, 16)), 1);
+  assert.equal(streak(entries, p, new Date(2026, 10, 18)), 0);
 });

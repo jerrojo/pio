@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   addMastery,
   countMastery,
@@ -8,6 +8,7 @@ import {
   progressKey,
   readMastery,
   readPreferences,
+  streak,
   type Mastered,
   type Preferences,
   type Reference,
@@ -15,7 +16,9 @@ import {
   type Turn,
 } from "../lib/domain";
 import { Recorder } from "../lib/recorder";
+import { anySignal } from "../lib/signal";
 import { readTurn } from "../lib/turn-reply";
+import { encodeWav } from "../lib/wav";
 import { Icon, Mascot } from "./Icons";
 import { LanguageForm } from "./LanguageForm";
 
@@ -23,7 +26,7 @@ import { PhraseCard } from "./PhraseCard";
 import {
   connectionState,
   connectionCopy,
-  connectionLabels,
+  examples,
   mascotMood,
   microphoneLabel,
   readStatus,
@@ -31,38 +34,51 @@ import {
   type Phase,
   type Status,
 } from "../lib/experience";
+// Everything is said by Pío, in the first person, without jargon.
 const errorText: Record<string, string> = {
-  "phrase-too-long":
-    "Probemos con una frase más corta para poder corregirla completa.",
+  "phrase-too-long": "Esa estuvo larguita. Prueba con una frase más corta.",
   NotAllowedError:
-    "No se activó el micrófono. Permite su uso en tu navegador y vuelve a intentarlo.",
+    "Necesito permiso para escucharte. Permite el micrófono en tu navegador y vuelve a intentar.",
   NotFoundError:
-    "No encontramos un micrófono. Conecta uno y vuelve a intentarlo.",
+    "No encuentro ningún micrófono. Conecta uno y vuelve a intentar.",
   NotReadableError:
-    "El micrófono está ocupado. Cierra la otra aplicación que lo está usando.",
+    "Otra app está usando tu micrófono. Ciérrala y vuelve a intentar.",
   "unsupported-microphone":
-    "Abre Pío en un navegador actualizado con acceso seguro al micrófono.",
-  "not-configured":
-    "La voz aún no está activada para este idioma. Tu selección quedó guardada.",
-  "provider-busy": "La voz está ocupada por un momento. Inténtalo de nuevo.",
+    "Este navegador no me deja usar el micrófono. Ábreme en Safari o Chrome actualizado.",
+  "not-configured": "Todavía no hablo ese idioma. Elige otro por ahora.",
+  "provider-busy":
+    "Estoy un poco saturado. Dame unos segundos y vuelve a intentar.",
+  "provider-timeout": "Me tardé demasiado. ¿Lo intentamos otra vez?",
   "assessment-incomplete":
-    "No pude evaluar toda la frase. Probemos de nuevo con una frase más corta.",
+    "No alcancé a oír toda la frase. Dila otra vez, completa.",
   "assessment-unavailable":
-    "No pude evaluar la pronunciación con seguridad. Repite cuando estés listo.",
-  "access-required": "Vuelve a entrar con tu código para continuar.",
-  "too-many-requests":
-    "Hagamos una pausa breve. Puedes volver a intentarlo en un minuto.",
-  "invalid-audio": "La grabación no llegó completa. Inténtalo de nuevo.",
+    "No te escuché con claridad. Dilo otra vez cuando quieras.",
+  "access-required": "Tu sesión se cerró. Escribe tu código para seguir.",
+  "too-many-requests": "Vamos muy rápido. Descansa un minutito y seguimos.",
+  "invalid-audio": "La grabación se cortó. Dilo otra vez.",
+  "capture-failed": "El micrófono se cortó. Toca Hablar y dilo otra vez.",
+  TypeError:
+    "Parece que se fue el internet. Revisa tu conexión y lo intentamos de nuevo.",
+  TimeoutError:
+    "Parece que el internet está lento. Revisa tu conexión y lo intentamos de nuevo.",
 };
 function message(error: unknown) {
   if (error instanceof Error)
     return (
-      errorText[error.name] ||
       errorText[error.message] ||
-      "No pude completar este turno. Tu frase sigue aquí; puedes volver a intentarlo."
+      errorText[error.name] ||
+      "Algo me falló. ¿Lo intentamos otra vez?"
     );
-  return "No pude completar este turno. Inténtalo de nuevo.";
+  return "Algo me falló. ¿Lo intentamos otra vez?";
 }
+// Errors where sending the same recording again cannot help.
+const speakAgain = [
+  "phrase-too-long",
+  "assessment-incomplete",
+  "assessment-unavailable",
+  "invalid-audio",
+  "invalid-input",
+];
 // Second feedback channel for touch devices; silently absent elsewhere.
 function buzz(pattern: number | number[]) {
   try {
@@ -76,6 +92,8 @@ async function checked(response: Response) {
   }
   return response;
 }
+const statusKey = "pio.status.v1";
+type Lock = { release(): Promise<void> };
 
 export function Pio() {
   const [loaded, setLoaded] = useState(false),
@@ -87,8 +105,12 @@ export function Pio() {
     [result, setResult] = useState<Result | null>(null),
     [issue, setIssue] = useState(""),
     [notice, setNotice] = useState(""),
-    [level, setLevel] = useState(0),
-    [seconds, setSeconds] = useState(0);
+    // The session stopped listening and waits for a tap.
+    [paused, setPaused] = useState(false),
+    // The last attempt was not heard; the phrase on screen is unchanged.
+    [missed, setMissed] = useState(false),
+    // Failed attempts in a row at the phrase on screen.
+    [tries, setTries] = useState(0);
   const [entries, setEntries] = useState<Mastered[]>([]),
     [slow, setSlow] = useState(false),
     [settingsRevision, setSettingsRevision] = useState(0),
@@ -98,6 +120,7 @@ export function Pio() {
   const reference = useRef<Reference | null>(null),
     history = useRef<Turn["history"]>([]),
     epoch = useRef(0),
+    live = useRef<Phase>("idle"),
     recorder = useRef<Recorder | null>(null),
     controller = useRef<AbortController | null>(null),
     audio = useRef<HTMLAudioElement | null>(null),
@@ -106,58 +129,97 @@ export function Pio() {
     retained = useRef<Blob | null>(null),
     settings = useRef<HTMLDialogElement>(null),
     recording = useRef(false),
-    startRef = useRef<() => void>(() => {});
+    startRef = useRef<(auto?: boolean) => void>(() => {});
   const captureContext = useRef<AudioContext | null>(null);
   const statusController = useRef<AbortController | null>(null);
-  const lastIntent = useRef<Turn["intent"]>("auto");
-  const lastPlayback = useRef("");
+  const lastPlayback = useRef<{ text: string; word?: string } | null>(null);
   // Microphone already granted: later turns skip the permission message.
   const granted = useRef(false);
   // Background noise level learned from earlier turns, for end-of-speech.
   const noiseFloor = useRef(0.004);
   // Consecutive turns where nothing usable was heard.
   const misses = useRef(0);
+  // Turns Pío started by itself since the learner last touched the screen or
+  // got a phrase right. A room with a TV on must not keep a session going.
+  const unattended = useRef(0);
   // Voices already generated in this visit: replays are instant and free.
   const voices = useRef(new Map<string, Blob>());
+  // Server signatures of the phrases it produced, needed to ask for a voice.
+  const proofs = useRef(new Map<string, string>());
   const warmed = useRef(false);
-  async function refreshStatus() {
+  const slowNow = useRef(false);
+  const watchdog = useRef<ReturnType<typeof setInterval> | null>(null);
+  const celebration = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const awake = useRef<Lock | null>(null);
+  const orb = useRef<HTMLDivElement>(null),
+    mic = useRef<HTMLButtonElement>(null);
+  const go = (next: Phase) => {
+    live.current = next;
+    setPhase(next);
+  };
+  // The voice level moves the orb and the button many times a second, so it
+  // is written straight to the elements instead of re-rendering the screen.
+  const showLevel = (value: number) => {
+    for (const element of [orb.current, mic.current])
+      element?.style.setProperty("--level", String(value));
+  };
+  async function refreshStatus(quiet = false) {
     statusController.current?.abort();
     const control = new AbortController();
     statusController.current = control;
-    setCheckingStatus(true);
-    setStatusFailed(false);
+    if (!quiet) {
+      setCheckingStatus(true);
+      setStatusFailed(false);
+    }
     try {
       const response = await checked(
         await fetch("/api/status", {
           cache: "no-store",
-          signal: AbortSignal.any([control.signal, AbortSignal.timeout(8000)]),
+          signal: anySignal(8000, control.signal),
         }),
       );
       const next = readStatus(await response.json());
-      if (!control.signal.aborted) setStatus(next);
+      if (control.signal.aborted) return;
+      setStatus(next);
+      setStatusFailed(false);
+      try {
+        localStorage.setItem(statusKey, JSON.stringify(next));
+      } catch {}
     } catch {
-      if (!control.signal.aborted) setStatusFailed(true);
+      if (!control.signal.aborted && !quiet) setStatusFailed(true);
     } finally {
       if (!control.signal.aborted) setCheckingStatus(false);
     }
   }
   useEffect(() => {
+    let known = false;
     try {
       setPreferences(readPreferences(localStorage.getItem(preferenceKey)));
       setEntries(readMastery(localStorage.getItem(progressKey)));
-    } catch {
-      setNotice(
-        "Este navegador no permite guardar tus preferencias. Se mantendrán durante esta visita.",
+      // The last known status shows the microphone at once on a return visit;
+      // the real one is confirmed in the background.
+      const cached = readStatus(
+        JSON.parse(localStorage.getItem(statusKey) || "null"),
       );
-    }
+      if (cached.access) {
+        setStatus(cached);
+        setCheckingStatus(false);
+        known = true;
+      }
+    } catch {}
     setLoaded(true);
-    void refreshStatus();
+    void refreshStatus(known);
+    const online = () => void refreshStatus(true);
+    window.addEventListener("online", online);
     return () => {
+      window.removeEventListener("online", online);
       epoch.current++;
       controller.current?.abort();
       statusController.current?.abort();
       recorder.current?.cancel();
       audio.current?.pause();
+      if (watchdog.current) clearInterval(watchdog.current);
+      if (celebration.current) clearTimeout(celebration.current);
       if (audioUrl.current) URL.revokeObjectURL(audioUrl.current);
       void captureContext.current?.close();
     };
@@ -165,6 +227,9 @@ export function Pio() {
   function cancel() {
     epoch.current++;
     recording.current = false;
+    if (watchdog.current) clearInterval(watchdog.current);
+    if (celebration.current) clearTimeout(celebration.current);
+    watchdog.current = celebration.current = null;
     controller.current?.abort();
     recorder.current?.cancel();
     recorder.current = null;
@@ -172,18 +237,47 @@ export function Pio() {
     audio.current = null;
     if (audioUrl.current) URL.revokeObjectURL(audioUrl.current);
     audioUrl.current = null;
-    setPhase("idle");
-    setLevel(0);
+    go("idle");
+    showLevel(0);
+  }
+  // Stop everything and say so: Pío never looks like it is listening when the
+  // microphone is off.
+  function pause() {
+    cancel();
+    setPaused(true);
+  }
+  const pauseRef = useRef(pause);
+  pauseRef.current = pause;
+  useEffect(() => {
+    const changed = () => {
+      // A reply already on its way is kept and shown on return; the
+      // microphone and the voice stop as soon as the page is hidden.
+      if (document.hidden && live.current !== "thinking") {
+        if (live.current !== "idle") pauseRef.current();
+      } else if (!document.hidden && live.current !== "idle") void stayAwake();
+    };
+    document.addEventListener("visibilitychange", changed);
+    return () => document.removeEventListener("visibilitychange", changed);
+  }, []);
+  // Nobody touches the screen in a hands-free session, so keep it on.
+  async function stayAwake() {
+    if (awake.current) return;
+    try {
+      const lock = await (
+        navigator as Navigator & {
+          wakeLock?: { request(type: "screen"): Promise<Lock> };
+        }
+      ).wakeLock?.request("screen");
+      if (lock) awake.current = lock;
+    } catch {}
   }
   useEffect(() => {
-    const hide = () => {
-      if (document.hidden) {
-        cancel();
-      }
-    };
-    document.addEventListener("visibilitychange", hide);
-    return () => document.removeEventListener("visibilitychange", hide);
-  }, []);
+    if (phase !== "idle") void stayAwake();
+    else {
+      void awake.current?.release().catch(() => {});
+      awake.current = null;
+    }
+  }, [phase]);
   useEffect(() => {
     const changed = (event: StorageEvent) => {
       if (event.key === preferenceKey) {
@@ -201,67 +295,85 @@ export function Pio() {
     history.current = [];
     retained.current = null;
     voices.current.clear();
-    lastPlayback.current = "";
+    proofs.current.clear();
+    lastPlayback.current = null;
+    misses.current = 0;
     setRecovery(null);
     setResult(null);
     setIssue("");
+    setPaused(false);
+    setMissed(false);
+    setTries(0);
   }
   function save(p: Preferences) {
+    settings.current?.close();
+    if (p.native === preferences?.native && p.target === preferences?.target)
+      return;
     reset();
     setPreferences(p);
     try {
       localStorage.setItem(preferenceKey, JSON.stringify(p));
     } catch {
-      setNotice("No pudimos guardar tu selección para la próxima visita.");
+      setNotice("No pude guardar tus idiomas para la próxima visita.");
     }
-    settings.current?.close();
   }
   function openSettings() {
-    cancel();
+    if (live.current !== "idle") pause();
     setSettingsRevision((v) => v + 1);
     settings.current?.showModal();
   }
   function done(token: number, resume = true) {
     if (token !== epoch.current) return;
-    setPhase("idle");
     // The session is continuous: after each turn Pío listens again by itself.
-    if (resume) startRef.current();
+    if (resume && !document.hidden) startRef.current(true);
+    else pause();
   }
+  // Says a phrase the server produced, or one word of it.
   async function play(
     text: string,
     token = epoch.current,
     resume = false,
     ready?: Blob | null,
+    word?: string,
   ) {
     if (!preferences) return;
-    lastPlayback.current = text;
+    lastPlayback.current = { text, word };
     setRecovery(null);
-    setPhase("preparing-voice");
     setIssue("");
+    setPaused(false);
+    // Back from another app: show the reply, but do not talk to an empty room.
+    if (document.hidden) {
+      pause();
+      return;
+    }
+    go("preparing-voice");
     controller.current?.abort();
     const control = new AbortController();
     controller.current = control;
     audio.current?.pause();
     audio.current = null;
     try {
-      let blob = ready || voices.current.get(text);
+      const key = word || text;
+      let blob = ready || voices.current.get(key);
       if (!blob) {
         const response = await checked(
           await fetch("/api/voice", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text, locale: preferences.target }),
-            signal: AbortSignal.any([
-              control.signal,
-              AbortSignal.timeout(30000),
-            ]),
+            body: JSON.stringify({
+              text,
+              word,
+              locale: preferences.target,
+              proof: proofs.current.get(text) || "",
+            }),
+            signal: anySignal(25000, control.signal),
           }),
         );
         blob = await response.blob();
       }
-      if (voices.current.size >= 40)
-        voices.current.delete(voices.current.keys().next().value!);
-      voices.current.set(text, blob);
+      if (!voices.current.has(key) && voices.current.size >= 40)
+        voices.current.delete(voices.current.keys().next().value as string);
+      voices.current.set(key, blob);
       if (token !== epoch.current || control.signal.aborted) return;
       if (audioUrl.current) URL.revokeObjectURL(audioUrl.current);
       audioUrl.current = URL.createObjectURL(blob);
@@ -269,49 +381,95 @@ export function Pio() {
       // that starts after a network round trip.
       const player = voice.current || new Audio();
       voice.current = player;
-      player.onended = player.onerror = null;
+      player.onended =
+        player.onerror =
+        player.onpause =
+        player.onplaying =
+          null;
       player.src = audioUrl.current;
       audio.current = player;
-      player.playbackRate = slow ? 0.8 : 1;
+      const pace = () => {
+        player.defaultPlaybackRate = player.playbackRate = slowNow.current
+          ? 0.8
+          : 1;
+      };
+      pace();
       player.preservesPitch = true;
+      // Some browsers reset the speed when a new clip loads.
+      player.onplaying = pace;
+      const mine = () => token === epoch.current && audio.current === player;
       player.onended = () => {
-        if (token === epoch.current && audio.current === player) {
-          audio.current = null;
-          setPhase("idle");
-          setTimeout(() => done(token, resume), 250);
-        }
+        if (!mine()) return;
+        audio.current = null;
+        done(token, resume);
       };
-      setPhase("speaking");
+      // Headphones pulled out, a call, the lock screen: the voice was stopped
+      // from outside, so wait for the learner instead of hanging in "speaking".
+      player.onpause = () => {
+        if (mine() && !player.ended) pause();
+      };
       player.onerror = () => {
-        if (token === epoch.current) {
-          setPhase("idle");
-          setIssue("No se pudo reproducir la voz. Tu frase sigue aquí.");
-          setRecovery("play");
-        }
+        if (!mine()) return;
+        voices.current.delete(key);
+        pause();
+        setIssue("No pude reproducir la voz. Toca para intentarlo otra vez.");
+        setRecovery("play");
       };
+      go("speaking");
       try {
         await player.play();
       } catch {
-        if (token === epoch.current) {
-          setPhase("idle");
-          setIssue("Activa el audio en este navegador para escuchar la frase.");
+        if (mine()) {
+          pause();
+          setIssue(
+            "Tu navegador tiene el sonido bloqueado. Toca para oír la frase.",
+          );
           setRecovery("play");
         }
       }
     } catch (error) {
       if (token === epoch.current && !control.signal.aborted) {
-        setPhase("idle");
+        pause();
         setIssue(message(error));
         setRecovery("play");
       }
     }
   }
-  async function submit(blob: Blob, intent: Turn["intent"], token: number) {
+  // Everything the session must remember about a reply is stored the moment
+  // it arrives, so nothing is lost if the learner interrupts its voice.
+  function keep(reply: Result) {
+    if (!preferences) return;
+    setResult(reply);
+    setMissed(false);
+    if (reply.voice) proofs.current.set(reply.text, reply.voice);
+    reference.current = ["accepted", "conversation"].includes(reply.outcome)
+      ? null
+      : reply.reference;
+    setTries((n) => (reply.outcome === "practice" ? n + 1 : 0));
+    if (reply.outcome === "accepted") {
+      unattended.current = 0;
+      let current = entries;
+      try {
+        current = readMastery(localStorage.getItem(progressKey));
+      } catch {}
+      const updated = addMastery(current, reply, preferences);
+      setEntries(updated);
+      try {
+        localStorage.setItem(progressKey, JSON.stringify(updated));
+      } catch {}
+    }
+    if (reply.outcome === "conversation")
+      history.current = [
+        ...history.current,
+        { role: "user" as const, text: reply.heard.slice(0, 400) },
+        { role: "assistant" as const, text: reply.text.slice(0, 400) },
+      ].slice(-8);
+  }
+  async function submit(blob: Blob, token: number) {
     if (!preferences || token !== epoch.current) return;
     retained.current = blob;
-    lastIntent.current = intent;
     setRecovery(null);
-    setPhase("thinking");
+    go("thinking");
     setIssue("");
     controller.current?.abort();
     const control = new AbortController();
@@ -326,100 +484,102 @@ export function Pio() {
         id,
         preferences,
         reference: reference.current,
-        intent,
+        intent: "auto",
         history: history.current,
       }),
     );
+    const spoken = (r: Result) =>
+      ["translation", "practice", "conversation"].includes(r.outcome);
     try {
       const response = await checked(
         await fetch("/api/turn", {
           method: "POST",
           body: form,
-          signal: AbortSignal.any([control.signal, AbortSignal.timeout(75000)]),
+          signal: anySignal(40000, control.signal),
         }),
       );
       const got: { result: Result | null } = { result: null };
-      const voice = await readTurn(response, (reply) => {
-        if (token !== epoch.current || reply.id !== id) return;
-        got.result = reply;
-        // Show the phrase the moment it arrives, while its voice downloads.
-        setResult(reply);
-        if (["translation", "practice", "conversation"].includes(reply.outcome))
-          setPhase("preparing-voice");
-      });
+      let ready: Blob | null = null;
+      try {
+        ready = await readTurn(response, (reply) => {
+          if (token !== epoch.current || reply.id !== id) return;
+          got.result = reply;
+          if (!reply.text) return;
+          // Show the phrase the moment it arrives, while its voice downloads.
+          keep(reply);
+          if (spoken(reply)) go("preparing-voice");
+        });
+      } catch (error) {
+        // The connection dropped after the reply arrived: keep the reply and
+        // ask for its voice separately instead of losing the turn.
+        if (!got.result) throw error;
+      }
       const next = got.result;
       if (!next || token !== epoch.current) return;
-      if (next.outcome === "accepted") buzz([12, 60, 18]);
-      reference.current = ["accepted", "conversation"].includes(next.outcome)
-        ? null
-        : next.reference;
-      if (next.outcome === "accepted" || next.outcome === "conversation") {
-        let current = entries;
-        try {
-          current = readMastery(localStorage.getItem(progressKey));
-        } catch {}
-        const updated = addMastery(current, next, preferences);
-        setEntries(updated);
-        try {
-          localStorage.setItem(progressKey, JSON.stringify(updated));
-        } catch {
-          setNotice(
-            "Tu frase fue correcta, pero no pudimos guardar el progreso en este navegador.",
-          );
-        }
-      }
-      if (next.outcome === "conversation")
-        history.current = [
-          ...history.current,
-          { role: "user", text: next.heard },
-          { role: "assistant", text: next.text },
-        ].slice(-8) as Turn["history"];
-      if (["translation", "practice", "conversation"].includes(next.outcome)) {
+      retained.current = null;
+      if (spoken(next)) {
         misses.current = 0;
-        await play(next.text, token, true, voice);
+        await play(next.text, token, true, ready);
       } else if (next.outcome === "accepted") {
         // Celebrate, then return to the clean starting state and listen again.
         misses.current = 0;
+        buzz([12, 60, 18]);
         chime();
-        setPhase("idle");
-        setTimeout(() => {
+        go("idle");
+        celebration.current = setTimeout(() => {
           if (token !== epoch.current) return;
           setResult(null);
           done(token);
         }, 2600);
-      } else if (++misses.current < 2) {
-        // Nothing usable was heard: listen again without making the user tap.
-        done(token);
       } else {
-        misses.current = 0;
-        setPhase("idle");
+        // Nothing usable was heard. Whatever is on screen stays; Pío listens
+        // once more by itself and then waits.
+        setMissed(true);
+        if (++misses.current < 2) done(token);
+        else {
+          misses.current = 0;
+          pause();
+        }
       }
     } catch (error) {
-      if (token === epoch.current && !control.signal.aborted) {
-        setPhase("idle");
-        setIssue(message(error));
-        setRecovery("submit");
-      }
+      if (token !== epoch.current || control.signal.aborted) return;
+      const code = error instanceof Error ? error.message : "";
+      pause();
+      setIssue(message(error));
+      if (code === "access-required") void refreshStatus(true);
+      setRecovery(
+        code === "too-many-requests" || code === "access-required"
+          ? null
+          : speakAgain.includes(code)
+            ? "record"
+            : "submit",
+      );
     }
   }
   async function finish(token: number, heardSpeech: boolean) {
     if (!recording.current || token !== epoch.current) return;
     recording.current = false;
+    if (watchdog.current) clearInterval(watchdog.current);
+    watchdog.current = null;
     const capture = recorder.current;
-    setPhase("thinking");
-    setLevel(0);
+    // Tapped before the microphone opened, or nothing was said: just wait.
+    if (!capture?.started || !heardSpeech) {
+      pause();
+      return;
+    }
+    go("thinking");
+    showLevel(0);
     try {
-      const blob = await capture!.finish();
+      const blob = await capture.finish();
       if (token !== epoch.current) return;
-      // Silence simply pauses the session; a tap on Hablar resumes it.
-      if (!heardSpeech || blob.size < 6444) {
-        setPhase("idle");
+      if (blob.size < 6444) {
+        pause();
         return;
       }
-      await submit(blob, "auto", token);
+      await submit(blob, token);
     } catch (error) {
       if (token === epoch.current) {
-        setPhase("idle");
+        pause();
         setIssue(message(error));
         setRecovery("record");
       }
@@ -447,17 +607,22 @@ export function Pio() {
       });
     } catch {}
   }
-  // Phones only allow audio that starts inside a tap. Playing a silent clip on
-  // the first tap unlocks the shared element for every later reply.
+  // Phones only allow audio that starts inside a tap. Playing a short silent
+  // clip on the first tap unlocks the shared element for every later reply.
   function unlockVoice() {
     if (voice.current) return;
-    const element = new Audio(
-      "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=",
-    );
-    voice.current = element;
-    void element.play().catch(() => {});
+    try {
+      const silence = URL.createObjectURL(
+        new Blob([encodeWav([new Float32Array(1600)], 16000)], {
+          type: "audio/wav",
+        }),
+      );
+      const element = new Audio(silence);
+      voice.current = element;
+      void element.play().catch(() => {});
+    } catch {}
   }
-  async function start() {
+  async function start(auto = false) {
     if (
       !preferences ||
       !status?.access ||
@@ -465,54 +630,81 @@ export function Pio() {
     )
       return;
     cancel();
+    if (!auto) unattended.current = misses.current = 0;
+    else if (++unattended.current > 12) {
+      unattended.current = 0;
+      pause();
+      return;
+    }
     const token = epoch.current;
     setIssue("");
     setRecovery(null);
-    setSeconds(0);
-    setPhase(granted.current ? "listening" : "permission");
+    setPaused(false);
+    // A celebrated phrase leaves the screen when the next turn begins.
+    setResult((shown) => (shown?.outcome === "accepted" ? null : shown));
+    go(granted.current ? "waking" : "permission");
     // Wake the turn endpoint while the user is still speaking the first phrase.
     if (!warmed.current) {
       warmed.current = true;
       void fetch("/api/turn", { method: "HEAD" }).catch(() => {});
     }
-    if (!window.AudioContext) {
-      setPhase("idle");
-      setIssue(errorText["unsupported-microphone"]);
+    const fail = (error: unknown) => {
+      if (token !== epoch.current) return;
+      if (
+        error instanceof Error &&
+        ["NotAllowedError", "NotFoundError"].includes(error.name)
+      )
+        granted.current = false;
+      pause();
+      setIssue(message(error));
       setRecovery("record");
-      return;
-    }
+    };
     try {
+      if (!window.AudioContext) throw new Error("unsupported-microphone");
       if (!captureContext.current || captureContext.current.state === "closed")
         captureContext.current = new AudioContext();
     } catch {
-      setPhase("idle");
-      setIssue(errorText["unsupported-microphone"]);
-      setRecovery("record");
+      fail(new Error("unsupported-microphone"));
       return;
     }
     const capture = new Recorder(captureContext.current);
     recorder.current = capture;
+    const waited = granted.current;
     let heard = false,
       lastVoice = 0,
       stopping = false,
       smooth = 0,
-      voiced = 0,
+      run = 0,
       previous = 0,
-      floor = noiseFloor.current;
+      floor = noiseFloor.current,
+      lastChunk = performance.now(),
+      chunks = 0;
     manualStop.current = () => {
       if (!stopping) {
         stopping = true;
         void finish(token, heard);
       }
     };
+    capture.onLost = () => manualStop.current();
     recording.current = true;
+    // Every limit below is measured on incoming audio. If audio stops coming
+    // (a call, Siri, the system taking the microphone), this clock ends the
+    // turn instead of leaving "Te escucho" on screen forever.
+    watchdog.current = setInterval(() => {
+      if (token !== epoch.current || stopping) return;
+      const silent = performance.now() - lastChunk;
+      if (chunks ? silent > 2500 : waited && silent > 7000)
+        manualStop.current();
+    }, 500);
     try {
       await capture.start((rms, time) => {
         if (token !== epoch.current || stopping) return;
+        lastChunk = performance.now();
+        chunks++;
         granted.current = true;
-        setPhase("listening");
-        setLevel(Math.min(1, rms * 12));
-        setSeconds(Math.floor(time));
+        // Only now is Pío really listening.
+        if (live.current !== "listening") go("listening");
+        showLevel(Math.min(1, rms * 12));
         // Speech is whatever rises clearly above the room's own noise, so a
         // fan or street noise cannot hold the microphone open.
         const step = time - previous;
@@ -523,55 +715,101 @@ export function Pio() {
           Math.max(0.002, Math.min(smooth, floor * 1.015)),
         );
         noiseFloor.current = floor;
-        if (smooth > Math.max(0.012, floor * 3)) {
-          voiced += step;
+        // The first instant is skipped: opening the microphone can pop.
+        if (time > 0.25 && smooth > Math.max(0.01, floor * 3)) {
+          run += step;
           lastVoice = time;
-          if (voiced >= 0.2) heard = true;
-        }
+          // A click or a cough is not speech: it must last.
+          if (run >= 0.15) heard = true;
+        } else if (time - lastVoice > 0.35) run = 0;
+        const quiet = time - lastVoice;
+        // A learner repeating a new phrase hesitates more than someone
+        // speaking their own language, so they get a longer pause.
         if (
           time >= 24.5 ||
-          (!heard && time >= 8) ||
-          (heard && time - lastVoice > 1.1)
+          (!heard && time >= 8 && quiet > 0.6) ||
+          (heard && quiet > (reference.current ? 1.4 : 1.1))
         )
           manualStop.current();
       });
       if (token !== epoch.current) capture.cancel();
     } catch (error) {
-      if (token === epoch.current) {
-        recording.current = false;
-        setPhase("idle");
-        setIssue(message(error));
-        setRecovery("record");
-      }
+      recording.current = false;
+      fail(error);
     }
   }
-  startRef.current = () => {
-    void start();
+  startRef.current = (auto) => {
+    void start(auto);
   };
+  // "Escuchar", a marked word or the slow switch: always available, even while
+  // Pío is listening, and the session carries on afterwards.
+  function listen(word?: string) {
+    if (!result?.text) return;
+    unlockVoice();
+    cancel();
+    unattended.current = 0;
+    void play(
+      result.text,
+      epoch.current,
+      result.outcome !== "accepted",
+      null,
+      word,
+    );
+  }
   const connection = preferences
     ? connectionState(status, preferences.target, checkingStatus, statusFailed)
     : "checking";
   const ready = !!preferences && connection === "ready";
   const active = phase !== "idle";
-  const mood = mascotMood(phase, connection, result?.outcome);
+  const today = preferences ? countMastery(entries, preferences) : 0;
+  const days = preferences ? streak(entries, preferences) : 0;
+  const mood = mascotMood(phase, connection, result?.outcome, paused && !issue);
   const { title, description } =
     connection !== "ready" && !active
       ? connectionCopy[connection]
-      : phase === "preparing-voice" && result?.text
-        ? sessionCopy("speaking")
-        : phase === "listening" && reference.current
-          ? {
-              title: "Te escucho",
-              description:
-                "Repite la frase. Si prefieres otra, dila en tu idioma.",
-            }
-          : sessionCopy(phase, result?.outcome);
-  const today = preferences ? countMastery(entries, preferences) : 0;
+      : issue && !active
+        ? { title: "Tuvimos un tropiezo", description: issue }
+        : sessionCopy({
+            phase,
+            outcome: result?.outcome,
+            paused,
+            missed,
+            target: preferences
+              ? names[preferences.target].split(" ·")[0].toLocaleLowerCase()
+              : undefined,
+            focus: result?.focus.length,
+            missing: result?.evidence?.words.some(
+              (w) => w.error === "Omission",
+            ),
+            tries,
+            streak: days,
+          });
+  // Short spoken updates for screen readers, only when something changed for
+  // the learner. The visible instructions are not read over the microphone.
+  const announce = issue
+    ? issue
+    : phase === "permission"
+      ? "Dale permiso al micrófono."
+      : result?.outcome === "accepted"
+        ? `Bien dicho. Llevas ${today} ${today === 1 ? "frase" : "frases"} hoy.`
+        : result?.outcome === "practice" && phase !== "listening"
+          ? `Casi. ${result.focus.length ? `Practica: ${result.focus.join(", ")}.` : ""}`
+          : paused
+            ? "Pío está en pausa."
+            : "";
   function retry() {
-    if (recovery === "submit" && retained.current)
-      void submit(retained.current, lastIntent.current, epoch.current);
-    else if (recovery === "play" && lastPlayback.current)
-      void play(lastPlayback.current);
+    unlockVoice();
+    if (recovery === "submit" && retained.current) {
+      setPaused(false);
+      void submit(retained.current, epoch.current);
+    } else if (recovery === "play" && lastPlayback.current)
+      void play(
+        lastPlayback.current.text,
+        epoch.current,
+        true,
+        null,
+        lastPlayback.current.word,
+      );
     else void start();
   }
   if (!loaded)
@@ -598,9 +836,14 @@ export function Pio() {
           <div className="topbar-tools">
             <span
               key={today}
+              role="img"
               className={`chip progress ${today > 0 ? "earned" : ""}`}
-              title="Frases logradas hoy en este navegador"
-              aria-label={`${today} ${today === 1 ? "frase lograda" : "frases logradas"} hoy`}
+              title={
+                days > 1
+                  ? `Frases logradas hoy. Llevas ${days} días seguidos.`
+                  : "Frases logradas hoy"
+              }
+              aria-label={`${today} ${today === 1 ? "frase lograda" : "frases logradas"} hoy${days > 1 ? `, ${days} días seguidos` : ""}`}
             >
               <Icon name="star" size={16} />
               {today}
@@ -643,165 +886,187 @@ export function Pio() {
             </div>
           </section>
         ) : (
-          <>
-            <section className="conversation" aria-labelledby="session-title">
-              <div
-                className={`pio-orb ${mood}`}
-                style={{ "--level": level } as CSSProperties}
-                aria-hidden="true"
-              >
-                <span className="pio-halo" />
-                <div className="pio-nest">
-                  <Mascot mood={mood} />
-                </div>
+          <section
+            className={`conversation ${result?.text ? "has-phrase" : ""}`}
+            aria-labelledby="session-title"
+          >
+            <div ref={orb} className={`pio-orb ${mood}`} aria-hidden="true">
+              <span className="pio-halo" />
+              <div className="pio-nest">
+                <Mascot mood={mood} />
               </div>
-              <div
-                className="session-copy"
-                aria-live="polite"
-                aria-atomic="true"
-              >
-                <h1 id="session-title">{title}</h1>
-                <p>{description}</p>
+            </div>
+            <div className="session-copy">
+              <h1 id="session-title">{title}</h1>
+              <p>{description}</p>
+            </div>
+            <p className="sr-only" role="status">
+              {announce}
+            </p>
+            {result?.outcome === "accepted" && !active && !paused && (
+              <div key={result.id} className="celebrate" aria-hidden="true">
+                {Array.from({ length: 14 }, (_, i) => (
+                  <i key={i} />
+                ))}
               </div>
-              {result?.outcome === "accepted" && !active && (
-                <div key={result.id} className="celebrate" aria-hidden="true">
-                  {Array.from({ length: 14 }, (_, i) => (
-                    <i key={i} />
-                  ))}
-                </div>
-              )}
-              {ready && !active && !result && !issue && (
-                <p className="example">
-                  Prueba con: <q>Quiero pedir un café, por favor</q>
+            )}
+            {ready && !active && !result && !issue && (
+              <p className="example">
+                Prueba con: <q>{examples[new Date().getDay()]}</q>
+              </p>
+            )}
+            {result?.heard && (
+              <div className="bubble mine">
+                <span className="bubble-label">Dijiste</span>
+                <p
+                  lang={
+                    result.outcome === "translation"
+                      ? preferences.native
+                      : preferences.target
+                  }
+                >
+                  {result.heard}
                 </p>
-              )}
-              {result?.heard && (
-                <div className="bubble mine">
-                  <span className="bubble-label">Dijiste</span>
-                  <p>{result.heard}</p>
+              </div>
+            )}
+            {result?.text && (
+              <PhraseCard
+                result={result}
+                locale={preferences.target}
+                disabled={!ready || phase === "thinking"}
+                slow={slow}
+                onSlow={(value) => {
+                  setSlow(value);
+                  slowNow.current = value;
+                  // Felt at once: on the voice in the air, or by saying the
+                  // phrase again slowly.
+                  if (audio.current)
+                    audio.current.playbackRate = value ? 0.8 : 1;
+                  else if (value && phase !== "thinking") listen();
+                }}
+                onPlay={listen}
+              />
+            )}
+            {issue && recovery && ready && !active && (
+              <div className="connection-action" role="alert">
+                <button className="secondary" onClick={retry}>
+                  <Icon name="refresh" size={18} />
+                  {recovery === "play"
+                    ? "Volver a escuchar"
+                    : "Volver a intentar"}
+                </button>
+              </div>
+            )}
+            {connection !== "ready" &&
+              (connection === "access" ? (
+                <div className="connection-action">
+                  <AccessForm onSuccess={refreshStatus} />
                 </div>
-              )}
-              {result?.text && (
-                <PhraseCard
-                  result={result}
-                  locale={preferences.target}
-                  disabled={!ready || active}
-                  slow={slow}
-                  onSlow={setSlow}
-                  onPlay={(text) => {
-                    void play(text);
+              ) : connection === "unconfigured" ? (
+                <div className="connection-action">
+                  <button className="secondary" onClick={openSettings}>
+                    Cambiar idioma
+                  </button>
+                </div>
+              ) : (
+                <div className="connection-action">
+                  <button
+                    className="secondary"
+                    aria-disabled={checkingStatus}
+                    aria-busy={checkingStatus}
+                    onClick={() => {
+                      if (!checkingStatus) void refreshStatus();
+                    }}
+                  >
+                    <Icon name="refresh" size={18} />
+                    {checkingStatus ? "Revisando…" : "Volver a intentar"}
+                  </button>
+                </div>
+              ))}
+            {(ready || active) && (
+              <div className="dock">
+                <button
+                  ref={mic}
+                  className={`mic-button ${phase}`}
+                  aria-label={microphoneLabel(phase)}
+                  onClick={() => {
+                    buzz(10);
+                    unlockVoice();
+                    if (phase === "listening") manualStop.current();
+                    else if (phase === "permission") return;
+                    else if (phase === "thinking" || phase === "waking")
+                      pause();
+                    // Idle starts a session; while Pío talks, one tap
+                    // interrupts and listens straight away.
+                    else void start();
                   }}
-                />
-              )}
-              {issue && (
-                <div className="notice error" role="alert">
-                  <p>{issue}</p>
-                  {recovery && ready && (
-                    <button
-                      className="secondary"
-                      disabled={active}
-                      onClick={retry}
-                    >
-                      {recovery === "submit"
-                        ? "Reintentar envío"
-                        : recovery === "play"
-                          ? "Volver a escuchar"
-                          : "Intentar de nuevo"}
+                >
+                  <span className="mic-ring" />
+                  <Icon
+                    name={phase === "thinking" ? "close" : "mic"}
+                    size={34}
+                  />
+                </button>
+                <p className="dock-label" aria-hidden="true">
+                  {microphoneLabel(phase)}
+                </p>
+                {!result && !active && !paused && (
+                  <p className="dock-hint">
+                    Toca una vez. Yo escucho, contesto y vuelvo a escuchar.
+                  </p>
+                )}
+                <div className="dock-actions">
+                  {active && phase !== "permission" && (
+                    <button className="text-button" onClick={pause}>
+                      <Icon name="pause" size={18} />
+                      Pausar
                     </button>
                   )}
-                </div>
-              )}
-              {connection !== "ready" &&
-                (connection === "access" ? (
-                  <div className="connection-action">
-                    <AccessForm onSuccess={refreshStatus} />
-                  </div>
-                ) : (
-                  <div className="connection-action">
+                  {result && phase !== "thinking" && (
                     <button
-                      className="secondary"
-                      aria-disabled={checkingStatus}
-                      aria-busy={checkingStatus}
+                      className="text-button"
                       onClick={() => {
-                        if (!checkingStatus) void refreshStatus();
+                        unlockVoice();
+                        reset();
+                        void start();
                       }}
                     >
                       <Icon name="refresh" size={18} />
-                      {checkingStatus ? "Comprobando…" : "Comprobar de nuevo"}
+                      {result.outcome === "conversation"
+                        ? "Empezar de nuevo"
+                        : "Otra frase"}
                     </button>
-                  </div>
-                ))}
-              {(ready || active) && (
-                <div className="dock">
-                  <button
-                    className={`mic-button ${phase}`}
-                    style={{ "--level": level } as CSSProperties}
-                    aria-label={microphoneLabel(phase)}
-                    onClick={() => {
-                      buzz(10);
-                      unlockVoice();
-                      if (phase === "listening") manualStop.current();
-                      else if (
-                        phase === "speaking" ||
-                        phase === "preparing-voice"
-                      )
-                        void start();
-                      else if (active) cancel();
-                      else void start();
-                    }}
-                  >
-                    <span className="mic-ring" />
-                    <Icon
-                      name={
-                        phase === "thinking" || phase === "permission"
-                          ? "pause"
-                          : "mic"
-                      }
-                      size={34}
-                    />
-                  </button>
-                  <p className="dock-label" aria-hidden="true">
-                    {microphoneLabel(phase)}
-                  </p>
-                  {!result && !active && (
-                    <p className="dock-hint">
-                      Toca una vez. Yo escucho, contesto y vuelvo a escuchar.
-                    </p>
                   )}
                 </div>
-              )}
-              {result && (
-                <button className="text-button new-idea" onClick={reset}>
-                  <Icon name="refresh" size={18} />
-                  Nueva conversación
-                </button>
-              )}
-              <details className="help-details">
-                <summary>Ayuda y privacidad</summary>
-                <ol>
-                  <li>Di algo en tu idioma. Pío lo traduce y te lo dice.</li>
-                  <li>Repítelo. Pío te ayuda hasta que salga bien.</li>
-                  <li>
-                    Si hablas en el idioma que aprendes, Pío te contesta y
-                    conversan.
-                  </li>
-                </ol>
-                <p>
-                  El micrófono se enciende al tocar Hablar y vuelve a encenderse
-                  solo entre turnos. Pausar, quedarte en silencio o salir de
-                  esta pestaña lo apaga.
-                </p>
-                <p>
-                  Tu audio se envía a ElevenLabs para transcribir y evaluar qué
-                  tan claro se entendió cada palabra; el texto se envía a OpenAI
-                  para traducir o conversar. Pío conserva temporalmente la
-                  última grabación en memoria para que puedas reintentar; no se
-                  guarda en una base de datos. Tus idiomas y frases logradas se
-                  guardan solo en este navegador.
-                </p>
-              </details>
-            </section>
-          </>
+              </div>
+            )}
+            <details className="help-details">
+              <summary>Ayuda y privacidad</summary>
+              <ol>
+                <li>Di algo en tu idioma. Pío lo traduce y te lo dice.</li>
+                <li>Repítelo. Pío te ayuda hasta que se entienda todo.</li>
+                <li>
+                  Si hablas en el idioma que aprendes, Pío te contesta y
+                  conversan.
+                </li>
+                <li>
+                  Para oír la frase otra vez, di «repítelo» o toca Escuchar.
+                </li>
+              </ol>
+              <p>
+                El micrófono se enciende al tocar Hablar y vuelve a encenderse
+                solo entre turnos. Pausar, quedarte en silencio o salir de esta
+                pestaña lo apaga.
+              </p>
+              <p>
+                Pío revisa qué tan claro se entendió cada palabra; no mide
+                sonidos exactos. Tu voz se envía a ElevenLabs solo para
+                entenderte y el texto a OpenAI para traducir o conversar; no se
+                guarda en ninguna base de datos. Tus idiomas y estrellas se
+                quedan en este navegador.
+              </p>
+            </details>
+          </section>
         )}
         {notice && (
           <p className="notice" role="status">
@@ -852,16 +1117,14 @@ function AccessForm({ onSuccess }: { onSuccess: () => Promise<void> }) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ code }),
-            signal: AbortSignal.timeout(10000),
+            signal: anySignal(10000),
           });
           if (!response.ok) throw new Error();
           form.reset();
           setIssue("");
           await onSuccess();
         } catch {
-          setIssue(
-            "No pudimos abrir tu sesión. Revisa tu código o espera un minuto.",
-          );
+          setIssue("Ese código no funcionó. Revísalo o espera un minuto.");
         } finally {
           setBusy(false);
         }

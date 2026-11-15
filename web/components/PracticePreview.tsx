@@ -56,7 +56,7 @@ export function PracticePreview() {
             disabled={false}
             slow={slow}
             onSlow={setSlow}
-            onPlay={(text) => setPlayed(text)}
+            onPlay={(word) => setPlayed(word || card.text)}
           />
         ))}
         <p role="status">
@@ -87,8 +87,8 @@ export function PracticePreview() {
             ] as Phase[]
           ).map((phase) => (
             <p key={phase}>
-              <strong>{sessionCopy(phase).title}</strong> ·{" "}
-              {sessionCopy(phase).description}
+              <strong>{sessionCopy({ phase }).title}</strong> ·{" "}
+              {sessionCopy({ phase }).description}
             </p>
           ))}
           {(
@@ -97,14 +97,13 @@ export function PracticePreview() {
               "practice",
               "accepted",
               "conversation",
-              "clarify",
               "unavailable",
               "no-speech",
             ] as Outcome[]
           ).map((outcome) => (
             <p key={outcome}>
-              <strong>{sessionCopy("idle", outcome).title}</strong> ·{" "}
-              {sessionCopy("idle", outcome).description}
+              <strong>{sessionCopy({ phase: "idle", outcome }).title}</strong> ·{" "}
+              {sessionCopy({ phase: "idle", outcome }).description}
             </p>
           ))}
         </details>

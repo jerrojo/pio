@@ -9,7 +9,7 @@ class PioCapture extends AudioWorkletProcessor {
         this.flush();
         this.port.postMessage({ flushed: true });
         this.stopped = true;
-      }
+      } else if (e.data === "stop") this.stopped = true;
     };
   }
   flush() {
@@ -27,7 +27,8 @@ class PioCapture extends AudioWorkletProcessor {
         if (this.used === this.buffer.length) this.flush();
       }
     }
-    return true;
+    // Returning false lets the browser dispose of a finished turn's processor.
+    return !this.stopped;
   }
 }
 registerProcessor("pio-capture", PioCapture);

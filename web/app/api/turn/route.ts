@@ -1,10 +1,20 @@
-import { turnSchema } from "../../../lib/domain";
+import { parseTurn } from "../../../lib/schemas";
+import { anySignal } from "../../../lib/signal";
 import { runTurn } from "../../../lib/turn";
 import { readyFor, services, synthesize } from "../../../lib/services";
-import { guard, errorResponse, readLimited } from "../../../lib/security";
+import {
+  guard,
+  errorResponse,
+  readLimited,
+  signVoice,
+} from "../../../lib/security";
 import { maxAudioBytes, validateWav } from "../../../lib/wav";
 export const runtime = "nodejs";
-export const maxDuration = 90;
+export const maxDuration = 60;
+// The page calls this once to wake the function before the first phrase.
+export function HEAD() {
+  return new Response(null, { status: 204 });
+}
 export async function POST(request: Request) {
   const denied = guard(request);
   if (denied) return denied;
@@ -16,7 +26,11 @@ export async function POST(request: Request) {
     const bytes = await readLimited(request, maxAudioBytes + 12000);
     const form = await new Response(bytes as BodyInit, {
       headers: { "Content-Type": request.headers.get("content-type") || "" },
-    }).formData();
+    })
+      .formData()
+      .catch(() => {
+        throw new Error("invalid-input");
+      });
     const file = form.get("audio"),
       meta = form.get("turn");
     if (
@@ -32,17 +46,14 @@ export async function POST(request: Request) {
     } catch {
       throw new Error("invalid-input");
     }
-    const parsed = turnSchema.safeParse(json);
-    if (!parsed.success)
-      return Response.json({ code: "invalid-input" }, { status: 400 });
+    const turn = parseTurn(json);
+    if (!turn) return Response.json({ code: "invalid-input" }, { status: 400 });
+    const parsed = { data: turn };
     if (!readyFor(parsed.data.preferences.target))
       throw new Error("not-configured");
     const audio = Buffer.from(await file.arrayBuffer());
     validateWav(audio);
-    const signal = AbortSignal.any([
-      request.signal,
-      AbortSignal.timeout(70000),
-    ]);
+    const signal = anySignal(45000, request.signal);
     // Per-step durations go to the server log so slow turns can be diagnosed.
     const times: string[] = [];
     const timed =
@@ -55,7 +66,8 @@ export async function POST(request: Request) {
           times.push(`${name}=${Date.now() - from}`);
         }
       };
-    const result = await runTurn(
+    const target = parsed.data.preferences.target;
+    const heard = await runTurn(
       audio,
       parsed.data,
       {
@@ -65,36 +77,38 @@ export async function POST(request: Request) {
       },
       signal,
     );
+    const result = heard.text
+      ? { ...heard, voice: signVoice(heard.text, target) }
+      : heard;
     console.log("pio-timing", result.outcome, times.join(" "));
-    // A reply Pío will say aloud travels with its voice: the result as one
-    // JSON line, then the audio. The text shows at once and no second request
-    // is needed. A repeated practice phrase is already cached by the browser.
+    // A new phrase Pío will say aloud travels with its voice: the result as
+    // one JSON line, then the audio. The text shows at once and no second
+    // request is needed. A phrase already on screen is cached by the browser.
     const spoken =
       form.get("voice") === "1" &&
-      (["translation", "conversation"].includes(result.outcome) ||
-        (result.outcome === "practice" && !parsed.data.reference));
+      (result.outcome === "conversation" ||
+        (result.outcome === "translation" &&
+          result.text !== parsed.data.reference?.text));
     if (!spoken)
       return Response.json(result, {
         headers: { "Cache-Control": "no-store" },
       });
-    const target = parsed.data.preferences.target;
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         controller.enqueue(
           new TextEncoder().encode(JSON.stringify(result) + "\n"),
         );
         try {
+          // The voice is sent whole or not at all, so the browser never plays
+          // or keeps a phrase that was cut off halfway.
           const voice = await synthesize(result.text, target, signal);
-          const reader = voice.body!.getReader();
-          for (;;) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            controller.enqueue(value);
-          }
+          controller.enqueue(new Uint8Array(await voice.arrayBuffer()));
         } catch {
           // Without audio the browser asks the voice endpoint itself.
         }
-        controller.close();
+        try {
+          controller.close();
+        } catch {}
       },
     });
     return new Response(stream, {

@@ -1,8 +1,8 @@
+import { canon, keysOf, overlap } from "./words.ts";
 import {
   judge,
   route,
   type Evidence,
-  type Locale,
   type Result,
   type Transcript,
   type Turn,
@@ -17,20 +17,10 @@ export interface Services {
     signal: AbortSignal,
   ): Promise<string>;
 }
-const wordsOf = (text: string) =>
-  text
-    .normalize("NFC")
-    .toLocaleLowerCase()
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter(Boolean);
-// Share of the reference's words that also appear in what was heard.
-export function overlap(heard: string, reference: string) {
-  const said = new Set(wordsOf(heard)),
-    expected = wordsOf(reference);
-  return expected.length
-    ? expected.filter((word) => said.has(word)).length / expected.length
-    : 0;
-}
+// "Say it again" in the learner's own language: replay the phrase on screen
+// instead of translating the request.
+const again =
+  /^(repitelo|repitela|repite|repitemelo|otravez|denuevo|unavezmas|again|repeat|repeatit|repeatthat|onemoretime|sayitagain|saythatagain|nochmal|nocheinmal|encore|repete|ancora|ripeti|denovo|outravez|repita)(porfavor|porfa|please|bitte|sivousplait|perfavore)?$/;
 export async function runTurn(
   audio: Buffer,
   turn: Turn,
@@ -50,16 +40,34 @@ export async function runTurn(
     evidence: null,
     focus: [],
   };
-  // A recognisable repetition of the phrase on screen is an attempt at it,
-  // whatever language the detector guessed for a short accented clip.
-  const intent =
-    turn.intent === "auto" &&
-    turn.reference &&
-    overlap(transcript.text, turn.reference.text) >= 0.5
-      ? "target"
-      : route(transcript, turn.preferences, turn.intent);
-  if (intent === "no-speech" || intent === "clarify")
-    return { ...initial, outcome: intent };
+  const said = route(transcript, turn.preferences, turn.intent);
+  if (said === "no-speech") return initial;
+  const ref = turn.reference,
+    target = turn.preferences.target;
+  // An attempt at the phrase on screen is graded whatever language the
+  // detector guessed for a short accented clip. The bar is higher when the
+  // detector is sure it heard the learner's own language, and for one- or
+  // two-word phrases, where a shared word proves little.
+  let intent: "native" | "target" | "repeat" = said;
+  if (ref && turn.intent === "auto") {
+    const size = keysOf(ref.text, target).length,
+      heard = keysOf(transcript.text, target).length,
+      share = overlap(transcript.text, ref.text, target),
+      sureNative = said === "native" && transcript.confidence >= 0.9;
+    const bar =
+      said === "native"
+        ? size < 3
+          ? 1
+          : sureNative
+            ? 0.75
+            : 0.5
+        : size < 3
+          ? 0.5
+          : 0.3;
+    if (share >= bar && heard <= size * 1.5 + 2) intent = "repeat";
+  } else if (ref && said === "target") intent = "repeat";
+  if (intent === "native" && ref && again.test(canon(transcript.text)))
+    return { ...initial, outcome: "translation", text: ref.text };
   if (intent === "native") {
     const text = (
       await services.generate("translate", transcript.text, turn, signal)
@@ -77,62 +85,48 @@ export async function runTurn(
       },
     };
   }
+  if (intent === "target") {
+    // Free speech in the language being learned: Pío simply answers. The
+    // learner's own sentence never becomes a model phrase to repeat.
+    const free = { ...turn, reference: null };
+    const evidence = await services.assess(audio, free, signal);
+    signal.throwIfAborted();
+    if (judge(evidence, turn.id, target, null) === "unavailable")
+      return { ...initial, outcome: "unavailable" };
+    const text = await services.generate(
+      "converse",
+      evidence.text,
+      free,
+      signal,
+    );
+    signal.throwIfAborted();
+    return {
+      ...initial,
+      outcome: "conversation",
+      heard: evidence.text,
+      text,
+      evidence,
+      reference: null,
+    };
+  }
   const evidence = await services.assess(audio, turn, signal);
   signal.throwIfAborted();
-  const decision = judge(
-    evidence,
-    turn.id,
-    turn.preferences.target,
-    turn.reference,
+  const decision = judge(evidence, turn.id, target, ref);
+  if (decision === "unavailable" || !ref)
+    return { ...initial, outcome: "unavailable" };
+  if (decision === "accepted")
+    return { ...initial, outcome: "accepted", text: ref.text, evidence };
+  // What to work on: missing words first, then the ones heard least clearly.
+  const weak = evidence.words.filter(
+    (w) => w.error !== "None" || w.accuracy < 70,
   );
-  if (decision === "unavailable") return { ...initial, outcome: "unavailable" };
-  if (decision === "practice")
-    return {
-      ...initial,
-      outcome: "practice",
-      text: turn.reference?.text || evidence.text,
-      evidence,
-      reference: turn.reference || {
-        id: crypto.randomUUID(),
-        text: evidence.text,
-        locale: turn.preferences.target,
-      },
-      focus: evidence.words
-        .filter(
-          (w) =>
-            w.accuracy < 70 ||
-            ["Omission", "Mispronunciation", "Insertion"].includes(w.error),
-        )
-        .map((w) => w.text)
-        .slice(0, 3),
-    };
-  if (turn.reference)
-    return {
-      ...initial,
-      outcome: "accepted",
-      text: turn.reference.text,
-      evidence,
-    };
-  const text = await services.generate("converse", evidence.text, turn, signal);
-  signal.throwIfAborted();
-  return {
-    ...initial,
-    outcome: "conversation",
-    heard: evidence.text,
-    text,
-    evidence,
-    reference: null,
-  };
-}
-
-const confirmations: Record<string, string> = {
-  es: "Bien dicho. Podemos seguir.",
-  en: "Well said. Let’s keep going.",
-  de: "Gut gesagt. Machen wir weiter.",
-  fr: "Bien dit. On continue.",
-  it: "Ben detto. Continuiamo.",
-  pt: "Muito bem. Vamos continuar.",
-};
-export function confirmation(locale: Locale) {
-  return confirmations[locale.split("-")[0]];
+  const focus = (
+    weak.length
+      ? weak
+      : [...evidence.words].sort((a, b) => a.accuracy - b.accuracy).slice(0, 2)
+  )
+    .map((w) => w.text)
+    .filter((word, at, all) => all.indexOf(word) === at)
+    .slice(0, 3);
+  return { ...initial, outcome: "practice", text: ref.text, evidence, focus };
 }

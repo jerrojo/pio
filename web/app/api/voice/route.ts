@@ -1,9 +1,18 @@
 import { z } from "zod";
 import { locales } from "../../../lib/domain";
 import { synthesize } from "../../../lib/services";
-import { guard, errorResponse, readLimited } from "../../../lib/security";
+import { anySignal } from "../../../lib/signal";
+import { canon, pieces } from "../../../lib/words";
+import {
+  guard,
+  errorResponse,
+  readLimited,
+  voiceSigned,
+} from "../../../lib/security";
 export const runtime = "nodejs";
 export const maxDuration = 30;
+// Speaks a phrase the server itself produced (proved by its signature), or
+// one word of it. It never reads out text invented by the caller.
 export async function POST(request: Request) {
   const denied = guard(request);
   if (denied) return denied;
@@ -21,14 +30,27 @@ export async function POST(request: Request) {
       .object({
         text: z.string().trim().min(1).max(500),
         locale: z.enum(locales),
+        proof: z.string().min(20).max(100),
+        word: z.string().trim().min(1).max(80).optional(),
       })
       .safeParse(json);
     if (!input.success)
       return Response.json({ code: "invalid-input" }, { status: 400 });
+    const { text, locale, proof, word } = input.data;
+    if (
+      !voiceSigned(text, locale, proof) ||
+      (word &&
+        !pieces(text).some((piece) => canon(piece) === canon(word)) &&
+        !text.includes(word))
+    )
+      return Response.json(
+        { code: "forbidden" },
+        { status: 403, headers: { "Cache-Control": "no-store" } },
+      );
     const response = await synthesize(
-      input.data.text,
-      input.data.locale,
-      request.signal,
+      word || text,
+      locale,
+      anySignal(25000, request.signal),
     );
     return new Response(response.body, {
       headers: { "Content-Type": "audio/mpeg", "Cache-Control": "no-store" },

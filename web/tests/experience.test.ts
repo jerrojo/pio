@@ -45,27 +45,54 @@ test("connection follows the selected language and distinguishes loading, failur
     "unconfigured",
   );
 });
-test("an old result cannot override the current recording or playback instruction", () => {
-  assert.equal(sessionCopy("listening", "accepted").title, "Te escucho");
-  assert.equal(sessionCopy("preparing-voice", "practice").title, "Ya casi…");
+test("Pío only says it is listening while the microphone is open, and names the next step", () => {
   assert.equal(
-    sessionCopy("speaking", "translation").title,
+    sessionCopy({ phase: "listening", outcome: "accepted" }).title,
+    "Te escucho",
+  );
+  // Opening the microphone or waiting after a phrase is not listening yet.
+  for (const phase of ["waking", "idle"] as const)
+    assert.doesNotMatch(
+      JSON.stringify(sessionCopy({ phase, outcome: "translation" })),
+      /escuch/i,
+    );
+  assert.equal(
+    sessionCopy({ phase: "speaking", outcome: "translation" }).title,
     "Escucha cómo suena",
   );
-  assert.match(sessionCopy("idle", "practice").description, /frase completa/);
+  // A failed repetition is said as such while Pío repeats the phrase.
   assert.match(
-    sessionCopy("idle", "unavailable").description,
-    /No se guardó una calificación/,
+    sessionCopy({ phase: "speaking", outcome: "practice", focus: 2 }).title,
+    /Casi/,
   );
+  assert.match(
+    sessionCopy({ phase: "speaking", outcome: "practice", missing: true })
+      .description,
+    /faltó/,
+  );
+  // Paused is its own state, whatever was on screen.
+  assert.equal(
+    sessionCopy({ phase: "idle", outcome: "translation", paused: true }).title,
+    "Aquí sigo",
+  );
+  assert.match(
+    sessionCopy({ phase: "listening", outcome: "translation", missed: true })
+      .title,
+    /No te alcancé/,
+  );
+  assert.match(
+    sessionCopy({ phase: "idle", outcome: "practice", tries: 3 }).description,
+    /Otra frase/,
+  );
+  assert.match(sessionCopy({ phase: "idle", streak: 4 }).description, /4 días/);
 });
-test("microphone action states expose speaking, finish and pause explicitly", () => {
+test("the microphone button names what a tap does in every phase", () => {
   assert.equal(microphoneLabel("idle"), "Hablar");
-  assert.equal(microphoneLabel("listening"), "Terminar frase");
-  for (const phase of ["permission", "thinking"] as const)
-    assert.equal(microphoneLabel(phase), "Pausar");
+  assert.equal(microphoneLabel("listening"), "Listo");
+  assert.equal(microphoneLabel("thinking"), "Cancelar");
   // While Pío talks, one tap interrupts and listens straight away.
   for (const phase of ["preparing-voice", "speaking"] as const)
-    assert.equal(microphoneLabel(phase), "Hablar ya");
+    assert.equal(microphoneLabel(phase), "Mi turno");
 });
 test("Pío's gesture follows the live phase and never celebrates or invites speech while practice is blocked", () => {
   assert.equal(mascotMood("listening", "ready", "accepted"), "listening");
@@ -74,7 +101,8 @@ test("Pío's gesture follows the live phase and never celebrates or invites spee
   assert.equal(mascotMood("permission", "ready"), "curious");
   assert.equal(mascotMood("idle", "ready", "accepted"), "happy");
   assert.equal(mascotMood("idle", "ready", "practice"), "idle");
-  assert.equal(mascotMood("idle", "ready", "clarify"), "curious");
+  assert.equal(mascotMood("idle", "ready", "translation", true), "sleepy");
+  assert.equal(mascotMood("waking", "ready", "accepted"), "idle");
   assert.equal(mascotMood("idle", "checking", "accepted"), "thinking");
   for (const connection of ["offline", "access", "unconfigured"] as const) {
     assert.equal(mascotMood("idle", connection, "accepted"), "sleepy");

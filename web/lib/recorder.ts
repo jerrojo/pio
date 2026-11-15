@@ -1,4 +1,16 @@
 import { encodeWav } from "./wav";
+// The capture module is loaded once per audio context, before the microphone
+// opens, so no speech is lost while it downloads.
+const modules = new WeakMap<AudioContext, Promise<void>>();
+export function prepareCapture(context: AudioContext) {
+  let ready = modules.get(context);
+  if (!ready) {
+    ready = context.audioWorklet.addModule("/capture-worklet.js");
+    modules.set(context, ready);
+    ready.catch(() => modules.delete(context));
+  }
+  return ready;
+}
 export class Recorder {
   private context: AudioContext | null = null;
   private stream: MediaStream | null = null;
@@ -8,6 +20,10 @@ export class Recorder {
   private chunks: Float32Array[] = [];
   private closed = false;
   private flushed: (() => void) | null = null;
+  onLost: (() => void) | null = null;
+  get started() {
+    return !!this.node && !this.closed;
+  }
   constructor(context: AudioContext) {
     this.context = context;
   }
@@ -22,6 +38,7 @@ export class Recorder {
       throw new Error("unsupported-microphone");
     }
     try {
+      const module = prepareCapture(this.context);
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
@@ -36,7 +53,11 @@ export class Recorder {
         return;
       }
       this.stream = stream;
-      await this.context.audioWorklet.addModule("/capture-worklet.js");
+      // The page learns at once if the microphone is taken away mid-turn.
+      stream
+        .getAudioTracks()[0]
+        ?.addEventListener("ended", () => this.onLost?.());
+      await module;
       if (this.closed) return;
       this.node = new AudioWorkletNode(this.context, "pio-capture");
       let count = 0;
@@ -112,6 +133,10 @@ export class Recorder {
   }
   cancel() {
     this.closed = true;
+    this.onLost = null;
+    try {
+      this.node?.port.postMessage("stop");
+    } catch {}
     this.stream?.getTracks().forEach((t) => t.stop());
     this.source?.disconnect();
     this.node?.disconnect();

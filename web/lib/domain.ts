@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { keysOf } from "./words.ts";
 
 export const locales = [
   "es-MX",
@@ -24,48 +24,33 @@ export const names: Record<Locale, string> = {
   "pt-PT": "Portugués · Portugal",
 };
 export const base = (locale: string) => locale.split("-")[0];
-export const preferencesSchema = z
-  .object({
-    version: z.literal(3),
-    native: z.enum(locales),
-    target: z.enum(locales),
-  })
-  .refine((p) => base(p.native) !== base(p.target));
-export type Preferences = z.infer<typeof preferencesSchema>;
+export type Preferences = { version: 3; native: Locale; target: Locale };
+const isLocale = (value: unknown): value is Locale =>
+  locales.includes(value as Locale);
 export const preferenceKey = "pio.preferences.v3";
 // No fixed pair on restart. First use asks; every later visit restores the saved pair.
 export function readPreferences(raw: string | null): Preferences | null {
   try {
-    const r = preferencesSchema.safeParse(JSON.parse(raw || "null"));
-    return r.success ? r.data : null;
+    const p = JSON.parse(raw || "null");
+    return p &&
+      p.version === 3 &&
+      isLocale(p.native) &&
+      isLocale(p.target) &&
+      base(p.native) !== base(p.target)
+      ? { version: 3, native: p.native, target: p.target }
+      : null;
   } catch {
     return null;
   }
 }
-export const referenceSchema = z.object({
-  id: z.string().uuid(),
-  text: z.string().trim().min(1).max(500),
-  locale: z.enum(locales),
-});
-export type Reference = z.infer<typeof referenceSchema>;
-export const turnSchema = z
-  .object({
-    id: z.string().uuid(),
-    preferences: preferencesSchema,
-    reference: referenceSchema.nullable(),
-    intent: z.enum(["auto", "native", "target"]).default("auto"),
-    history: z
-      .array(
-        z.object({
-          role: z.enum(["user", "assistant"]),
-          text: z.string().max(600),
-        }),
-      )
-      .max(8)
-      .default([]),
-  })
-  .refine((x) => !x.reference || x.reference.locale === x.preferences.target);
-export type Turn = z.infer<typeof turnSchema>;
+export type Reference = { id: string; text: string; locale: Locale };
+export type Turn = {
+  id: string;
+  preferences: Preferences;
+  reference: Reference | null;
+  intent: "auto" | "native" | "target";
+  history: { role: "user" | "assistant"; text: string }[];
+};
 export type Transcript = { text: string; language: string; confidence: number };
 export type Word = { text: string; accuracy: number; error: string };
 export type Evidence = {
@@ -86,7 +71,6 @@ export type Outcome =
   | "practice"
   | "accepted"
   | "conversation"
-  | "clarify"
   | "no-speech"
   | "unavailable";
 export type Result = {
@@ -97,6 +81,8 @@ export type Result = {
   reference: Reference | null;
   evidence: Evidence | null;
   focus: string[];
+  // Proof that the server produced `text`, required to ask for its voice.
+  voice?: string;
 };
 const score = (n: unknown): n is number =>
   typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 100;
@@ -121,27 +107,46 @@ export function judge(
   )
     return "unavailable";
   if (reference && !score(e.completeness)) return "unavailable";
-  return e.accuracy >= 80 &&
+  // Clear enough on the whole, nothing missing, no word lost entirely, and at
+  // most one in four words merely doubtful: short function words are often
+  // heard with low confidence even when they were said well.
+  const doubtful = e.words.filter((w) => w.accuracy < 70).length;
+  return e.accuracy >= 72 &&
     (!reference || e.completeness! >= 95) &&
+    doubtful <= Math.floor(e.words.length / 4) &&
     e.words.every(
       (w) =>
-        w.accuracy >= 70 &&
+        w.accuracy >= 50 &&
         !["Omission", "Insertion", "Mispronunciation"].includes(w.error),
     )
     ? "accepted"
     : "practice";
 }
+// Languages the detector may guess for someone speaking their own language.
+const lookalikes: Record<string, string[]> = {
+  es: ["ca", "cat", "gl", "glg", "oc", "oci", "ast", "an", "arg"],
+  pt: ["gl", "glg"],
+  it: ["co", "cos", "sc", "srd"],
+  fr: ["oc", "oci", "ca", "cat"],
+  de: ["lb", "ltz", "gsw"],
+  en: ["sco"],
+};
 export function route(
   t: Transcript,
   p: Preferences,
   intent: Turn["intent"],
-): "native" | "target" | "clarify" | "no-speech" {
-  if (!t.text.trim()) return "no-speech";
+): "native" | "target" | "no-speech" {
+  if (!/[\p{L}\p{N}]/u.test(t.text)) return "no-speech";
   if (intent !== "auto") return intent;
   // Never stop to ask. Native speech is recognised reliably; anything else is
   // treated as an attempt at the language being learned, where an accent
   // lowers the detector's confidence or makes it guess a neighbouring language.
-  return base(t.language) === base(p.native) ? "native" : "target";
+  const heard = base(t.language.toLowerCase()),
+    native = base(p.native),
+    target = base(p.target);
+  if (heard === native) return "native";
+  if (heard === target) return "target";
+  return lookalikes[native]?.includes(heard) ? "native" : "target";
 }
 export type Mastered = {
   id: string;
@@ -165,19 +170,34 @@ export function addMastery(
 ): Mastered[] {
   if (
     !r.evidence ||
-    !["accepted", "conversation"].includes(r.outcome) ||
+    r.outcome !== "accepted" ||
+    !r.reference ||
     judge(r.evidence, r.id, p.target, r.reference) !== "accepted" ||
     entries.some((e) => e.id === r.id)
   )
     return entries;
-  const phrase = (r.reference?.text || r.heard)
-    .normalize("NFC")
-    .trim()
-    .toLocaleLowerCase();
+  // Punctuation and capitals do not make a different phrase.
+  const phrase = keysOf(r.reference.text).join(" ");
   return [
     ...entries,
     { id: r.id, pair: `${p.native}:${p.target}`, phrase, day },
   ].slice(-2000);
+}
+// Consecutive days, ending today or yesterday, with at least one phrase.
+export function streak(entries: Mastered[], p: Preferences, now = new Date()) {
+  const days = new Set(
+    entries
+      .filter((e) => e.pair === `${p.native}:${p.target}`)
+      .map((e) => e.day),
+  );
+  const cursor = new Date(now);
+  if (!days.has(localDay(cursor))) cursor.setDate(cursor.getDate() - 1);
+  let count = 0;
+  while (days.has(localDay(cursor))) {
+    count++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return count;
 }
 export function countMastery(
   entries: Mastered[],
@@ -192,17 +212,19 @@ export function countMastery(
 }
 export function readMastery(raw: string | null): Mastered[] {
   try {
-    return z
-      .array(
-        z.object({
-          id: z.string().uuid(),
-          pair: z.string(),
-          phrase: z.string(),
-          day: z.string(),
-        }),
-      )
-      .max(2000)
-      .parse(JSON.parse(raw || "[]"));
+    const list: unknown = JSON.parse(raw || "[]");
+    if (!Array.isArray(list) || list.length > 2000) return [];
+    const text = (v: unknown): v is string => typeof v === "string";
+    return list.every(
+      (e) => e && text(e.id) && text(e.pair) && text(e.phrase) && text(e.day),
+    )
+      ? list.map((e) => ({
+          id: e.id,
+          pair: e.pair,
+          phrase: e.phrase,
+          day: e.day,
+        }))
+      : [];
   } catch {
     return [];
   }

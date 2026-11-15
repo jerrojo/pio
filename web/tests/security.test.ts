@@ -9,6 +9,8 @@ import {
   newSession,
   readLimited,
   sameOrigin,
+  signVoice,
+  voiceSigned,
 } from "../lib/security.ts";
 test("same-origin accepts the browser destination despite Next internal hostname", () => {
   assert.equal(
@@ -122,4 +124,18 @@ test("body limit works without Content-Length", async () => {
 test("body limit accepts exact boundary", async () => {
   const r = new Request("https://pio.test", { method: "POST", body: "hello" });
   assert.equal(new TextDecoder().decode(await readLimited(r, 5)), "hello");
+});
+
+test("a request that does not come from Pío's own page is refused", () =>
+  assert.equal(
+    guard(new Request("https://pio.test/api/voice", { method: "POST" }))
+      ?.status,
+    403,
+  ));
+test("the voice endpoint only accepts texts the server signed", () => {
+  const proof = signVoice("Guten Morgen", "de-DE");
+  assert.equal(voiceSigned("Guten Morgen", "de-DE", proof), true);
+  assert.equal(voiceSigned("Guten Abend", "de-DE", proof), false);
+  assert.equal(voiceSigned("Guten Morgen", "fr-FR", proof), false);
+  assert.equal(voiceSigned("Guten Morgen", "de-DE", ""), false);
 });

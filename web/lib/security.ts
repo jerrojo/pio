@@ -36,7 +36,22 @@ export function authorized(request: Request) {
     equalSecret(signature, sign(`${expiry}.${id}`))
   );
 }
-// A private pilot limiter. A distributed per-user limiter is required before public signup.
+// Proof that the server itself produced a text. The voice endpoint only
+// speaks signed texts, so it cannot be used to read out arbitrary input.
+const voiceKey = () =>
+  createHash("sha256")
+    .update(
+      `pio-voice:${process.env.PIO_SESSION_SECRET || process.env.ELEVENLABS_API_KEY || "local-only"}`,
+    )
+    .digest();
+export const signVoice = (text: string, locale: string) =>
+  createHmac("sha256", voiceKey())
+    .update(`${locale}\n${text}`)
+    .digest("base64url");
+export const voiceSigned = (text: string, locale: string, proof: string) =>
+  equalSecret(signVoice(text, locale), proof);
+// In-memory limiter: per instance, so it slows abuse down rather than
+// stopping it. A shared store is required before public signup.
 const windows = new Map<string, { at: number; count: number }>();
 export function allow(key: string, limit = 30) {
   const now = Date.now();
@@ -46,14 +61,20 @@ export function allow(key: string, limit = 30) {
   windows.set(key, current);
   return current.count <= limit;
 }
+const refuse = (code: string, status: number, extra: HeadersInit = {}) =>
+  Response.json(
+    { code },
+    { status, headers: { "Cache-Control": "no-store", ...extra } },
+  );
 export function guard(request: Request) {
-  const origin = request.headers.get("origin");
-  if (origin && !sameOrigin(request))
-    return Response.json({ code: "forbidden" }, { status: 403 });
-  if (!authorized(request))
-    return Response.json({ code: "access-required" }, { status: 401 });
-  if (!allow("private-pilot"))
-    return Response.json({ code: "too-many-requests" }, { status: 429 });
+  // Browsers always send Origin on these requests; anything without a
+  // matching one is not Pío's own page.
+  if (!sameOrigin(request)) return refuse("forbidden", 403);
+  if (!authorized(request)) return refuse("access-required", 401);
+  const caller =
+    request.headers.get("x-forwarded-for")?.split(",")[0].trim() || "local";
+  if (!allow(`caller:${caller}`, 45) || !allow("everyone", 150))
+    return refuse("too-many-requests", 429, { "Retry-After": "60" });
   return null;
 }
 export function sameOrigin(request: Request) {
@@ -71,7 +92,16 @@ export function sameOrigin(request: Request) {
   }
 }
 export function errorResponse(error: unknown) {
-  const code = error instanceof Error ? error.message : "";
+  const name = error instanceof Error ? error.name : "";
+  // A provider that took too long, or a learner who moved on.
+  const code =
+    name === "TimeoutError"
+      ? "provider-timeout"
+      : name === "AbortError"
+        ? "cancelled"
+        : error instanceof Error
+          ? error.message
+          : "";
   const known = [
     "not-configured",
     "provider-busy",
@@ -100,7 +130,7 @@ export function errorResponse(error: unknown) {
       status:
         code === "input-too-large"
           ? 413
-          : ["invalid-audio", "invalid-input"].includes(code)
+          : ["invalid-audio", "invalid-input", "phrase-too-long"].includes(code)
             ? 400
             : 503,
       headers: { "Cache-Control": "no-store" },

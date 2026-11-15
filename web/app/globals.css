@@ -1,4 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;500;600;700;800&display=swap");
 :root {
   color-scheme: dark;
   /* primitives */
@@ -25,9 +24,9 @@
   --action-ink: var(--mint-ink);
   --recording: var(--coral);
   --warn: var(--amber);
-  --display: "Baloo 2", "Nunito", system-ui, sans-serif;
+  --display: var(--font-display), var(--font-text), system-ui, sans-serif;
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  font-family: "Nunito", system-ui, sans-serif;
+  font-family: var(--font-text), system-ui, sans-serif;
   background: var(--bg);
   color: var(--ink);
   font-synthesis: none;
@@ -1585,4 +1584,135 @@ h1 {
 }
 .phrase-actions .switch-row {
   margin-left: auto;
+}
+
+/* Touch behaviour, pause and feedback details */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+button,
+summary,
+label,
+select {
+  touch-action: manipulation;
+}
+.mascot,
+.m-frame,
+.mascot-still,
+.dock,
+.mic-button,
+.brand {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+.phrase-card mark {
+  padding: 0 0.12em;
+  border-radius: 6px;
+  color: inherit;
+  background: #ffd97830;
+  text-decoration: underline wavy var(--amber, #ffd978);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.22em;
+}
+.dock-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 20px;
+  min-height: 44px;
+}
+.dock-actions:empty {
+  display: none;
+}
+.dock-actions .text-button {
+  margin-top: 0;
+}
+.mic-button.thinking,
+.mic-button.waking {
+  background: var(--panel-raised);
+  color: var(--ink);
+}
+@media (hover: none) {
+  .mic-button:hover {
+    background: var(--action);
+  }
+  .mic-button.thinking:hover,
+  .mic-button.waking:hover {
+    background: var(--panel-raised);
+  }
+}
+/* Short screens: nothing may sit on top of the phrase, so the action flows
+   with the page and Pío takes less room. */
+@media (max-height: 700px) {
+  .pio-orb {
+    --size: min(40vw, 150px);
+  }
+  .session-copy {
+    min-height: 0;
+  }
+  .dock {
+    position: static;
+    margin-top: 12px;
+    padding-top: 8px;
+    background: none;
+  }
+  .mic-button {
+    width: 76px;
+    height: 76px;
+    min-height: 76px;
+  }
+  .celebrate {
+    top: 75px;
+  }
+}
+@media (max-height: 480px) and (orientation: landscape) {
+  .pio-orb {
+    --size: 110px;
+  }
+}
+@media (max-width: 380px) {
+  .brand {
+    font-size: 0;
+    gap: 0;
+  }
+  .language-pill {
+    width: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mic-button.listening {
+    transform: none;
+  }
+}
+
+/* With a phrase on screen the phrase is the star: Pío steps back and the
+   action follows the card instead of floating over it. */
+.dock {
+  position: static;
+  background: none;
+}
+.pio-orb {
+  transition:
+    width 0.3s var(--spring),
+    height 0.3s var(--spring);
+}
+.conversation.has-phrase .pio-orb {
+  --size: min(34vw, 132px);
+}
+.conversation.has-phrase .session-copy {
+  min-height: 0;
+}
+.conversation.has-phrase .dock {
+  margin-top: 8px;
+  padding-top: 8px;
+}
+.conversation.has-phrase .celebrate {
+  top: 66px;
 }

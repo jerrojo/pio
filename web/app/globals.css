@@ -1069,3 +1069,9 @@ select {
     padding: 16px;
   }
 }
+.dock-hint {
+  margin: 0;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--muted);
+}

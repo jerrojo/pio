@@ -89,7 +89,6 @@ export function Pio() {
     [level, setLevel] = useState(0),
     [seconds, setSeconds] = useState(0);
   const [entries, setEntries] = useState<Mastered[]>([]),
-    [handsFree, setHandsFree] = useState(true),
     [slow, setSlow] = useState(false),
     [settingsRevision, setSettingsRevision] = useState(0),
     [recovery, setRecovery] = useState<"record" | "submit" | "play" | null>(
@@ -101,13 +100,12 @@ export function Pio() {
     recorder = useRef<Recorder | null>(null),
     controller = useRef<AbortController | null>(null),
     audio = useRef<HTMLAudioElement | null>(null),
+    voice = useRef<HTMLAudioElement | null>(null),
     audioUrl = useRef<string | null>(null),
     retained = useRef<Blob | null>(null),
     settings = useRef<HTMLDialogElement>(null),
-    automatic = useRef(false),
     recording = useRef(false),
     startRef = useRef<() => void>(() => {});
-  automatic.current = handsFree;
   const captureContext = useRef<AudioContext | null>(null);
   const statusController = useRef<AbortController | null>(null);
   const lastIntent = useRef<Turn["intent"]>("auto");
@@ -170,8 +168,6 @@ export function Pio() {
   useEffect(() => {
     const hide = () => {
       if (document.hidden) {
-        automatic.current = false;
-        setHandsFree(false);
         cancel();
       }
     };
@@ -217,7 +213,8 @@ export function Pio() {
   function done(token: number, resume = true) {
     if (token !== epoch.current) return;
     setPhase("idle");
-    if (resume && automatic.current) startRef.current();
+    // The session is continuous: after each turn Pío listens again by itself.
+    if (resume) startRef.current();
   }
   async function play(text: string, token = epoch.current, resume = false) {
     if (!preferences) return;
@@ -243,7 +240,12 @@ export function Pio() {
       if (token !== epoch.current || control.signal.aborted) return;
       if (audioUrl.current) URL.revokeObjectURL(audioUrl.current);
       audioUrl.current = URL.createObjectURL(blob);
-      const player = new Audio(audioUrl.current);
+      // Reuse the element unlocked by the user's tap so phones allow playback
+      // that starts after a network round trip.
+      const player = voice.current || new Audio();
+      voice.current = player;
+      player.onended = player.onerror = null;
+      player.src = audioUrl.current;
       audio.current = player;
       player.playbackRate = slow ? 0.8 : 1;
       player.preservesPitch = true;
@@ -358,12 +360,9 @@ export function Pio() {
     try {
       const blob = await capture!.finish();
       if (token !== epoch.current) return;
+      // Silence simply pauses the session; a tap on Hablar resumes it.
       if (!heardSpeech || blob.size < 6444) {
         setPhase("idle");
-        setIssue(
-          "No alcancé a escucharte. Acerca el micrófono y vuelve a hablar.",
-        );
-        setRecovery("record");
         return;
       }
       await submit(blob, "auto", token);
@@ -376,6 +375,16 @@ export function Pio() {
     }
   }
   const manualStop = useRef<() => void>(() => {});
+  // Phones only allow audio that starts inside a tap. Playing a silent clip on
+  // the first tap unlocks the shared element for every later reply.
+  function unlockVoice() {
+    if (voice.current) return;
+    const element = new Audio(
+      "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=",
+    );
+    voice.current = element;
+    void element.play().catch(() => {});
+  }
   async function start() {
     if (
       !preferences ||
@@ -585,23 +594,6 @@ export function Pio() {
                   }}
                 />
               )}
-              {result?.outcome === "clarify" && (
-                <div className="clarify">
-                  {(["native", "target"] as const).map((intent) => (
-                    <button
-                      key={intent}
-                      className="secondary"
-                      disabled={active}
-                      onClick={() => {
-                        if (retained.current)
-                          void submit(retained.current, intent, epoch.current);
-                      }}
-                    >
-                      {names[preferences[intent]]}
-                    </button>
-                  ))}
-                </div>
-              )}
               {issue && (
                 <div className="notice error" role="alert">
                   <p>{issue}</p>
@@ -646,6 +638,7 @@ export function Pio() {
                     className={`mic-button ${phase}`}
                     onClick={() => {
                       buzz(10);
+                      unlockVoice();
                       if (phase === "listening") manualStop.current();
                       else if (active) cancel();
                       else void start();
@@ -659,16 +652,10 @@ export function Pio() {
                     </span>
                     {microphoneLabel(phase)}
                   </button>
-                  <label className="switch-row">
-                    <input
-                      type="checkbox"
-                      role="switch"
-                      className="switch"
-                      checked={handsFree}
-                      onChange={(e) => setHandsFree(e.target.checked)}
-                    />
-                    Continuar escuchando entre turnos
-                  </label>
+                  <p className="dock-hint">
+                    Toca una vez. Pío escucha, responde y vuelve a escuchar
+                    solo.
+                  </p>
                 </div>
               )}
               {result && (
@@ -699,9 +686,9 @@ export function Pio() {
               <details className="help-details">
                 <summary>Tu micrófono y privacidad</summary>
                 <p>
-                  El micrófono se activa al tocar Hablar. Si activas «Continuar
-                  escuchando», vuelve a encenderse entre turnos. Pausar o salir
-                  de esta pestaña lo apaga. Escuchar una frase o palabra con su
+                  El micrófono se activa al tocar Hablar y vuelve a encenderse
+                  solo entre turnos. Pausar, quedarte en silencio o salir de
+                  esta pestaña lo apaga. Escuchar una frase o palabra con su
                   botón no lo enciende.
                 </p>
                 <p>

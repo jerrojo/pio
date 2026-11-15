@@ -138,13 +138,10 @@ export function route(
 ): "native" | "target" | "clarify" | "no-speech" {
   if (!t.text.trim()) return "no-speech";
   if (intent !== "auto") return intent;
-  if (!score(t.confidence * 100) || t.confidence < 0.8) return "clarify";
-  const lang = base(t.language);
-  return lang === base(p.native)
-    ? "native"
-    : lang === base(p.target)
-      ? "target"
-      : "clarify";
+  // Never stop to ask. Native speech is recognised reliably; anything else is
+  // treated as an attempt at the language being learned, where an accent
+  // lowers the detector's confidence or makes it guess a neighbouring language.
+  return base(t.language) === base(p.native) ? "native" : "target";
 }
 export type Mastered = {
   id: string;

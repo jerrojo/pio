@@ -184,31 +184,25 @@ test("new native phrase replaces current exercise", async () => {
   assert.equal(result.reference?.text, "Ich möchte Wasser");
   assert.notEqual(result.reference?.id, reference.id);
 });
-test("language ambiguity asks instead of guessing and preserves exercise", async () => {
-  const result = await runTurn(
-    Buffer.alloc(1),
-    { ...turn, reference },
-    mock({
-      transcribe: async () => ({
-        text: "Ja",
-        language: "de",
-        confidence: 0.55,
-      }),
-    }),
-    signal(),
-  );
-  assert.equal(result.outcome, "clarify");
-  assert.deepEqual(result.reference, reference);
-});
+test("low language confidence is treated as an attempt, never a question", () =>
+  assert.equal(
+    route({ text: "Ja", language: "de", confidence: 0.55 }, p, "auto"),
+    "target",
+  ));
 test("explicit language resolves same recording", () =>
   assert.equal(
     route({ text: "Ja", language: "es", confidence: 0.5 }, p, "target"),
     "target",
   ));
-test("third language asks for clarification", () =>
+test("a misdetected language is treated as the language being learned", () =>
   assert.equal(
-    route({ text: "Bonjour", language: "fr", confidence: 0.99 }, p, "auto"),
-    "clarify",
+    route({ text: "Hallo", language: "nl", confidence: 0.4 }, p, "auto"),
+    "target",
+  ));
+test("native speech is routed to translation at any confidence", () =>
+  assert.equal(
+    route({ text: "Hola", language: "es", confidence: 0.6 }, p, "auto"),
+    "native",
   ));
 test("silence never gets an accepted score", async () =>
   assert.equal(

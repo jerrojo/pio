@@ -1,0 +1,37 @@
+{
+  "mode": "development",
+  "checks": [
+    {
+      "name": "application loads",
+      "status": 200
+    },
+    {
+      "name": "configuration state",
+      "status": 200
+    },
+    {
+      "name": "cross origin rejected",
+      "status": 403
+    },
+    {
+      "name": "voice without credentials stays unavailable",
+      "status": 503
+    },
+    {
+      "name": "oversized voice input rejected",
+      "status": 413
+    },
+    {
+      "name": "malformed turn rejected",
+      "status": 400
+    },
+    {
+      "name": "invalid access code rejected",
+      "status": 401
+    },
+    {
+      "name": "layout harness only available in development",
+      "status": 200
+    }
+  ]
+}

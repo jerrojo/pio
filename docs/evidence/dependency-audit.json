@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-30",
+  "scope": "npm audit --omit=dev; dependency advisories, not proven exploitability",
+  "counts": {
+    "info": 0,
+    "low": 0,
+    "moderate": 1,
+    "high": 5,
+    "critical": 1,
+    "total": 7
+  },
+  "packages": [
+    {
+      "name": "axios",
+      "severity": "high",
+      "direct": true,
+      "affectedRange": "1.0.0 - 1.19.0",
+      "fixAvailable": true
+    },
+    {
+      "name": "follow-redirects",
+      "severity": "high",
+      "direct": false,
+      "affectedRange": "1.16.0",
+      "fixAvailable": true
+    },
+    {
+      "name": "nanoid",
+      "severity": "high",
+      "direct": false,
+      "affectedRange": "<=3.3.17",
+      "fixAvailable": true
+    },
+    {
+      "name": "next",
+      "severity": "critical",
+      "direct": true,
+      "affectedRange": "9.3.4-canary.0 - 16.3.0-preview.10",
+      "fixAvailable": {
+        "name": "next",
+        "version": "16.4.3",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "postcss",
+      "severity": "high",
+      "direct": false,
+      "affectedRange": "<=8.5.22",
+      "fixAvailable": {
+        "name": "next",
+        "version": "16.4.3",
+        "isSemVerMajor": true
+      }
+    },
+    {
+      "name": "protobufjs",
+      "severity": "moderate",
+      "direct": false,
+      "affectedRange": "7.5.0 - 7.6.4",
+      "fixAvailable": true
+    },
+    {
+      "name": "source-map-js",
+      "severity": "high",
+      "direct": false,
+      "affectedRange": "1.0.0 - 1.2.1",
+      "fixAvailable": true
+    }
+  ]
+}

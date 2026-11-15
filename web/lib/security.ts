@@ -19,8 +19,8 @@ export function newSession() {
   return `${payload}.${sign(payload)}`;
 }
 export function authorized(request: Request) {
-  if (!process.env.PIO_ACCESS_CODE)
-    return process.env.NODE_ENV === "development";
+  // No access code configured means Pío opens directly; setting one closes it.
+  if (!process.env.PIO_ACCESS_CODE) return true;
   const value =
     request.headers
       .get("cookie")

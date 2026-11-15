@@ -1,0 +1,302 @@
+
+> pio-web@2.0.0 test
+> node --experimental-strip-types --test tests/*.test.ts
+
+TAP version 13
+# Subtest: latest valid pair survives reload, including non-pilot pairs
+ok 1 - latest valid pair survives reload, including non-pilot pairs
+  ---
+  duration_ms: 2.530167
+  type: 'test'
+  ...
+# Subtest: first visit does not silently choose a language
+ok 2 - first visit does not silently choose a language
+  ---
+  duration_ms: 0.138291
+  type: 'test'
+  ...
+# Subtest: invalid preferences are not trusted: broken
+ok 3 - invalid preferences are not trusted: broken
+  ---
+  duration_ms: 0.16875
+  type: 'test'
+  ...
+# Subtest: invalid preferences are not trusted: {}
+ok 4 - invalid preferences are not trusted: {}
+  ---
+  duration_ms: 0.085167
+  type: 'test'
+  ...
+# Subtest: invalid preferences are not trusted: {"version":3,"native":"es-MX","target":"es-ES"}
+ok 5 - invalid preferences are not trusted: {"version":3,"native":"es-MX","target":"es-ES"}
+  ---
+  duration_ms: 0.129042
+  type: 'test'
+  ...
+# Subtest: invalid preferences are not trusted: {"version":2,"native":"es-MX","target":"de-DE"}
+ok 6 - invalid preferences are not trusted: {"version":2,"native":"es-MX","target":"de-DE"}
+  ---
+  duration_ms: 0.076333
+  type: 'test'
+  ...
+# Subtest: resetting conversation is independent from preferences contract
+ok 7 - resetting conversation is independent from preferences contract
+  ---
+  duration_ms: 1.269667
+  type: 'test'
+  ...
+# Subtest: reference from a different language is rejected
+ok 8 - reference from a different language is rejected
+  ---
+  duration_ms: 0.72575
+  type: 'test'
+  ...
+# Subtest: native speech translates without grading
+ok 9 - native speech translates without grading
+  ---
+  duration_ms: 2.016833
+  type: 'test'
+  ...
+# Subtest: target speech without a reference is acoustically assessed and conversation continues
+ok 10 - target speech without a reference is acoustically assessed and conversation continues
+  ---
+  duration_ms: 0.67475
+  type: 'test'
+  ...
+# Subtest: incorrect free speech becomes a repeatable reference instead of continuing conversation
+ok 11 - incorrect free speech becomes a repeatable reference instead of continuing conversation
+  ---
+  duration_ms: 0.266125
+  type: 'test'
+  ...
+# Subtest: scripted repetition stays in practice until it passes
+ok 12 - scripted repetition stays in practice until it passes
+  ---
+  duration_ms: 0.174083
+  type: 'test'
+  ...
+# Subtest: new native phrase replaces current exercise
+ok 13 - new native phrase replaces current exercise
+  ---
+  duration_ms: 0.129292
+  type: 'test'
+  ...
+# Subtest: language ambiguity asks instead of guessing and preserves exercise
+ok 14 - language ambiguity asks instead of guessing and preserves exercise
+  ---
+  duration_ms: 0.083833
+  type: 'test'
+  ...
+# Subtest: explicit language resolves same recording
+ok 15 - explicit language resolves same recording
+  ---
+  duration_ms: 0.050625
+  type: 'test'
+  ...
+# Subtest: third language asks for clarification
+ok 16 - third language asks for clarification
+  ---
+  duration_ms: 0.048041
+  type: 'test'
+  ...
+# Subtest: silence never gets an accepted score
+ok 17 - silence never gets an accepted score
+  ---
+  duration_ms: 0.073458
+  type: 'test'
+  ...
+# Subtest: provider failure rejects without fabricated grade
+ok 18 - provider failure rejects without fabricated grade
+  ---
+  duration_ms: 0.383458
+  type: 'test'
+  ...
+# Subtest: translation failure does not return original text as translation
+ok 19 - translation failure does not return original text as translation
+  ---
+  duration_ms: 0.118625
+  type: 'test'
+  ...
+# Subtest: blank translation is rejected
+ok 20 - blank translation is rejected
+  ---
+  duration_ms: 0.108709
+  type: 'test'
+  ...
+# Subtest: cancellation after provider response cannot advance conversation
+ok 21 - cancellation after provider response cannot advance conversation
+  ---
+  duration_ms: 0.237625
+  type: 'test'
+  ...
+# Subtest: unverifiable evidence: wrongAudio
+ok 22 - unverifiable evidence: wrongAudio
+  ---
+  duration_ms: 0.051166
+  type: 'test'
+  ...
+# Subtest: unverifiable evidence: wrongLocale
+ok 23 - unverifiable evidence: wrongLocale
+  ---
+  duration_ms: 0.03825
+  type: 'test'
+  ...
+# Subtest: unverifiable evidence: missingWords
+ok 24 - unverifiable evidence: missingWords
+  ---
+  duration_ms: 0.039
+  type: 'test'
+  ...
+# Subtest: unverifiable evidence: badScore
+ok 25 - unverifiable evidence: badScore
+  ---
+  duration_ms: 0.050375
+  type: 'test'
+  ...
+# Subtest: unverifiable evidence: mismatchedReference
+ok 26 - unverifiable evidence: mismatchedReference
+  ---
+  duration_ms: 0.036958
+  type: 'test'
+  ...
+# Subtest: unverifiable evidence: wrongSource
+ok 27 - unverifiable evidence: wrongSource
+  ---
+  duration_ms: 0.041833
+  type: 'test'
+  ...
+# Subtest: omitted word never passes on aggregate score alone
+ok 28 - omitted word never passes on aggregate score alone
+  ---
+  duration_ms: 0.055625
+  type: 'test'
+  ...
+# Subtest: scripted completeness is required; unscripted does not invent completeness
+ok 29 - scripted completeness is required; unscripted does not invent completeness
+  ---
+  duration_ms: 0.14425
+  type: 'test'
+  ...
+# Subtest: Azure SDK response maps real acoustic evidence
+ok 30 - Azure SDK response maps real acoustic evidence
+  ---
+  duration_ms: 1.299083
+  type: 'test'
+  ...
+# Subtest: Azure transcript without assessment cannot pass parser
+ok 31 - Azure transcript without assessment cannot pass parser
+  ---
+  duration_ms: 0.527875
+  type: 'test'
+  ...
+# Subtest: progress is idempotent and unique per day and language pair
+ok 32 - progress is idempotent and unique per day and language pair
+  ---
+  duration_ms: 1.16175
+  type: 'test'
+  ...
+# Subtest: malformed saved progress recovers safely
+ok 33 - malformed saved progress recovers safely
+  ---
+  duration_ms: 1.456
+  type: 'test'
+  ...
+# Subtest: capture creates supported PCM16 audio from 16000Hz
+ok 34 - capture creates supported PCM16 audio from 16000Hz
+  ---
+  duration_ms: 5.653542
+  type: 'test'
+  ...
+# Subtest: capture creates supported PCM16 audio from 44100Hz
+ok 35 - capture creates supported PCM16 audio from 44100Hz
+  ---
+  duration_ms: 8.532334
+  type: 'test'
+  ...
+# Subtest: capture creates supported PCM16 audio from 48000Hz
+ok 36 - capture creates supported PCM16 audio from 48000Hz
+  ---
+  duration_ms: 5.228542
+  type: 'test'
+  ...
+# Subtest: malformed or excessive audio is rejected before providers
+ok 37 - malformed or excessive audio is rejected before providers
+  ---
+  duration_ms: 0.132792
+  type: 'test'
+  ...
+# Subtest: overlong utterance fails before creating an unusable exercise
+ok 38 - overlong utterance fails before creating an unusable exercise
+  ---
+  duration_ms: 0.119959
+  type: 'test'
+  ...
+# Subtest: same-origin accepts the browser destination despite Next internal hostname
+ok 39 - same-origin accepts the browser destination despite Next internal hostname
+  ---
+  duration_ms: 26.572208
+  type: 'test'
+  ...
+# Subtest: private session requires a valid signature and expiry
+ok 40 - private session requires a valid signature and expiry
+  ---
+  duration_ms: 1.977292
+  type: 'test'
+  ...
+# Subtest: production without configured access code stays closed
+ok 41 - production without configured access code stays closed
+  ---
+  duration_ms: 0.153541
+  type: 'test'
+  ...
+# Subtest: cross-origin invocation is rejected before using a provider
+ok 42 - cross-origin invocation is rejected before using a provider
+  ---
+  duration_ms: 1.448708
+  type: 'test'
+  ...
+# Subtest: limiter rejects over-budget requests
+ok 43 - limiter rejects over-budget requests
+  ---
+  duration_ms: 0.153292
+  type: 'test'
+  ...
+# Subtest: secret comparison does not accept a prefix
+ok 44 - secret comparison does not accept a prefix
+  ---
+  duration_ms: 0.192708
+  type: 'test'
+  ...
+# Subtest: provider internals and credentials never appear in error response
+ok 45 - provider internals and credentials never appear in error response
+  ---
+  duration_ms: 1.584041
+  type: 'test'
+  ...
+# Subtest: body limit works without Content-Length
+ok 46 - body limit works without Content-Length
+  ---
+  duration_ms: 2.137334
+  type: 'test'
+  ...
+# Subtest: body limit accepts exact boundary
+ok 47 - body limit accepts exact boundary
+  ---
+  duration_ms: 0.631583
+  type: 'test'
+  ...
+# Subtest: capture worklet flushes final samples and stops producing audio after stop
+ok 48 - capture worklet flushes final samples and stops producing audio after stop
+  ---
+  duration_ms: 17.213042
+  type: 'test'
+  ...
+1..48
+# tests 48
+# suites 0
+# pass 48
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 308.744292

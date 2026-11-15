@@ -1,0 +1,51 @@
+{
+  "checkedAt": "2026-10-30T10:17:33.698579-06:00",
+  "application": "web/",
+  "node": "22.19.0",
+  "next": "16.4.3",
+  "automatedTests": {
+    "passed": 48,
+    "failed": 0,
+    "usesControlledProviders": true
+  },
+  "typecheck": "passed",
+  "productionBuild": "passed",
+  "formatCheck": "passed",
+  "httpChecks": {
+    "development": 8,
+    "production": 8,
+    "passed": true
+  },
+  "dependencyAudit": {
+    "productionVulnerabilities": 0
+  },
+  "browser": {
+    "lastLanguageSelectionAfterReload": "passed: es-MX → fr-FR retained",
+    "resetKeepsSelection": "passed: es-MX → de-DE retained",
+    "responsiveFrames": [
+      {
+        "viewport": 320,
+        "scrollWidth": 320
+      },
+      {
+        "viewport": 390,
+        "scrollWidth": 390
+      }
+    ],
+    "physicalDeviceAudio": "not-tested",
+    "productionBuild": "passed: interactive selection, reload, reset, and no captured console errors or warnings"
+  },
+  "liveProviders": "not-tested: credentials unavailable",
+  "elevenlabsKey": "prepared form only; user explicitly declined creation",
+  "uxSkill": "not-yet-received",
+  "deployment": "not-published",
+  "limitations": [
+    "No acoustic accuracy or latency measurement with live providers",
+    "No physical iOS or Android microphone validation",
+    "Acceptance thresholds provisional",
+    "Word/group progression and review queue remain pending",
+    "Local progress; no cross-device synchronization",
+    "Private pilot access only; no public multiuser authentication or distributed limiter"
+  ],
+  "developmentSync": "Transient reload errors occurred during source copies; final production build verified separately. Sync now replaces files atomically; stop development server before broad sync/build."
+}

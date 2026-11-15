@@ -1,0 +1,64 @@
+
+> test
+> node --experimental-strip-types --test --test-reporter=spec tests/*.test.mjs
+
+✔ native speech translates even with a pending exercise (2.597958ms)
+✔ target speech uses the existing reference (0.183458ms)
+✔ target speech without reference cannot grade itself (0.117583ms)
+✔ a third language is not automatically a failed attempt (0.087209ms)
+✔ an uncertain accented utterance requests clarification (0.254666ms)
+✔ silence does not enter an assessment (0.0825ms)
+✔ explicit translation overrides the recognizer (0.066875ms)
+✔ explicit evaluation still requires a reference (0.089083ms)
+✔ regional variants of the same language are not mistaken for two languages (0.4645ms)
+✔ a reference from another language cannot be used (0.478667ms)
+✔ the confirmed Spanish to German journey routes Spanish into translation (0.172708ms)
+✔ German repetition uses the German reference (0.06625ms)
+✔ a short German word is not discarded by a word-count gate (0.056917ms)
+✔ a German attempt labelled English by the recognizer requires clarification (0.048375ms)
+✔ acoustic evidence for another regional language cannot certify a German phrase (0.1135ms)
+✔ real acoustic evidence may pass the candidate policy (0.068625ms)
+✔ text similarity never becomes a passing pronunciation grade (0.05125ms)
+✔ silence never becomes a passing pronunciation grade (0.035375ms)
+✔ wrong recording never becomes a passing pronunciation grade (0.034417ms)
+✔ wrong phrase never becomes a passing pronunciation grade (0.039083ms)
+✔ wrong language never becomes a passing pronunciation grade (0.034917ms)
+✔ NaN never becomes a passing pronunciation grade (0.042791ms)
+✔ out-of-range score never becomes a passing pronunciation grade (0.10425ms)
+✔ missing word evidence never becomes a passing pronunciation grade (0.055375ms)
+✔ omitting a word prevents mastery even when total accuracy is high (0.069125ms)
+✔ weak words prevent mastery (0.072125ms)
+✔ low completeness prevents mastery (0.050375ms)
+✔ invalid thresholds fail closed (0.050917ms)
+✔ recording is blocked while Pío speaks (0.208917ms)
+✔ new recordings are blocked while processing another turn (0.166208ms)
+✔ a completed playback opens listening without discarding a quick human repetition (0.070083ms)
+✔ late responses after reset cannot overwrite a new session (0.187083ms)
+✔ pause preserves phrase but invalidates pending audio (0.646916ms)
+✔ retry requires a new attempt; an old response cannot complete it (0.097708ms)
+✔ duplicate provider responses have no second effect (0.069333ms)
+✔ a server claiming evaluate cannot cause reference-free scoring (0.056791ms)
+✔ empty translations are errors, never the original phrase (0.058542ms)
+✔ wrong-turn responses leave current state untouched (0.057709ms)
+✔ Mexico daily progress does not reset at UTC midnight (65.213209ms)
+✔ retrying the same saved attempt is idempotent (0.634125ms)
+✔ repeating one phrase does not fabricate three daily phrases (0.506833ms)
+✔ progress is isolated by learning locale (0.209625ms)
+✔ the same phrase on another day counts as practice, not a new lifetime mastery (0.272834ms)
+✔ a text-only assessment cannot update progress (0.068042ms)
+✔ a valid translation response is parsed (32.147209ms)
+✔ a 503 is an error even if its body resembles successful content (0.303792ms)
+✔ network failure never returns source text or a default score (0.157458ms)
+✔ a successful HTTP status with malformed content is still a failure (0.339708ms)
+✔ non-JSON provider errors cannot become results (0.408583ms)
+✔ a stalled request terminates and aborts its underlying fetch (13.7865ms)
+✔ user cancellation settles immediately even if the provider ignores cancellation (0.268459ms)
+✔ an already cancelled request is never sent (0.138792ms)
+ℹ tests 52
+ℹ suites 0
+ℹ pass 52
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 325.804917

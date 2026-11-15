@@ -1,5 +1,7 @@
 # 🚀 PÍO APP - Estado del Proyecto
 
+> **Estado histórico, no vigente.** Varias funciones enumeradas ya no existen en el árbol recuperado. Consultar [REINICIO.md](REINICIO.md) para el diagnóstico del 30 de octubre de 2026, las decisiones del usuario y las verificaciones reales.
+
 ## ✅ Implementación Completada
 
 ### Flujo Principal

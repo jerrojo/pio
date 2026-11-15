@@ -1,4 +1,8 @@
+> **Reconstrucción activa (30 oct 2026):** la nueva aplicación está en [web/](web/README.md). Consulta [estado y límites comprobados](docs/REINICIO-WEB.md). El contenido histórico sigue debajo.
+
 # Pío App
+
+> **Documento histórico de la versión anterior.** El estado investigado el 30 de octubre de 2026 y el reinicio web español → alemán están en [REINICIO.md](REINICIO.md). Las listas de funciones de este README no prueban que estén implementadas ni disponibles actualmente.
 
 Una app para aprender lenguajes de una manera natural y simple con inteligencia artificial, reconocimiento facial y evaluación fonética en tiempo real.
 

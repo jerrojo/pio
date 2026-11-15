@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-30",
+  "timezone": "America/Mexico_City",
+  "sourceCommit": "0b56f06e61c59c6d4690fe6b6f30e1313757137a",
+  "branch": "codex/pio-reinicio-web",
+  "scope": "Recovery, investigation, restart plan and isolated core. No live AI or audio verification.",
+  "remoteRepository": "https://github.com/jerrojo/pio",
+  "publicDomains": {
+    "checkedAt": "2026-10-30T07:44:38-06:00",
+    "pio.today": { "httpStatus": 404, "vercelError": "DEPLOYMENT_NOT_FOUND" },
+    "www.pio.today": { "httpStatus": 404, "vercelError": "DEPLOYMENT_NOT_FOUND" }
+  },
+  "hosting": {
+    "scope": "Connected jerovargas team",
+    "projectLookupByName": 404,
+    "projectLookupBySavedId": 404,
+    "projectsListed": 17,
+    "matchingProjectFound": false,
+    "deletionDateAndCause": "not established"
+  },
+  "recovery": { "additionalLocalFiles": 11, "sha256Verified": true, "kind": "selective recovery, not full backup" },
+  "coreTests": { "command": "npm --prefix rebuild test", "passed": 52, "failed": 0, "fixtures": "synthetic measurements and controlled HTTP failures; no real audio" },
+  "typecheck": {
+    "initialRun": "passed after adding core.ts and transport.ts",
+    "laterRuns": "two repeated project checks stalled and were terminated; one isolated core check also reached its 25-second limit and was terminated",
+    "typescriptChangedAfterSuccessfulRun": false
+  },
+  "legacyBuild": {
+    "status": "not completed",
+    "reason": "Next 14.2.35 failed to load SWC for darwin/arm64; lockfile repair also failed",
+    "repairAttempt": "install exact optional compiler 14.2.33 without saving dependencies; stalled and terminated"
+  },
+  "implemented": ["turn state rules", "assessment evidence contracts", "locale and local-day progress rules", "idempotent attempt handling", "bounded and cancellable JSON transport"],
+  "pending": ["new interface integration", "audio adapters", "provider configuration", "runtime schemas for acoustic providers", "durable storage", "real-device and pedagogical tests", "deployment"],
+  "credentialFinding": { "legacyRemoteContainedToken": true, "localRemoteSanitizedAndVerified": true, "accountRevocation": "required user action; not performed" },
+  "gitPushed": false,
+  "deployed": false
+}

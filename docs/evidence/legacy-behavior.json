@@ -1,0 +1,40 @@
+{
+  "sourceCommit": "0b56f06e61c59c6d4690fe6b6f30e1313757137a",
+  "environment": "controlled in-memory fixtures; no real audio or providers",
+  "selfComparison": {
+    "score": 10,
+    "phonemes": [],
+    "weakPhonemes": [],
+    "feedback": "¡Excelente pronunciación! Se entendió perfectamente.",
+    "words": [
+      {
+        "word": "Ich",
+        "quality": "good"
+      },
+      {
+        "word": "liebe",
+        "quality": "good"
+      },
+      {
+        "word": "dich",
+        "quality": "good"
+      }
+    ],
+    "passed": true
+  },
+  "translationOffline": "Te quiero",
+  "evaluationOffline": {
+    "score": 6,
+    "phonemes": [],
+    "weakPhonemes": [],
+    "feedback": "Error evaluating pronunciation"
+  },
+  "threeIdenticalMasteries": {
+    "lastDay": "2026-10-30",
+    "mastered": 1,
+    "phrases": [
+      "ich liebe dich"
+    ],
+    "todayCount": 3
+  }
+}

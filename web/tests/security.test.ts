@@ -75,13 +75,13 @@ test("private session requires a valid signature and expiry", () => {
     else process.env.PIO_ACCESS_CODE = previous;
   }
 });
-test("production without configured access code stays closed", () => {
+test("production without configured access code opens directly", () => {
   const mode = process.env.NODE_ENV,
     code = process.env.PIO_ACCESS_CODE;
   try {
     Object.assign(process.env, { NODE_ENV: "production" });
     delete process.env.PIO_ACCESS_CODE;
-    assert.equal(authorized(new Request("https://pio.test")), false);
+    assert.equal(authorized(new Request("https://pio.test")), true);
   } finally {
     Object.assign(process.env, { NODE_ENV: mode });
     if (code !== undefined) process.env.PIO_ACCESS_CODE = code;

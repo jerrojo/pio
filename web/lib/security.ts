@@ -86,6 +86,14 @@ export function errorResponse(error: unknown) {
     "phrase-too-long",
     "cancelled",
   ];
+  // Unknown failures are logged server-side (never sent to the browser) so a
+  // provider or parsing problem can be diagnosed. Key-like strings are masked.
+  if (!known.includes(code) && error instanceof Error)
+    console.error(
+      "pio-error",
+      error.name,
+      error.message.replace(/\b(sk|xi)[-_][\w-]+/g, "[redacted]").slice(0, 300),
+    );
   return Response.json(
     { code: known.includes(code) ? code : "service-unavailable" },
     {

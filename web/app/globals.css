@@ -9,7 +9,7 @@
   --mint-hi: #d6f6bd;
   --mint-ink: #14352a;
   --chick: #ffd978;
-  --sky: #7cc8ff;
+  --sky: #6fb6f5;
   --coral: #ff9f8e;
   --coral-ink: #47201a;
   --amber: #f2c38e;
@@ -224,8 +224,8 @@ p {
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    #7cc8ff3d 0,
-    #7cc8ff14 46%,
+    #5fa8ee3d 0,
+    #5fa8ee14 46%,
     transparent 70%
   );
   transform: scale(calc(1 + var(--level, 0) * 0.22));

@@ -17,10 +17,19 @@ function secret(name: string): string {
   if (!value) throw new Error("not-configured");
   return value;
 }
+// The voice models speak every supported language, so one voice is enough:
+// a language without a voice of its own uses PIO_VOICE_DEFAULT, or failing
+// that any voice that is configured.
 export function voiceFor(locale: Locale) {
-  return process.env[
-    `ELEVENLABS_VOICE_${locale.replace("-", "_").toUpperCase()}`
-  ];
+  const own =
+    process.env[`ELEVENLABS_VOICE_${locale.replace("-", "_").toUpperCase()}`];
+  if (own) return own;
+  if (process.env.PIO_VOICE_DEFAULT) return process.env.PIO_VOICE_DEFAULT;
+  const any = Object.keys(process.env)
+    .filter((name) => name.startsWith("ELEVENLABS_VOICE_"))
+    .sort()
+    .find((name) => process.env[name]);
+  return any ? process.env[any] : undefined;
 }
 // Azure Speech is an optional upgrade to phoneme-level assessment. Without it
 // Pío grades clarity from ElevenLabs Scribe's per-word confidence.

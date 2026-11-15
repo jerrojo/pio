@@ -2,7 +2,7 @@ import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 import type { Services } from "./turn.ts";
-import { base, type Locale, type Turn } from "./domain.ts";
+import { base, locales, type Locale, type Turn } from "./domain.ts";
 import { canon, cleanReply } from "./words.ts";
 import { anySignal } from "./signal.ts";
 import { parseAzure } from "./azure-result.ts";
@@ -17,19 +17,14 @@ function secret(name: string): string {
   if (!value) throw new Error("not-configured");
   return value;
 }
-// The voice models speak every supported language, so one voice is enough:
-// a language without a voice of its own uses PIO_VOICE_DEFAULT, or failing
-// that any voice that is configured.
-export function voiceFor(locale: Locale) {
-  const own =
-    process.env[`ELEVENLABS_VOICE_${locale.replace("-", "_").toUpperCase()}`];
-  if (own) return own;
-  if (process.env.PIO_VOICE_DEFAULT) return process.env.PIO_VOICE_DEFAULT;
-  const any = Object.keys(process.env)
-    .filter((name) => name.startsWith("ELEVENLABS_VOICE_"))
-    .sort()
-    .find((name) => process.env[name]);
-  return any ? process.env[any] : undefined;
+// Pío has one voice of its own, designed for it, and the voice models speak
+// every supported language with it. The id is not a secret: it only works
+// together with the account's key. PIO_VOICE replaces it without a deploy.
+const pioVoice = "sr43BjHS6xr4LoIEs9sw";
+export function voiceFor(locale: Locale): string | undefined {
+  return locales.includes(locale)
+    ? process.env.PIO_VOICE || pioVoice
+    : undefined;
 }
 // Azure Speech is an optional upgrade to phoneme-level assessment. Without it
 // Pío grades clarity from ElevenLabs Scribe's per-word confidence.

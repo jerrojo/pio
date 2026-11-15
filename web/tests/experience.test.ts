@@ -47,13 +47,10 @@ test("connection follows the selected language and distinguishes loading, failur
 });
 test("an old result cannot override the current recording or playback instruction", () => {
   assert.equal(sessionCopy("listening", "accepted").title, "Te escucho");
-  assert.equal(
-    sessionCopy("preparing-voice", "practice").title,
-    "Preparando la voz",
-  );
+  assert.equal(sessionCopy("preparing-voice", "practice").title, "Ya casi…");
   assert.equal(
     sessionCopy("speaking", "translation").title,
-    "Escucha con calma",
+    "Escucha cómo suena",
   );
   assert.match(sessionCopy("idle", "practice").description, /frase completa/);
   assert.match(

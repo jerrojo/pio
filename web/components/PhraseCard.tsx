@@ -63,7 +63,7 @@ export function PhraseCard({
           <span className="listen-icon">
             <Icon name="play" size={16} />
           </span>
-          Escuchar frase
+          Escuchar
         </button>
         <label className="switch-row">
           <input
@@ -73,7 +73,7 @@ export function PhraseCard({
             checked={slow}
             onChange={(e) => onSlow(e.target.checked)}
           />
-          Más despacio
+          Despacio
         </label>
       </div>
     </article>

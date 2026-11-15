@@ -97,49 +97,45 @@ export function mascotMood(
 export function sessionCopy(phase: Phase, outcome?: Result["outcome"]) {
   if (phase === "permission")
     return {
-      title: "Activa tu micrófono",
-      description:
-        "Permite el acceso en el aviso del navegador. Puedes cancelar cuando quieras.",
+      title: "Déjame escucharte",
+      description: "Dale permiso al micrófono en el aviso de tu navegador.",
     };
   if (phase === "listening")
     return {
       title: "Te escucho",
-      description: "Di una frase breve. Termina con el botón o deja una pausa.",
+      description: "Habla con calma. Cuando hagas una pausa, sigo yo.",
     };
   if (phase === "thinking")
     return {
-      title: "Revisando tu frase",
-      description: "Puedes pausar este turno. Tu frase anterior se conserva.",
+      title: "Déjame pensar…",
+      description: "Un segundito.",
     };
   if (phase === "preparing-voice")
     return {
-      title: "Preparando la voz",
-      description: "Tu frase ya está aquí. Enseguida podrás escucharla.",
+      title: "Ya casi…",
+      description: "Estoy afinando la voz.",
     };
   if (phase === "speaking")
     return {
-      title: "Escucha con calma",
-      description: "El micrófono está apagado mientras Pío habla.",
+      title: "Escucha cómo suena",
+      description: "Luego te toca a ti.",
     };
   const outcomes = {
     translation: {
-      title: "Ahora dilo tú",
-      description: "Escucha la traducción y repite la frase completa.",
+      title: "¡Ahora dilo tú!",
+      description: "Repite la frase completa. Te estoy escuchando.",
     },
     practice: {
-      title: "Vamos paso a paso",
-      description:
-        "Escucha las palabras señaladas y vuelve a decir la frase completa.",
+      title: "¡Casi! Vamos otra vez",
+      description: "Escucha las palabras marcadas y repite la frase completa.",
     },
     accepted: {
-      title: "Bien dicho",
-      description:
-        "La frase fue aceptable. Sigue con una nueva idea cuando quieras.",
+      title: "¡Bien dicho!",
+      description: "Te salió muy bien. Dime otra cosa cuando quieras.",
     },
     conversation: {
-      title: "Sigamos conversando",
-      description:
-        "No hace falta corregir esta frase. Puedes responder en el idioma que aprendes.",
+      title: "Sigamos platicando",
+      description: "Se te entendió bien. Contéstame en el idioma que aprendes.",
     },
     clarify: {
       title: "¿En qué idioma hablaste?",
@@ -152,16 +148,15 @@ export function sessionCopy(phase: Phase, outcome?: Result["outcome"]) {
         "No pude evaluar la pronunciación con seguridad. No se guardó una calificación.",
     },
     "no-speech": {
-      title: "No alcancé a escucharte",
-      description: "Acerca el micrófono y vuelve a hablar cuando estés listo.",
+      title: "No te escuché bien",
+      description: "Acércate un poco al micrófono e inténtalo otra vez.",
     },
   };
   return outcome
     ? outcomes[outcome]
     : {
         title: "¿Qué quieres decir?",
-        description:
-          "Habla en tu idioma para traducir. Si hablas en el que aprendes, te ayudaré a pronunciar y conversar.",
+        description: "Dilo en tu idioma y te enseño cómo se dice.",
       };
 }
 export const microphoneLabel = (phase: Phase) =>

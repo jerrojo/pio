@@ -494,16 +494,26 @@ export function Pio() {
           pío
         </p>
         {preferences && (
-          <button
-            className="language-pill"
-            onClick={openSettings}
-            aria-label={`Cambiar idiomas. Ahora: ${names[preferences.native]} a ${names[preferences.target]}`}
-          >
-            <span>{names[preferences.native].split(" ·")[0]}</span>
-            <Icon name="arrow" size={15} />
-            <strong>{names[preferences.target].split(" ·")[0]}</strong>
-            <Icon name="settings" size={17} />
-          </button>
+          <div className="topbar-tools">
+            <span
+              key={today}
+              className={`chip progress ${today > 0 ? "earned" : ""}`}
+              title="Frases logradas hoy en este navegador"
+              aria-label={`${today} ${today === 1 ? "frase lograda" : "frases logradas"} hoy`}
+            >
+              <Icon name="star" size={16} />
+              {today}
+            </span>
+            <button
+              className="language-pill"
+              onClick={openSettings}
+              aria-label={`Cambiar idiomas. Ahora: ${names[preferences.native]} a ${names[preferences.target]}`}
+            >
+              <span>{names[preferences.native].split(" ·")[0]}</span>
+              <Icon name="arrow" size={15} />
+              <strong>{names[preferences.target].split(" ·")[0]}</strong>
+            </button>
+          </div>
         )}
       </header>
       <main>
@@ -533,19 +543,6 @@ export function Pio() {
           </section>
         ) : (
           <>
-            <div className="session-meta">
-              <span className={`chip ${ready ? "ready" : ""}`}>
-                <span className="status-dot" />
-                {connectionLabels[connection]}
-              </span>
-              <span
-                className={`chip progress ${today > 0 ? "earned" : ""}`}
-                title="Frases logradas hoy en este navegador"
-              >
-                <Icon name="star" size={16} />
-                {today} {today === 1 ? "frase" : "frases"} hoy
-              </span>
-            </div>
             <section className="conversation" aria-labelledby="session-title">
               <div
                 className={`pio-orb ${mood}`}
@@ -565,15 +562,16 @@ export function Pio() {
                 <h1 id="session-title">{title}</h1>
                 <p>{description}</p>
               </div>
-              {phase === "listening" && (
-                <p className="recording-time" role="timer" aria-live="off">
-                  <span className="rec-dot" />
-                  Grabando · {seconds}s
-                </p>
+              {result?.outcome === "accepted" && !active && (
+                <div key={result.id} className="celebrate" aria-hidden="true">
+                  {Array.from({ length: 14 }, (_, i) => (
+                    <i key={i} />
+                  ))}
+                </div>
               )}
               {ready && !active && !result && !issue && (
                 <p className="example">
-                  Por ejemplo: <q>Quiero pedir un café, por favor</q>
+                  Prueba con: <q>Quiero pedir un café, por favor</q>
                 </p>
               )}
               {result?.heard && (
@@ -636,6 +634,8 @@ export function Pio() {
                 <div className="dock">
                   <button
                     className={`mic-button ${phase}`}
+                    style={{ "--level": level } as CSSProperties}
+                    aria-label={microphoneLabel(phase)}
                     onClick={() => {
                       buzz(10);
                       unlockVoice();
@@ -644,18 +644,20 @@ export function Pio() {
                       else void start();
                     }}
                   >
-                    <span className="mic-icon">
-                      <Icon
-                        name={active && phase !== "listening" ? "pause" : "mic"}
-                        size={24}
-                      />
-                    </span>
-                    {microphoneLabel(phase)}
+                    <span className="mic-ring" />
+                    <Icon
+                      name={active && phase !== "listening" ? "pause" : "mic"}
+                      size={34}
+                    />
                   </button>
-                  <p className="dock-hint">
-                    Toca una vez. Pío escucha, responde y vuelve a escuchar
-                    solo.
+                  <p className="dock-label" aria-hidden="true">
+                    {microphoneLabel(phase)}
                   </p>
+                  {!result && !active && (
+                    <p className="dock-hint">
+                      Toca una vez. Yo escucho, contesto y vuelvo a escuchar.
+                    </p>
+                  )}
                 </div>
               )}
               {result && (
@@ -665,40 +667,27 @@ export function Pio() {
                 </button>
               )}
               <details className="help-details">
-                <summary>Cómo practicar</summary>
+                <summary>Ayuda y privacidad</summary>
                 <ol>
-                  <li>Habla en tu idioma. Pío traduce y te dice la frase.</li>
+                  <li>Di algo en tu idioma. Pío lo traduce y te lo dice.</li>
+                  <li>Repítelo. Pío te ayuda hasta que salga bien.</li>
                   <li>
-                    Repite la traducción. Recibirás ayuda hasta decirla de forma
-                    aceptable.
-                  </li>
-                  <li>
-                    Si hablas directamente en el idioma que aprendes, Pío
-                    corrige la pronunciación o sigue la conversación.
+                    Si hablas en el idioma que aprendes, Pío te contesta y
+                    conversan.
                   </li>
                 </ol>
                 <p>
-                  Los idiomas y las frases logradas se guardan en este
-                  navegador. Una nueva conversación conserva esa selección y tu
-                  progreso.
-                </p>
-              </details>
-              <details className="help-details">
-                <summary>Tu micrófono y privacidad</summary>
-                <p>
-                  El micrófono se activa al tocar Hablar y vuelve a encenderse
+                  El micrófono se enciende al tocar Hablar y vuelve a encenderse
                   solo entre turnos. Pausar, quedarte en silencio o salir de
-                  esta pestaña lo apaga. Escuchar una frase o palabra con su
-                  botón no lo enciende.
+                  esta pestaña lo apaga.
                 </p>
                 <p>
                   Tu audio se envía a ElevenLabs para transcribir y evaluar qué
                   tan claro se entendió cada palabra; el texto se envía a OpenAI
                   para traducir o conversar. Pío conserva temporalmente la
-                  última grabación en memoria para que puedas reintentar. Se
-                  descarta al cambiar idiomas, iniciar una nueva conversación o
-                  cerrar la página; no se guarda en una base de datos. La
-                  retención de cada proveedor depende de la cuenta configurada.
+                  última grabación en memoria para que puedas reintentar; no se
+                  guarda en una base de datos. Tus idiomas y frases logradas se
+                  guardan solo en este navegador.
                 </p>
               </details>
             </section>
@@ -710,10 +699,6 @@ export function Pio() {
           </p>
         )}
       </main>
-      <footer>
-        <span>Una frase a la vez.</span>
-        <span>Pío · Aprende hablando</span>
-      </footer>
       <dialog
         ref={settings}
         className="settings-dialog"

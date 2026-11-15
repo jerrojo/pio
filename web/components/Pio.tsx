@@ -110,6 +110,12 @@ export function Pio() {
   const statusController = useRef<AbortController | null>(null);
   const lastIntent = useRef<Turn["intent"]>("auto");
   const lastPlayback = useRef("");
+  // Microphone already granted: later turns skip the permission message.
+  const granted = useRef(false);
+  // Background noise level learned from earlier turns, for end-of-speech.
+  const noiseFloor = useRef(0.004);
+  // Consecutive turns where nothing usable was heard.
+  const misses = useRef(0);
   async function refreshStatus() {
     statusController.current?.abort();
     const control = new AbortController();
@@ -252,7 +258,8 @@ export function Pio() {
       player.onended = () => {
         if (token === epoch.current && audio.current === player) {
           audio.current = null;
-          done(token, resume);
+          setPhase("idle");
+          setTimeout(() => done(token, resume), 250);
         }
       };
       setPhase("speaking");
@@ -339,10 +346,26 @@ export function Pio() {
           { role: "user", text: next.heard },
           { role: "assistant", text: next.text },
         ].slice(-8) as Turn["history"];
-      if (["translation", "practice", "conversation"].includes(next.outcome))
+      if (["translation", "practice", "conversation"].includes(next.outcome)) {
+        misses.current = 0;
         await play(next.text, token, true);
-      else if (next.outcome === "accepted") done(token);
-      else setPhase("idle");
+      } else if (next.outcome === "accepted") {
+        // Celebrate, then return to the clean starting state and listen again.
+        misses.current = 0;
+        chime();
+        setPhase("idle");
+        setTimeout(() => {
+          if (token !== epoch.current) return;
+          setResult(null);
+          done(token);
+        }, 2600);
+      } else if (++misses.current < 2) {
+        // Nothing usable was heard: listen again without making the user tap.
+        done(token);
+      } else {
+        misses.current = 0;
+        setPhase("idle");
+      }
     } catch (error) {
       if (token === epoch.current && !control.signal.aborted) {
         setPhase("idle");
@@ -375,6 +398,27 @@ export function Pio() {
     }
   }
   const manualStop = useRef<() => void>(() => {});
+  // Two rising notes when a phrase is accepted. Uses the audio context the
+  // first tap already unlocked; silently skipped where it is unavailable.
+  function chime() {
+    const context = captureContext.current;
+    if (!context || context.state !== "running") return;
+    try {
+      [659.25, 987.77].forEach((frequency, index) => {
+        const at = context.currentTime + index * 0.13;
+        const tone = context.createOscillator();
+        const volume = context.createGain();
+        tone.type = "sine";
+        tone.frequency.value = frequency;
+        volume.gain.setValueAtTime(0, at);
+        volume.gain.linearRampToValueAtTime(0.16, at + 0.02);
+        volume.gain.exponentialRampToValueAtTime(0.001, at + 0.42);
+        tone.connect(volume).connect(context.destination);
+        tone.start(at);
+        tone.stop(at + 0.45);
+      });
+    } catch {}
+  }
   // Phones only allow audio that starts inside a tap. Playing a silent clip on
   // the first tap unlocks the shared element for every later reply.
   function unlockVoice() {
@@ -397,7 +441,7 @@ export function Pio() {
     setIssue("");
     setRecovery(null);
     setSeconds(0);
-    setPhase("permission");
+    setPhase(granted.current ? "listening" : "permission");
     if (!window.AudioContext) {
       setPhase("idle");
       setIssue(errorText["unsupported-microphone"]);
@@ -417,7 +461,11 @@ export function Pio() {
     recorder.current = capture;
     let heard = false,
       lastVoice = 0,
-      stopping = false;
+      stopping = false,
+      smooth = 0,
+      voiced = 0,
+      previous = 0,
+      floor = noiseFloor.current;
     manualStop.current = () => {
       if (!stopping) {
         stopping = true;
@@ -428,17 +476,26 @@ export function Pio() {
     try {
       await capture.start((rms, time) => {
         if (token !== epoch.current || stopping) return;
+        granted.current = true;
         setPhase("listening");
         setLevel(Math.min(1, rms * 12));
         setSeconds(Math.floor(time));
-        if (rms > 0.008) {
-          heard = true;
+        // Speech is whatever rises clearly above the room's own noise, so a
+        // fan or street noise cannot hold the microphone open.
+        const step = time - previous;
+        previous = time;
+        smooth = smooth ? smooth * 0.6 + rms * 0.4 : rms;
+        floor = Math.min(0.02, Math.max(0.002, Math.min(smooth, floor * 1.015)));
+        noiseFloor.current = floor;
+        if (smooth > Math.max(0.012, floor * 3)) {
+          voiced += step;
           lastVoice = time;
+          if (voiced >= 0.2) heard = true;
         }
         if (
           time >= 24.5 ||
           (!heard && time >= 8) ||
-          (heard && time - lastVoice > 1.6)
+          (heard && time - lastVoice > 1.3)
         )
           manualStop.current();
       });
@@ -464,7 +521,13 @@ export function Pio() {
   const { title, description } =
     connection !== "ready" && !active
       ? connectionCopy[connection]
-      : sessionCopy(phase, result?.outcome);
+      : phase === "listening" && reference.current
+        ? {
+            title: "Te escucho",
+            description:
+              "Repite la frase. Si prefieres otra, dila en tu idioma.",
+          }
+        : sessionCopy(phase, result?.outcome);
   const today = preferences ? countMastery(entries, preferences) : 0;
   function retry() {
     if (recovery === "submit" && retained.current)

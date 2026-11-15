@@ -510,3 +510,18 @@ test("Scribe clarity never grades without per-word audio confidence, and free sp
   assert.equal(free.completeness, null);
   assert.equal(judge(free, t.id, "de-DE", null), "accepted");
 });
+test("a repetition of the phrase on screen is graded even if detected as native", async () => {
+  const result = await runTurn(
+    Buffer.alloc(1),
+    { ...turn, reference },
+    mock({
+      transcribe: async () => ({
+        text: reference.text,
+        language: "es",
+        confidence: 0.9,
+      }),
+    }),
+    signal(),
+  );
+  assert.notEqual(result.outcome, "translation");
+});

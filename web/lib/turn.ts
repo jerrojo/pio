@@ -17,6 +17,20 @@ export interface Services {
     signal: AbortSignal,
   ): Promise<string>;
 }
+const wordsOf = (text: string) =>
+  text
+    .normalize("NFC")
+    .toLocaleLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+// Share of the reference's words that also appear in what was heard.
+export function overlap(heard: string, reference: string) {
+  const said = new Set(wordsOf(heard)),
+    expected = wordsOf(reference);
+  return expected.length
+    ? expected.filter((word) => said.has(word)).length / expected.length
+    : 0;
+}
 export async function runTurn(
   audio: Buffer,
   turn: Turn,
@@ -36,7 +50,14 @@ export async function runTurn(
     evidence: null,
     focus: [],
   };
-  const intent = route(transcript, turn.preferences, turn.intent);
+  // A recognisable repetition of the phrase on screen is an attempt at it,
+  // whatever language the detector guessed for a short accented clip.
+  const intent =
+    turn.intent === "auto" &&
+    turn.reference &&
+    overlap(transcript.text, turn.reference.text) >= 0.5
+      ? "target"
+      : route(transcript, turn.preferences, turn.intent);
   if (intent === "no-speech" || intent === "clarify")
     return { ...initial, outcome: intent };
   if (intent === "native") {

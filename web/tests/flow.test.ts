@@ -312,24 +312,70 @@ test("scripted completeness is required; unscripted does not invent completeness
     "unavailable",
   );
 });
-test("Azure SDK response maps real acoustic evidence", () => {
-  const raw = {
-    RecognitionStatus: "Success",
-    NBest: [
-      {
-        Display: "Guten Morgen",
-        PronunciationAssessment: { AccuracyScore: 90 },
-        Words: [
-          {
-            Word: "Guten",
-            PronunciationAssessment: { AccuracyScore: 92, ErrorType: "None" },
-          },
-        ],
-      },
-    ],
+test("Azure pronunciation scores are read from both reply shapes and shown as the phrase writes them", () => {
+  const t = {
+    ...turn,
+    reference: { ...reference, text: "Guten Morgen, Anna!" },
   };
-  assert.equal(parseAzure(raw, turn).completeness, null);
-  assert.equal(parseAzure(raw, turn).words[0].accuracy, 92);
+  const flat = parseAzure(
+    {
+      RecognitionStatus: "Success",
+      NBest: [
+        {
+          Display: "Guten Morgen Anna.",
+          AccuracyScore: 71,
+          CompletenessScore: 100,
+          Words: [
+            { Word: "guten", AccuracyScore: 92, ErrorType: "None" },
+            { Word: "äh", AccuracyScore: 80, ErrorType: "Insertion" },
+            {
+              Word: "morgen",
+              AccuracyScore: 41,
+              ErrorType: "Mispronunciation",
+              Phonemes: [
+                { Phoneme: "m", AccuracyScore: 90 },
+                { Phoneme: "", AccuracyScore: 20 },
+              ],
+            },
+            { Word: "anna", AccuracyScore: 88, ErrorType: "None" },
+          ],
+        },
+      ],
+    },
+    t,
+  );
+  assert.equal(flat.source, "azure-acoustic");
+  assert.equal(flat.completeness, 100);
+  assert.deepEqual(
+    flat.words.map((w) => [w.text, w.accuracy, w.error]),
+    [
+      ["Guten", 92, "None"],
+      ["Morgen", 41, "Mispronunciation"],
+      ["Anna", 88, "None"],
+    ],
+  );
+  assert.deepEqual(flat.words[1].parts, [{ text: "m", accuracy: 90 }]);
+  assert.equal(judge(flat, t.id, "de-DE", t.reference), "practice");
+  const nested = parseAzure(
+    {
+      RecognitionStatus: 0,
+      NBest: [
+        {
+          Display: "Guten Morgen",
+          PronunciationAssessment: { AccuracyScore: 90 },
+          Words: [
+            {
+              Word: "Guten",
+              PronunciationAssessment: { AccuracyScore: 92, ErrorType: "None" },
+            },
+          ],
+        },
+      ],
+    },
+    turn,
+  );
+  assert.equal(nested.completeness, null);
+  assert.equal(nested.words[0].accuracy, 92);
 });
 test("Azure transcript without assessment cannot pass parser", () =>
   assert.throws(() =>

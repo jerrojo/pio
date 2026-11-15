@@ -119,11 +119,23 @@ export function Pio() {
       at: number;
       total: number;
       again: boolean;
+      hint?: string;
     } | null>(null),
     // The words were just practised one by one; next comes the whole phrase.
     [whole, setWhole] = useState(false);
   // Guided practice: the words of the phrase that did not come through, the
   // one being worked on, and how many times it has been missed.
+  // Weakest sound of each word in the last attempts, when the assessor names it.
+  const hints = useRef(new Map<string, string>());
+  const noteSounds = (reply: Result) => {
+    for (const w of reply.evidence?.words || []) {
+      const worst = [...(w.parts || [])].sort(
+        (a, b) => a.accuracy - b.accuracy,
+      )[0];
+      if (worst && worst.accuracy < 60) hints.current.set(w.text, worst.text);
+      else hints.current.delete(w.text);
+    }
+  };
   const drill = useRef<{ words: string[]; at: number; tries: number } | null>(
     null,
   );
@@ -311,6 +323,7 @@ export function Pio() {
     history.current = [];
     retained.current = null;
     drill.current = null;
+    hints.current.clear();
     setStep(null);
     setWhole(false);
     voices.current.clear();
@@ -494,6 +507,7 @@ export function Pio() {
       at: d.at + 1,
       total: d.words.length,
       again: d.tries > 0,
+      hint: hints.current.get(d.words[d.at]),
     });
     return play(phrase.text, token, true, null, d.words[d.at]);
   }
@@ -574,6 +588,7 @@ export function Pio() {
       const next = got.result;
       if (!next || token !== epoch.current) return;
       retained.current = null;
+      noteSounds(next);
       if (
         word &&
         (next.outcome === "accepted" || next.outcome === "practice")

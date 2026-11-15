@@ -52,7 +52,14 @@ export type Turn = {
   history: { role: "user" | "assistant"; text: string }[];
 };
 export type Transcript = { text: string; language: string; confidence: number };
-export type Word = { text: string; accuracy: number; error: string };
+export type Word = {
+  text: string;
+  accuracy: number;
+  error: string;
+  // Syllables or sounds of the word with their own score, when the assessor
+  // provides them.
+  parts?: { text: string; accuracy: number }[];
+};
 export type Evidence = {
   // azure-acoustic: phoneme-level assessment. scribe-clarity: per-word
   // recognizer confidence on the learner's audio (intelligibility).

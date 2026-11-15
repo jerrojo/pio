@@ -108,7 +108,14 @@ export type Moment = {
   streak?: number;
   // Guided practice: the word being worked on, its place, and whether Pío is
   // saying it again after a miss.
-  drill?: { word: string; at: number; total: number; again: boolean } | null;
+  drill?: {
+    word: string;
+    at: number;
+    total: number;
+    again: boolean;
+    // The sound of the word that came out weakest, when it is known.
+    hint?: string;
+  } | null;
   // Every word has just been practised: time for the whole phrase.
   whole?: boolean;
 };
@@ -125,12 +132,13 @@ export function sessionCopy(m: Moment): { title: string; description: string } {
   if (m.phase === "thinking")
     return { title: "Déjame pensar…", description: "Un segundito." };
   if (m.drill) {
-    const { word, at, total, again } = m.drill;
+    const { word, at, total, again, hint } = m.drill;
+    const care = hint ? ` Cuida el sonido «${hint}».` : "";
     const place = total > 1 ? ` Palabra ${at} de ${total}.` : "";
     if (m.phase === "preparing-voice" || m.phase === "speaking")
       return {
         title: again ? "Otra vez, despacito" : "Vamos por partes",
-        description: `Escucha: «${word}».${place}`,
+        description: `Escucha: «${word}».${again ? care : place}`,
       };
     if (m.phase === "listening")
       return {

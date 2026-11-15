@@ -1,6 +1,5 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
-  serverExternalPackages: ["microsoft-cognitiveservices-speech-sdk"],
   poweredByHeader: false,
   // The folder above holds the old app and its own lockfile.
   outputFileTracingRoot: import.meta.dirname,

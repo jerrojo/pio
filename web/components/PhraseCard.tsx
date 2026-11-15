@@ -62,7 +62,13 @@ export function PhraseCard({
       {result.gloss && <p className="gloss">{result.gloss}</p>}
       {result.focus.length > 0 && !current && (
         <div className="focus-words">
-          <span>{missing ? "Te faltó decir:" : "No se entendieron bien:"}</span>
+          <span>
+            {missing
+              ? "Te faltó decir:"
+              : result.evidence?.source === "azure-acoustic"
+                ? "Hay que pulir:"
+                : "No se entendieron bien:"}
+          </span>
           {result.focus.map((word, index) => (
             <button
               key={`${word}-${index}`}

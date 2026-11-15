@@ -26,10 +26,16 @@ export function voiceFor(locale: Locale): string | undefined {
     ? process.env.PIO_VOICE || pioVoice
     : undefined;
 }
-// Azure Speech is an optional upgrade to phoneme-level assessment. Without it
-// Pío grades clarity from ElevenLabs Scribe's per-word confidence.
-const azureConfigured = () =>
-  !!(process.env.AZURE_SPEECH_KEY && process.env.AZURE_SPEECH_REGION);
+// Azure Speech is an optional upgrade: it scores the sounds the learner made
+// (pronunciation), where ElevenLabs Scribe can only say whether each word was
+// recognisable. It needs a key plus either the resource's endpoint or its region.
+const azureHost = () => {
+  const endpoint = process.env.AZURE_SPEECH_ENDPOINT?.replace(/\/+$/, "");
+  if (endpoint) return `${endpoint}/stt`;
+  const region = process.env.AZURE_SPEECH_REGION;
+  return region ? `https://${region}.stt.speech.microsoft.com` : "";
+};
+const azureConfigured = () => !!(process.env.AZURE_SPEECH_KEY && azureHost());
 export function readyFor(locale: Locale) {
   return !!(
     process.env.OPENAI_API_KEY &&
@@ -205,82 +211,45 @@ export const services: Services = {
     return clean;
   },
   async assess(audio, turn, signal) {
-    if (!azureConfigured()) return assessScribe(audio, turn, signal);
-    // Lazy server-only import: the speech SDK must never reach the browser bundle.
-    const sdk = await import("microsoft-cognitiveservices-speech-sdk");
-    signal.throwIfAborted();
-    const config = sdk.SpeechConfig.fromSubscription(
-      secret("AZURE_SPEECH_KEY"),
-      secret("AZURE_SPEECH_REGION"),
-    );
-    config.speechRecognitionLanguage = turn.preferences.target;
-    config.outputFormat = sdk.OutputFormat.Detailed;
-    config.setProperty(
-      sdk.PropertyId.Speech_SegmentationSilenceTimeoutMs,
-      "5000",
-    );
-    sdk.Recognizer.enableTelemetry(false);
-    const input = sdk.AudioConfig.fromWavFileInput(audio);
-    const recognizer = new sdk.SpeechRecognizer(config, input);
-    const assessment = new sdk.PronunciationAssessmentConfig(
-      turn.reference?.text || "",
-      sdk.PronunciationAssessmentGradingSystem.HundredMark,
-      sdk.PronunciationAssessmentGranularity.Phoneme,
-      !!turn.reference,
-    );
-    assessment.applyTo(recognizer);
-    // One bounded utterance. The browser closes the turn after a short silence.
-    return await new Promise((resolve, reject) => {
-      let settled = false;
-      const finish = (error?: Error, value?: ReturnType<typeof parseAzure>) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        signal.removeEventListener("abort", abort);
-        recognizer.close();
-        input.close();
-        if (error) {
-          reject(error);
-          return;
-        }
-        if (!value) {
-          reject(new Error("assessment-incomplete"));
-          return;
-        }
-        resolve(value);
-      };
-      const abort = () => finish(new Error("cancelled"));
-      const timer = setTimeout(
-        () => finish(new Error("provider-timeout")),
-        25000,
-      );
-      signal.addEventListener("abort", abort, { once: true });
-      recognizer.recognizeOnceAsync(
-        (result) => {
-          if (result.reason !== sdk.ResultReason.RecognizedSpeech) {
-            finish(new Error("assessment-unavailable"));
-            return;
-          }
-          try {
-            finish(
-              undefined,
-              parseAzure(
-                JSON.parse(
-                  result.properties.getProperty(
-                    sdk.PropertyId.SpeechServiceResponse_JsonResult,
-                  ),
-                ),
-                turn,
-              ),
-            );
-          } catch {
-            finish(new Error("assessment-unavailable"));
-          }
+    // Free speech has no phrase to compare against, so only attempts at a
+    // phrase or a word go to the pronunciation assessor.
+    if (!azureConfigured() || !turn.reference)
+      return assessScribe(audio, turn, signal);
+    try {
+      const settings = Buffer.from(
+        JSON.stringify({
+          ReferenceText: turn.reference.text,
+          GradingSystem: "HundredMark",
+          Granularity: "Phoneme",
+          Dimension: "Comprehensive",
+          EnableMiscue: true,
+        }),
+      ).toString("base64");
+      const response = await checkedFetch(
+        `${azureHost()}/speech/recognition/conversation/cognitiveservices/v1?language=${turn.preferences.target}&format=detailed`,
+        {
+          method: "POST",
+          headers: {
+            "Ocp-Apim-Subscription-Key": secret("AZURE_SPEECH_KEY"),
+            "Content-Type": "audio/wav; codecs=audio/pcm; samplerate=16000",
+            Accept: "application/json",
+            "Pronunciation-Assessment": settings,
+          },
+          body: new Uint8Array(audio),
         },
-        () => finish(new Error("provider-unavailable")),
+        signal,
+        10000,
       );
-      if (signal.aborted) abort();
-    });
+      return parseAzure(await response.json(), turn);
+    } catch (error) {
+      if (signal.aborted) throw error;
+      // The lesson never stops because the extra assessor had a problem.
+      console.error(
+        "pio-azure-fallback",
+        error instanceof Error ? error.name : "",
+      );
+      return assessScribe(audio, turn, signal);
+    }
   },
 };
 

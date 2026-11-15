@@ -61,13 +61,11 @@ test("an old result cannot override the current recording or playback instructio
 test("microphone action states expose speaking, finish and pause explicitly", () => {
   assert.equal(microphoneLabel("idle"), "Hablar");
   assert.equal(microphoneLabel("listening"), "Terminar frase");
-  for (const phase of [
-    "permission",
-    "thinking",
-    "preparing-voice",
-    "speaking",
-  ] as const)
+  for (const phase of ["permission", "thinking"] as const)
     assert.equal(microphoneLabel(phase), "Pausar");
+  // While Pío talks, one tap interrupts and listens straight away.
+  for (const phase of ["preparing-voice", "speaking"] as const)
+    assert.equal(microphoneLabel(phase), "Hablar ya");
 });
 test("Pío's gesture follows the live phase and never celebrates or invites speech while practice is blocked", () => {
   assert.equal(mascotMood("listening", "ready", "accepted"), "listening");

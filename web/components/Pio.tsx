@@ -15,6 +15,7 @@ import {
   type Turn,
 } from "../lib/domain";
 import { Recorder } from "../lib/recorder";
+import { readTurn } from "../lib/turn-reply";
 import { Icon, Mascot } from "./Icons";
 import { LanguageForm } from "./LanguageForm";
 
@@ -116,6 +117,9 @@ export function Pio() {
   const noiseFloor = useRef(0.004);
   // Consecutive turns where nothing usable was heard.
   const misses = useRef(0);
+  // Voices already generated in this visit: replays are instant and free.
+  const voices = useRef(new Map<string, Blob>());
+  const warmed = useRef(false);
   async function refreshStatus() {
     statusController.current?.abort();
     const control = new AbortController();
@@ -196,6 +200,7 @@ export function Pio() {
     reference.current = null;
     history.current = [];
     retained.current = null;
+    voices.current.clear();
     lastPlayback.current = "";
     setRecovery(null);
     setResult(null);
@@ -222,7 +227,12 @@ export function Pio() {
     // The session is continuous: after each turn Pío listens again by itself.
     if (resume) startRef.current();
   }
-  async function play(text: string, token = epoch.current, resume = false) {
+  async function play(
+    text: string,
+    token = epoch.current,
+    resume = false,
+    ready?: Blob | null,
+  ) {
     if (!preferences) return;
     lastPlayback.current = text;
     setRecovery(null);
@@ -234,15 +244,24 @@ export function Pio() {
     audio.current?.pause();
     audio.current = null;
     try {
-      const response = await checked(
-        await fetch("/api/voice", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, locale: preferences.target }),
-          signal: AbortSignal.any([control.signal, AbortSignal.timeout(30000)]),
-        }),
-      );
-      const blob = await response.blob();
+      let blob = ready || voices.current.get(text);
+      if (!blob) {
+        const response = await checked(
+          await fetch("/api/voice", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text, locale: preferences.target }),
+            signal: AbortSignal.any([
+              control.signal,
+              AbortSignal.timeout(30000),
+            ]),
+          }),
+        );
+        blob = await response.blob();
+      }
+      if (voices.current.size >= 40)
+        voices.current.delete(voices.current.keys().next().value!);
+      voices.current.set(text, blob);
       if (token !== epoch.current || control.signal.aborted) return;
       if (audioUrl.current) URL.revokeObjectURL(audioUrl.current);
       audioUrl.current = URL.createObjectURL(blob);
@@ -300,6 +319,7 @@ export function Pio() {
     const id = crypto.randomUUID();
     const form = new FormData();
     form.set("audio", blob, "turn.wav");
+    form.set("voice", "1");
     form.set(
       "turn",
       JSON.stringify({
@@ -318,9 +338,17 @@ export function Pio() {
           signal: AbortSignal.any([control.signal, AbortSignal.timeout(75000)]),
         }),
       );
-      const next = (await response.json()) as Result;
-      if (token !== epoch.current || next.id !== id) return;
-      setResult(next);
+      const got: { result: Result | null } = { result: null };
+      const voice = await readTurn(response, (reply) => {
+        if (token !== epoch.current || reply.id !== id) return;
+        got.result = reply;
+        // Show the phrase the moment it arrives, while its voice downloads.
+        setResult(reply);
+        if (["translation", "practice", "conversation"].includes(reply.outcome))
+          setPhase("preparing-voice");
+      });
+      const next = got.result;
+      if (!next || token !== epoch.current) return;
       if (next.outcome === "accepted") buzz([12, 60, 18]);
       reference.current = ["accepted", "conversation"].includes(next.outcome)
         ? null
@@ -348,7 +376,7 @@ export function Pio() {
         ].slice(-8) as Turn["history"];
       if (["translation", "practice", "conversation"].includes(next.outcome)) {
         misses.current = 0;
-        await play(next.text, token, true);
+        await play(next.text, token, true, voice);
       } else if (next.outcome === "accepted") {
         // Celebrate, then return to the clean starting state and listen again.
         misses.current = 0;
@@ -442,6 +470,11 @@ export function Pio() {
     setRecovery(null);
     setSeconds(0);
     setPhase(granted.current ? "listening" : "permission");
+    // Wake the turn endpoint while the user is still speaking the first phrase.
+    if (!warmed.current) {
+      warmed.current = true;
+      void fetch("/api/turn", { method: "HEAD" }).catch(() => {});
+    }
     if (!window.AudioContext) {
       setPhase("idle");
       setIssue(errorText["unsupported-microphone"]);
@@ -498,7 +531,7 @@ export function Pio() {
         if (
           time >= 24.5 ||
           (!heard && time >= 8) ||
-          (heard && time - lastVoice > 1.3)
+          (heard && time - lastVoice > 1.1)
         )
           manualStop.current();
       });
@@ -524,13 +557,15 @@ export function Pio() {
   const { title, description } =
     connection !== "ready" && !active
       ? connectionCopy[connection]
-      : phase === "listening" && reference.current
-        ? {
-            title: "Te escucho",
-            description:
-              "Repite la frase. Si prefieres otra, dila en tu idioma.",
-          }
-        : sessionCopy(phase, result?.outcome);
+      : phase === "preparing-voice" && result?.text
+        ? sessionCopy("speaking")
+        : phase === "listening" && reference.current
+          ? {
+              title: "Te escucho",
+              description:
+                "Repite la frase. Si prefieres otra, dila en tu idioma.",
+            }
+          : sessionCopy(phase, result?.outcome);
   const today = preferences ? countMastery(entries, preferences) : 0;
   function retry() {
     if (recovery === "submit" && retained.current)
@@ -706,13 +741,22 @@ export function Pio() {
                       buzz(10);
                       unlockVoice();
                       if (phase === "listening") manualStop.current();
+                      else if (
+                        phase === "speaking" ||
+                        phase === "preparing-voice"
+                      )
+                        void start();
                       else if (active) cancel();
                       else void start();
                     }}
                   >
                     <span className="mic-ring" />
                     <Icon
-                      name={active && phase !== "listening" ? "pause" : "mic"}
+                      name={
+                        phase === "thinking" || phase === "permission"
+                          ? "pause"
+                          : "mic"
+                      }
                       size={34}
                     />
                   </button>

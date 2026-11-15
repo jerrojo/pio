@@ -1,6 +1,6 @@
 import { turnSchema } from "../../../lib/domain";
 import { runTurn } from "../../../lib/turn";
-import { readyFor, services } from "../../../lib/services";
+import { readyFor, services, synthesize } from "../../../lib/services";
 import { guard, errorResponse, readLimited } from "../../../lib/security";
 import { maxAudioBytes, validateWav } from "../../../lib/wav";
 export const runtime = "nodejs";
@@ -43,8 +43,66 @@ export async function POST(request: Request) {
       request.signal,
       AbortSignal.timeout(70000),
     ]);
-    const result = await runTurn(audio, parsed.data, services, signal);
-    return Response.json(result, { headers: { "Cache-Control": "no-store" } });
+    // Per-step durations go to the server log so slow turns can be diagnosed.
+    const times: string[] = [];
+    const timed =
+      <A extends unknown[], R>(name: string, run: (...args: A) => Promise<R>) =>
+      async (...args: A) => {
+        const from = Date.now();
+        try {
+          return await run(...args);
+        } finally {
+          times.push(`${name}=${Date.now() - from}`);
+        }
+      };
+    const result = await runTurn(
+      audio,
+      parsed.data,
+      {
+        transcribe: timed("stt", services.transcribe),
+        assess: timed("assess", services.assess),
+        generate: timed("llm", services.generate),
+      },
+      signal,
+    );
+    console.log("pio-timing", result.outcome, times.join(" "));
+    // A reply Pío will say aloud travels with its voice: the result as one
+    // JSON line, then the audio. The text shows at once and no second request
+    // is needed. A repeated practice phrase is already cached by the browser.
+    const spoken =
+      form.get("voice") === "1" &&
+      (["translation", "conversation"].includes(result.outcome) ||
+        (result.outcome === "practice" && !parsed.data.reference));
+    if (!spoken)
+      return Response.json(result, {
+        headers: { "Cache-Control": "no-store" },
+      });
+    const target = parsed.data.preferences.target;
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(JSON.stringify(result) + "\n"),
+        );
+        try {
+          const voice = await synthesize(result.text, target, signal);
+          const reader = voice.body!.getReader();
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            controller.enqueue(value);
+          }
+        } catch {
+          // Without audio the browser asks the voice endpoint itself.
+        }
+        controller.close();
+      },
+    });
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "application/x-pio-turn",
+        "Cache-Control": "no-store",
+      },
+    });
   } catch (error) {
     return errorResponse(error);
   }

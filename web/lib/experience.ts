@@ -164,4 +164,6 @@ export const microphoneLabel = (phase: Phase) =>
     ? "Terminar frase"
     : phase === "idle"
       ? "Hablar"
-      : "Pausar";
+      : phase === "speaking" || phase === "preparing-voice"
+        ? "Hablar ya"
+        : "Pausar";

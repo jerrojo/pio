@@ -485,7 +485,10 @@ export function Pio() {
         const step = time - previous;
         previous = time;
         smooth = smooth ? smooth * 0.6 + rms * 0.4 : rms;
-        floor = Math.min(0.02, Math.max(0.002, Math.min(smooth, floor * 1.015)));
+        floor = Math.min(
+          0.02,
+          Math.max(0.002, Math.min(smooth, floor * 1.015)),
+        );
         noiseFloor.current = floor;
         if (smooth > Math.max(0.012, floor * 3)) {
           voiced += step;

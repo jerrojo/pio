@@ -105,6 +105,7 @@ export function errorResponse(error: unknown) {
   const known = [
     "not-configured",
     "provider-busy",
+    "provider-quota",
     "provider-unavailable",
     "provider-timeout",
     "assessment-incomplete",

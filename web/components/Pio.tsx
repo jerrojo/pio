@@ -48,6 +48,8 @@ const errorText: Record<string, string> = {
   "not-configured": "Todavía no hablo ese idioma. Elige otro por ahora.",
   "provider-busy":
     "Estoy un poco saturado. Dame unos segundos y vuelve a intentar.",
+  "provider-quota":
+    "Se me acabaron los créditos de voz. Hay que recargarlos en ElevenLabs para seguir.",
   "provider-timeout": "Me tardé demasiado. ¿Lo intentamos otra vez?",
   "assessment-incomplete":
     "No alcancé a oír toda la frase. Dila otra vez, completa.",

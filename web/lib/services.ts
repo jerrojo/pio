@@ -43,10 +43,27 @@ async function checkedFetch(
     ...options,
     signal: anySignal(limit, signal),
   });
-  if (!response.ok)
-    throw new Error(
-      response.status === 429 ? "provider-busy" : "provider-unavailable",
+  if (!response.ok) {
+    // The provider's own reason (never the request) goes to the server log,
+    // so "out of credits" can be told apart from a real outage.
+    const detail = await response
+      .json()
+      .then((body) => String(body?.detail?.status || body?.detail?.code || ""))
+      .catch(() => "");
+    console.error(
+      "pio-provider",
+      new URL(url).pathname.slice(0, 40),
+      response.status,
+      detail.slice(0, 60),
     );
+    throw new Error(
+      /quota|credit|limit_reached/i.test(detail)
+        ? "provider-quota"
+        : response.status === 429
+          ? "provider-busy"
+          : "provider-unavailable",
+    );
+  }
   return response;
 }
 const iso3: Record<string, string> = {
@@ -292,7 +309,8 @@ export async function synthesize(
     } catch (error) {
       if (
         signal.aborted ||
-        (error instanceof Error && error.message === "provider-busy")
+        (error instanceof Error &&
+          ["provider-busy", "provider-quota"].includes(error.message))
       )
         throw error;
       console.error("pio-voice-fallback", fast);

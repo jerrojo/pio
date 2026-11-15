@@ -113,7 +113,7 @@ export type Moment = {
     at: number;
     total: number;
     again: boolean;
-    // The sound of the word that came out weakest, when it is known.
+    // Advice about the sound to fix, as a short sentence, when there is one.
     hint?: string;
   } | null;
   // Every word has just been practised: time for the whole phrase.
@@ -133,7 +133,7 @@ export function sessionCopy(m: Moment): { title: string; description: string } {
     return { title: "Déjame pensar…", description: "Un segundito." };
   if (m.drill) {
     const { word, at, total, again, hint } = m.drill;
-    const care = hint ? ` Cuida el sonido «${hint}».` : "";
+    const care = hint ? ` ${hint}` : "";
     const place = total > 1 ? ` Palabra ${at} de ${total}.` : "";
     if (m.phase === "preparing-voice" || m.phase === "speaking")
       return {

@@ -895,3 +895,50 @@ test("Pío's reply in conversation comes with its meaning in the learner's langu
   assert.equal(result.text, "Gern! Mit Milch?");
   assert.equal(result.gloss, "¡Con gusto! ¿Con leche?");
 });
+
+test("a missed word practised alone comes with a listener's advice, and a correct one never waits for it", async () => {
+  const t = scripted("möchte");
+  const run = (heard: string, coach: Services["coach"]) =>
+    runTurn(
+      Buffer.alloc(1),
+      { ...t, intent: "target" },
+      mock({
+        transcribe: async () => ({
+          text: heard,
+          language: "de",
+          confidence: 0.9,
+        }),
+        assess: async (_audio, current) => scribeEvidence(said(heard), current),
+        coach,
+      }),
+      signal(),
+    );
+  const missed = await run(
+    "Hallo",
+    async () => "La ö suena como e con labios redondos.",
+  );
+  assert.equal(missed.outcome, "practice");
+  assert.equal(missed.tip, "La ö suena como e con labios redondos.");
+  // A coach that fails or never answers must not break or delay the turn.
+  assert.equal(
+    (await run("Hallo", async () => Promise.reject(new Error("x")))).tip,
+    "",
+  );
+  const passed = await run("möchte", () => new Promise(() => {}));
+  assert.equal(passed.outcome, "accepted");
+  assert.equal(passed.tip, undefined);
+  // Whole phrases are never sent to the coach.
+  const phrase = scripted("Guten Morgen zusammen.");
+  let asked = false;
+  await runTurn(
+    Buffer.alloc(1),
+    phrase,
+    mock({
+      assess: async (_audio, current) =>
+        scribeEvidence(said("Guten Abend"), current),
+      coach: async () => ((asked = true), "x"),
+    }),
+    signal(),
+  );
+  assert.equal(asked, false);
+});

@@ -210,6 +210,51 @@ export const services: Services = {
       throw new Error("invalid-translation");
     return clean;
   },
+  // A listening model hears the attempt at a single word and says which sound
+  // to work on. It can be wrong, so it only advises: grading never uses it.
+  async coach(audio, turn, signal) {
+    if (process.env.PIO_COACH === "off" || !turn.reference) return "";
+    const from = language[turn.preferences.native],
+      to = language[turn.preferences.target];
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      signal: anySignal(3500, signal),
+      headers: {
+        Authorization: `Bearer ${secret("OPENAI_API_KEY")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: process.env.PIO_COACH_MODEL || "gpt-audio-1.5",
+        modalities: ["text"],
+        temperature: 0,
+        messages: [
+          {
+            role: "system",
+            content: `You are a kind pronunciation coach with a native ear for ${to}. A beginner whose language is ${from} tries to say one ${to} word. Judge only the sounds you actually hear. If it sounded right, or you are not sure what was wrong, reply exactly OK. Otherwise reply with ONE short tip in ${from} (at most 12 words, informal, addressed to the learner) naming the sound to fix and how to make it, comparing it with a sound of ${from} when that helps. If they said a different word, tell them so in the same short form. Reply with the tip only: no quotes, no praise, no scores.`,
+          },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: `Word: ${turn.reference.text}` },
+              {
+                type: "input_audio",
+                input_audio: { data: audio.toString("base64"), format: "wav" },
+              },
+            ],
+          },
+        ],
+      }),
+    });
+    if (!response.ok) {
+      console.error("pio-coach", response.status);
+      return "";
+    }
+    const body = (await response.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    const tip = cleanReply(body.choices?.[0]?.message?.content || "");
+    return /^ok\b/i.test(tip) || tip.length > 140 ? "" : tip;
+  },
   async assess(audio, turn, signal) {
     // Free speech has no phrase to compare against, so only attempts at a
     // phrase or a word go to the pronunciation assessor.

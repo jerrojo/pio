@@ -74,6 +74,7 @@ export async function POST(request: Request) {
         transcribe: timed("stt", services.transcribe),
         assess: timed("assess", services.assess),
         generate: timed("llm", services.generate),
+        ...(services.coach ? { coach: timed("coach", services.coach) } : {}),
       },
       signal,
     );

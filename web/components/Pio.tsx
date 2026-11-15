@@ -132,7 +132,8 @@ export function Pio() {
       const worst = [...(w.parts || [])].sort(
         (a, b) => a.accuracy - b.accuracy,
       )[0];
-      if (worst && worst.accuracy < 60) hints.current.set(w.text, worst.text);
+      if (worst && worst.accuracy < 60)
+        hints.current.set(w.text, `Cuida el sonido «${worst.text}».`);
       else hints.current.delete(w.text);
     }
   };
@@ -589,6 +590,8 @@ export function Pio() {
       if (!next || token !== epoch.current) return;
       retained.current = null;
       noteSounds(next);
+      // A listener's advice about the word just missed wins over a bare score.
+      if (word && next.tip) hints.current.set(word, next.tip);
       if (
         word &&
         (next.outcome === "accepted" || next.outcome === "practice")
@@ -1154,10 +1157,11 @@ export function Pio() {
               </p>
               <p>
                 Pío revisa qué tan claro se entendió cada palabra; no mide
-                sonidos exactos. Tu voz se envía a ElevenLabs solo para
-                entenderte y el texto a OpenAI para traducir o conversar; no se
-                guarda en ninguna base de datos. Tus idiomas y estrellas se
-                quedan en este navegador.
+                sonidos exactos. Tu voz se envía a ElevenLabs para entenderte;
+                el texto, y el audio de una palabra que no salió, a OpenAI para
+                traducir, conversar y darte un consejo. Nada se guarda en una
+                base de datos. Tus idiomas y estrellas se quedan en este
+                navegador.
               </p>
             </details>
           </section>

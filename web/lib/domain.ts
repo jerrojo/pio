@@ -91,6 +91,9 @@ export type Result = {
   // Every word of the phrase that did not come through, in order: what the
   // guided practice goes through one by one.
   weak?: string[];
+  // After a missed word: one short piece of advice about the sound to fix,
+  // in the learner's own language. Advice only; it never decides the grade.
+  tip?: string;
   // What Pío's reply means, in the learner's own language.
   gloss?: string;
   // Proof that the server produced `text`, required to ask for its voice.

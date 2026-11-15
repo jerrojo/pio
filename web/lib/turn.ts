@@ -16,6 +16,9 @@ export interface Services {
     turn: Turn,
     signal: AbortSignal,
   ): Promise<string>;
+  // Optional second opinion on how one word sounded. Returns "" when it has
+  // nothing useful to say.
+  coach?(audio: Buffer, turn: Turn, signal: AbortSignal): Promise<string>;
 }
 // "Say it again" in the learner's own language: replay the phrase on screen
 // instead of translating the request.
@@ -102,9 +105,20 @@ export async function runTurn(
       reference: null,
     };
   }
+  // A word practised on its own also gets a listener's advice, asked for
+  // alongside the grading so a correct word is never kept waiting for it.
+  const alone = ref && keysOf(ref.text, target).length === 1;
+  const listening = new AbortController();
+  signal.addEventListener("abort", () => listening.abort(), { once: true });
+  const advice =
+    alone && services.coach
+      ? services.coach(audio, turn, listening.signal).catch(() => "")
+      : null;
   const evidence = await services.assess(audio, turn, signal);
   signal.throwIfAborted();
   const decision = judge(evidence, turn.id, target, ref);
+  // Advice is only wanted for a word that was missed.
+  if (decision !== "practice") listening.abort();
   if (decision === "unavailable" || !ref)
     return { ...initial, outcome: "unavailable" };
   if (decision === "accepted")
@@ -132,5 +146,6 @@ export async function runTurn(
     evidence,
     focus,
     weak: all,
+    ...(advice ? { tip: await advice } : {}),
   };
 }

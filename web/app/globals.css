@@ -224,8 +224,8 @@ p {
   border-radius: 50%;
   background: radial-gradient(
     circle,
-    #c0e99f3d 0,
-    #c0e99f14 46%,
+    #7cc8ff3d 0,
+    #7cc8ff14 46%,
     transparent 70%
   );
   transform: scale(calc(1 + var(--level, 0) * 0.22));

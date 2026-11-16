@@ -64,9 +64,10 @@ export async function runTurn(
     // Written with other words but sounding like the phrase: still an attempt.
     const alike = likeness(transcript.text, ref.text, target) >= 0.55;
     if (turn.loose)
-      // A phrase already done stays on offer: saying it again is graded,
-      // anything else is taken for what it is.
-      intent = share >= 0.5 || alike ? "repeat" : said;
+      // A phrase already done stays on offer. Speech in the learner's own
+      // language is a new thing to translate; anything else is an attempt at
+      // the phrase, however little of it came through.
+      intent = share >= 0.5 || alike || said !== "native" ? "repeat" : "native";
     else intent = sure && !alike && (share < bar || long) ? "native" : "repeat";
   } else if (ref && said === "target") intent = "repeat";
   if (intent === "native" && ref && again.test(canon(transcript.text)))

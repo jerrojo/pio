@@ -200,8 +200,39 @@ test("with a phrase already done, new speech is taken for what it is", async () 
     signal(),
   );
   assert.equal(native.outcome, "translation");
-  const free = await runTurn(Buffer.alloc(1), done, mock(), signal());
-  assert.equal(free.outcome, "conversation");
+  // Speech in the language being learned that does not match the phrase is a
+  // failed attempt at it: every word goes to guided practice.
+  let answered = false;
+  const missed = await runTurn(
+    Buffer.alloc(1),
+    done,
+    mock({
+      transcribe: async () => ({
+        text: "Guten Tag wie geht es",
+        language: "de",
+        confidence: 0.9,
+      }),
+      assess: async () =>
+        evidence({
+          referenceId: coffee.id,
+          mode: "scripted",
+          text: coffee.text,
+          accuracy: 0,
+          completeness: 0,
+          words: coffee.text
+            .split(" ")
+            .map((text) => ({ text, accuracy: 0, error: "Omission" })),
+        }),
+      generate: async () => {
+        answered = true;
+        return "x";
+      },
+    }),
+    signal(),
+  );
+  assert.equal(answered, false);
+  assert.equal(missed.outcome, "practice");
+  assert.equal(missed.weak?.length, 5);
 });
 test("scripted repetition stays in practice until it passes", async () => {
   const t = { ...turn, reference };

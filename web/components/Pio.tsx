@@ -90,7 +90,11 @@ function buzz(pattern: number | number[]) {
 async function checked(response: Response) {
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.code || "service-unavailable");
+    // The firewall's own "slow down" has no code of ours in it.
+    throw new Error(
+      body.code ||
+        (response.status === 429 ? "too-many-requests" : "service-unavailable"),
+    );
   }
   return response;
 }

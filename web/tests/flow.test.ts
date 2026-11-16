@@ -1063,3 +1063,24 @@ test("one missed word in an accented attempt is the only word practised", async 
   assert.deepEqual(result.weak, ["Milch"]);
   assert.deepEqual(result.focus, ["Milch"]);
 });
+
+test("a whole attempt that came through badly practises only its worst words", async () => {
+  const t = scripted("Ich möchte bitte einen Kaffee mit Milch bestellen.");
+  const heard = said("Is mokte bite ainen cafe mit milk besteln", -0.9);
+  const result = await runTurn(
+    Buffer.alloc(1),
+    t,
+    mock({
+      transcribe: async () => ({
+        text: heard.text,
+        language: "nl",
+        confidence: 0.4,
+      }),
+      assess: async (_audio, current) => scribeEvidence(heard, current),
+    }),
+    signal(),
+  );
+  assert.equal(result.outcome, "practice");
+  assert.ok(result.weak!.length <= 3, result.weak!.join(" "));
+  assert.ok(result.weak!.length >= 1);
+});

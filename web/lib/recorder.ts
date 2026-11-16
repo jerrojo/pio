@@ -11,6 +11,20 @@ export function prepareCapture(context: AudioContext) {
   }
   return ready;
 }
+// Asking for the microphone takes a moment every time. During a session it
+// stays open between turns so Pío listens the instant its voice ends. Not on
+// iPhone and iPad: there an open microphone makes everything play quietly.
+let mic: MediaStream | null = null,
+  idle: ReturnType<typeof setTimeout> | null = null;
+const keeps = () =>
+  !/iPad|iPhone|iPod/.test(navigator.userAgent) &&
+  !(navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+export function releaseMic() {
+  if (idle) clearTimeout(idle);
+  idle = null;
+  mic?.getTracks().forEach((t) => t.stop());
+  mic = null;
+}
 export class Recorder {
   private context: AudioContext | null = null;
   private stream: MediaStream | null = null;
@@ -39,17 +53,27 @@ export class Recorder {
     }
     try {
       const module = prepareCapture(this.context);
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-        video: false,
-      });
+      if (idle) clearTimeout(idle);
+      idle = null;
+      const open = mic?.getAudioTracks()[0]?.readyState === "live";
+      const stream = open
+        ? mic!
+        : await navigator.mediaDevices.getUserMedia({
+            audio: {
+              channelCount: 1,
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
+            video: false,
+          });
+      if (!open) {
+        releaseMic();
+        if (keeps()) mic = stream;
+      }
       if (this.closed) {
-        stream.getTracks().forEach((t) => t.stop());
+        this.stream = stream;
+        this.cancel();
         return;
       }
       this.stream = stream;
@@ -137,7 +161,12 @@ export class Recorder {
     try {
       this.node?.port.postMessage("stop");
     } catch {}
-    this.stream?.getTracks().forEach((t) => t.stop());
+    if (this.stream && this.stream === mic) {
+      // Kept for the next turn, but never left open if none comes.
+      if (idle) clearTimeout(idle);
+      idle = setTimeout(releaseMic, 30000);
+    } else this.stream?.getTracks().forEach((t) => t.stop());
+    this.stream = null;
     this.source?.disconnect();
     this.node?.disconnect();
     this.gain?.disconnect();

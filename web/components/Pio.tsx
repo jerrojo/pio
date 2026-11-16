@@ -15,7 +15,7 @@ import {
   type Result,
   type Turn,
 } from "../lib/domain";
-import { Recorder } from "../lib/recorder";
+import { Recorder, releaseMic } from "../lib/recorder";
 import { anySignal } from "../lib/signal";
 import { readTurn } from "../lib/turn-reply";
 import { encodeWav } from "../lib/wav";
@@ -254,6 +254,7 @@ export function Pio() {
       controller.current?.abort();
       statusController.current?.abort();
       recorder.current?.cancel();
+      releaseMic();
       audio.current?.pause();
       if (watchdog.current) clearInterval(watchdog.current);
       if (celebration.current) clearTimeout(celebration.current);
@@ -281,6 +282,7 @@ export function Pio() {
   // microphone is off.
   function pause() {
     cancel();
+    releaseMic();
     setPaused(true);
   }
   const pauseRef = useRef(pause);

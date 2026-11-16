@@ -134,15 +134,25 @@ export async function runTurn(
     return { ...initial, outcome: "unavailable" };
   if (decision === "accepted")
     return { ...initial, outcome: "accepted", text: ref.text, evidence };
-  // What to work on: the words that were missing, replaced or not understood.
-  // Only when none failed outright, the ones heard with some doubt. A learner's
-  // accent makes most words a little doubtful; those are not the mistake.
+  // What to work on: the words that were missing, replaced or not understood,
+  // worst first. An attempt that resembles the phrase is never answered with
+  // every word again: a learner's accent leaves most words a little unclear,
+  // so only the worst third is practised and the phrase is tried again. Speech
+  // that was nothing like the phrase goes through all of it, word by word.
   const lost = evidence.words.filter(
     (w) => w.error !== "None" || w.accuracy < 50,
   );
-  const weak = lost.length
+  const unlike =
+    (evidence.completeness ?? 0) < 40 &&
+    likeness(transcript.text, ref.text, target) < 0.55;
+  const worst = [...lost]
+    .sort((a, b) => a.accuracy - b.accuracy)
+    .slice(0, Math.max(1, Math.ceil(evidence.words.length / 3)));
+  const weak = unlike
     ? lost
-    : evidence.words.filter((w) => w.accuracy < 70);
+    : lost.length
+      ? evidence.words.filter((w) => worst.includes(w))
+      : evidence.words.filter((w) => w.accuracy < 70);
   const all = weak
     .map((w) => w.text)
     .filter((word, at, list) => list.indexOf(word) === at)

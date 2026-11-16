@@ -82,6 +82,18 @@ export async function POST(request: Request) {
       ? { ...heard, voice: signVoice(heard.text, target) }
       : heard;
     console.log("pio-timing", result.outcome, times.join(" "));
+    // How each word of the phrase came through, as numbers only (x = missing),
+    // so the grading can be tuned on real attempts without keeping any speech.
+    if (parsed.data.reference && result.evidence)
+      console.log(
+        "pio-words",
+        result.outcome,
+        result.evidence.words
+          .map((w) => (w.error === "None" ? w.accuracy : "x"))
+          .join(" "),
+        "drill",
+        result.weak?.length ?? 0,
+      );
     // A new phrase Pío will say aloud travels with its voice: the result as
     // one JSON line, then the audio. The text shows at once and no second
     // request is needed. A phrase already on screen is cached by the browser.

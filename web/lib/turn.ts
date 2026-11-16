@@ -101,6 +101,8 @@ export async function runTurn(
     const [text, gloss] = (
       await services.generate("converse", evidence.text, free, signal)
     ).split("\n");
+    if (!text?.trim() || text.length > 500)
+      throw new Error("invalid-translation");
     signal.throwIfAborted();
     return {
       ...initial,

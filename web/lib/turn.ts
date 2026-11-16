@@ -134,10 +134,15 @@ export async function runTurn(
     return { ...initial, outcome: "unavailable" };
   if (decision === "accepted")
     return { ...initial, outcome: "accepted", text: ref.text, evidence };
-  // What to work on: missing words first, then the ones heard least clearly.
-  const weak = evidence.words.filter(
-    (w) => w.error !== "None" || w.accuracy < 70,
+  // What to work on: the words that were missing, replaced or not understood.
+  // Only when none failed outright, the ones heard with some doubt. A learner's
+  // accent makes most words a little doubtful; those are not the mistake.
+  const lost = evidence.words.filter(
+    (w) => w.error !== "None" || w.accuracy < 50,
   );
+  const weak = lost.length
+    ? lost
+    : evidence.words.filter((w) => w.accuracy < 70);
   const all = weak
     .map((w) => w.text)
     .filter((word, at, list) => list.indexOf(word) === at)

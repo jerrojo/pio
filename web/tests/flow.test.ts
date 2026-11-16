@@ -1041,3 +1041,25 @@ test("a missed word practised alone comes with a listener's advice, and a correc
   );
   assert.equal(asked, false);
 });
+
+test("one missed word in an accented attempt is the only word practised", async () => {
+  const t = scripted("Ich möchte bitte einen Kaffee mit Milch bestellen.");
+  // Every word heard with an accent's doubt (clarity about 60), one replaced.
+  const heard = said("Ich möchte bitte einen Kaffee mit Mils bestellen", -0.5);
+  const result = await runTurn(
+    Buffer.alloc(1),
+    t,
+    mock({
+      transcribe: async () => ({
+        text: heard.text,
+        language: "de",
+        confidence: 0.9,
+      }),
+      assess: async (_audio, current) => scribeEvidence(heard, current),
+    }),
+    signal(),
+  );
+  assert.equal(result.outcome, "practice");
+  assert.deepEqual(result.weak, ["Milch"]);
+  assert.deepEqual(result.focus, ["Milch"]);
+});

@@ -49,6 +49,9 @@ export type Turn = {
   preferences: Preferences;
   reference: Reference | null;
   intent: "auto" | "native" | "target";
+  // The phrase was already said well, or is something Pío answered: it is
+  // still there to be said again, but other speech is not an attempt at it.
+  loose?: boolean;
   history: { role: "user" | "assistant"; text: string }[];
 };
 export type Transcript = { text: string; language: string; confidence: number };

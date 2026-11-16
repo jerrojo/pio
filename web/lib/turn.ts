@@ -1,4 +1,4 @@
-import { canon, keysOf, overlap } from "./words.ts";
+import { canon, keysOf, likeness, overlap } from "./words.ts";
 import {
   judge,
   route,
@@ -61,7 +61,13 @@ export async function runTurn(
     const bar = size < 3 ? 1 : transcript.confidence >= 0.9 ? 0.75 : 0.5;
     // Many more words than the phrase has is a new sentence, not an attempt.
     const long = keysOf(transcript.text, target).length > size * 1.5 + 2;
-    intent = sure && (share < bar || long) ? "native" : "repeat";
+    // Written with other words but sounding like the phrase: still an attempt.
+    const alike = likeness(transcript.text, ref.text, target) >= 0.55;
+    if (turn.loose)
+      // A phrase already done stays on offer: saying it again is graded,
+      // anything else is taken for what it is.
+      intent = share >= 0.5 || alike ? "repeat" : said;
+    else intent = sure && !alike && (share < bar || long) ? "native" : "repeat";
   } else if (ref && said === "target") intent = "repeat";
   if (intent === "native" && ref && again.test(canon(transcript.text)))
     return { ...initial, outcome: "translation", text: ref.text };
@@ -102,7 +108,9 @@ export async function runTurn(
       text,
       ...(gloss ? { gloss } : {}),
       evidence,
-      reference: null,
+      // What Pío said can be practised too: repeating it gets graded instead
+      // of answered with yet another sentence.
+      reference: { id: crypto.randomUUID(), text, locale: target },
     };
   }
   // A word practised on its own also gets a listener's advice, asked for

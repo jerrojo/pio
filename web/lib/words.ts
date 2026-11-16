@@ -79,6 +79,16 @@ export function overlap(heard: string, reference: string, language = "") {
   return found / expected.length;
 }
 
+// How alike two utterances sound when written down, ignoring where the words
+// were split: an attempt the recognizer wrote with other words ("ij mojte
+// ainen") is still close to the phrase letter by letter.
+export function likeness(heard: string, reference: string, language = "") {
+  const a = keysOf(heard, language).join(""),
+    b = keysOf(reference, language).join("");
+  if (!a || !b) return 0;
+  return 1 - distance(a, b) / Math.max(a.length, b.length);
+}
+
 // What the text model returned, reduced to the sentence Pío will show and say.
 export function cleanReply(reply: string) {
   let text = reply

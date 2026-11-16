@@ -26,6 +26,7 @@ export const turnSchema = z
     preferences: preferencesSchema,
     reference: referenceSchema.nullable(),
     intent: z.enum(["auto", "native", "target"]).default("auto"),
+    loose: z.boolean().optional(),
     history: z
       .array(
         z.object({

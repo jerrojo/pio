@@ -147,6 +147,7 @@ export function Pio() {
       null,
     );
   const reference = useRef<Reference | null>(null),
+    loose = useRef(false),
     history = useRef<Turn["history"]>([]),
     epoch = useRef(0),
     live = useRef<Phase>("idle"),
@@ -321,6 +322,7 @@ export function Pio() {
   function reset() {
     cancel();
     reference.current = null;
+    loose.current = false;
     history.current = [];
     retained.current = null;
     drill.current = null;
@@ -475,9 +477,10 @@ export function Pio() {
     setResult(reply);
     setMissed(false);
     if (reply.voice) proofs.current.set(reply.text, reply.voice);
-    reference.current = ["accepted", "conversation"].includes(reply.outcome)
-      ? null
-      : reply.reference;
+    // The phrase stays after it is said well, and Pío's own answers become
+    // phrases too, so saying either again is graded, never answered.
+    reference.current = reply.reference;
+    loose.current = ["accepted", "conversation"].includes(reply.outcome);
     setTries((n) => (reply.outcome === "practice" ? n + 1 : 0));
     if (reply.outcome === "accepted") {
       unattended.current = 0;
@@ -557,6 +560,7 @@ export function Pio() {
           ? { id: crypto.randomUUID(), text: word, locale: preferences.target }
           : reference.current,
         intent: word ? "target" : "auto",
+        loose: !word && loose.current,
         history: history.current,
       }),
     );

@@ -132,8 +132,76 @@ test("free speech is answered, and the learner's own sentence never becomes the 
     signal(),
   );
   assert.equal(result.outcome, "conversation");
-  assert.equal(result.reference, null);
+  assert.equal(result.reference?.text, result.text);
+  assert.notEqual(result.reference?.text, "Ich habe gestern gegeht");
   assert.equal(result.heard, "Ich habe gestern gegeht");
+});
+const coffee = {
+  ...reference,
+  text: "Ich möchte einen Kaffee bestellen",
+};
+const graded = async () =>
+  evidence({
+    referenceId: reference.id,
+    mode: "scripted",
+    completeness: 100,
+  });
+test("an attempt the recognizer wrote down as the learner's own language is still graded", async () => {
+  let translated = false;
+  const result = await runTurn(
+    Buffer.alloc(1),
+    { ...turn, reference: coffee },
+    mock({
+      transcribe: async () => ({
+        text: "Ij mojte ainen cafe bestelen",
+        language: "es",
+        confidence: 0.95,
+      }),
+      assess: graded,
+      generate: async () => {
+        translated = true;
+        return "x";
+      },
+    }),
+    signal(),
+  );
+  assert.equal(translated, false);
+  assert.ok(["practice", "accepted"].includes(result.outcome));
+});
+test("a phrase already said well is graded again when repeated, never answered", async () => {
+  let answered = false;
+  const result = await runTurn(
+    Buffer.alloc(1),
+    { ...turn, reference, loose: true },
+    mock({
+      assess: graded,
+      generate: async () => {
+        answered = true;
+        return "x";
+      },
+    }),
+    signal(),
+  );
+  assert.equal(answered, false);
+  assert.equal(result.outcome, "accepted");
+});
+test("with a phrase already done, new speech is taken for what it is", async () => {
+  const done = { ...turn, reference: coffee, loose: true };
+  const native = await runTurn(
+    Buffer.alloc(1),
+    done,
+    mock({
+      transcribe: async () => ({
+        text: "Dónde está la estación",
+        language: "es",
+        confidence: 0.6,
+      }),
+    }),
+    signal(),
+  );
+  assert.equal(native.outcome, "translation");
+  const free = await runTurn(Buffer.alloc(1), done, mock(), signal());
+  assert.equal(free.outcome, "conversation");
 });
 test("scripted repetition stays in practice until it passes", async () => {
   const t = { ...turn, reference };

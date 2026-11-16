@@ -227,15 +227,17 @@ export const services: Services = {
         model: process.env.PIO_COACH_MODEL || "gpt-audio-1.5",
         modalities: ["text"],
         temperature: 0,
+        max_completion_tokens: 60,
+        // This model follows instructions given next to the audio; given as a
+        // system message it drifts into answering with JSON.
         messages: [
-          {
-            role: "system",
-            content: `You are a kind pronunciation coach with a native ear for ${to}. A beginner whose language is ${from} tries to say one ${to} word. Judge only the sounds you actually hear. If it sounded right, or you are not sure what was wrong, reply exactly OK. Otherwise reply with ONE short tip in ${from} (at most 12 words, informal, addressed to the learner) naming the sound to fix and how to make it, comparing it with a sound of ${from} when that helps. If they said a different word, tell them so in the same short form. Reply with the tip only: no quotes, no praise, no scores.`,
-          },
           {
             role: "user",
             content: [
-              { type: "text", text: `Word: ${turn.reference.text}` },
+              {
+                type: "text",
+                text: `You are a kind pronunciation coach with a native ear for ${to}. A beginner whose language is ${from} tries to say one ${to} word. Judge only the sounds you actually hear. If it sounded right, or you are not sure what was wrong, reply exactly OK. Otherwise reply with ONE short tip in ${from} (at most 12 words, informal, addressed to the learner) naming the sound to fix and how to make it, comparing it with a sound of ${from} when that helps. If they said a different word, tell them so in the same short form. Reply with the tip only: no quotes, no praise, no scores, no JSON.\n\nThe word is: ${turn.reference.text}\nThe learner's attempt is the audio that follows.`,
+              },
               {
                 type: "input_audio",
                 input_audio: { data: audio.toString("base64"), format: "wav" },
@@ -253,7 +255,9 @@ export const services: Services = {
       choices?: { message?: { content?: string } }[];
     };
     const tip = cleanReply(body.choices?.[0]?.message?.content || "");
-    return /^ok\b/i.test(tip) || tip.length > 140 ? "" : tip;
+    return /^ok\b/i.test(tip) || tip.length > 140 || /[{}]/.test(tip)
+      ? ""
+      : tip;
   },
   async assess(audio, turn, signal) {
     // Free speech has no phrase to compare against, so only attempts at a

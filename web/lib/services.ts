@@ -134,6 +134,14 @@ async function assessScribe(audio: Buffer, turn: Turn, signal: AbortSignal) {
     first && heardLanguage(first) === target
       ? first
       : await scribe(audio, signal, target);
+  // Temporary, while the grading is tuned on real attempts: what was heard.
+  console.log(
+    "pio-heard",
+    first === response ? "same" : "forced",
+    JSON.stringify(response.text),
+    "for",
+    JSON.stringify(turn.reference?.text ?? ""),
+  );
   return scribeEvidence(response, turn);
 }
 export const services: Services = {

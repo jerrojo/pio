@@ -81,7 +81,18 @@ export async function POST(request: Request) {
     const result = heard.text
       ? { ...heard, voice: signVoice(heard.text, target) }
       : heard;
-    console.log("pio-timing", result.outcome, times.join(" "));
+    console.log(
+      "pio-timing",
+      result.outcome,
+      times.join(" "),
+      `audio=${((audio.length - 44) / 32000).toFixed(1)}s`,
+      /iPhone|iPad|iPod/.test(request.headers.get("user-agent") || "")
+        ? "ios"
+        : /Android/.test(request.headers.get("user-agent") || "")
+          ? "android"
+          : "desktop",
+      JSON.stringify(heard.heard ?? ""),
+    );
     // How each word of the phrase came through, as numbers only (x = missing),
     // so the grading can be tuned on real attempts without keeping any speech.
     if (parsed.data.reference && result.evidence)

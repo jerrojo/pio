@@ -176,6 +176,8 @@ export function Pio() {
   const noiseFloor = useRef(0.004);
   // Consecutive turns where nothing usable was heard.
   const misses = useRef(0);
+  // Attempts at the current phrase of which nothing was understood.
+  const blank = useRef(0);
   // Turns Pío started by itself since the learner last touched the screen or
   // got a phrase right. A room with a TV on must not keep a session going.
   const unattended = useRef(0);
@@ -603,6 +605,7 @@ export function Pio() {
       if (!next || token !== epoch.current) return;
       retained.current = null;
       noteSounds(next);
+      if (!word && next.outcome !== "practice") blank.current = 0;
       // A listener's advice about the word just missed wins over a bare score.
       if (word && next.tip) hints.current.set(word, next.tip);
       if (
@@ -615,7 +618,14 @@ export function Pio() {
       } else if (
         next.outcome === "practice" &&
         next.weak?.length &&
-        next.text.trim().split(/\s+/).length > 1
+        next.text.trim().split(/\s+/).length > 1 &&
+        // Nothing of the phrase came through: that can be a cut-off start or
+        // a noise, so the first time Pío just says it again. Only a second
+        // miss like that goes through every word.
+        !(
+          next.weak.length >= next.text.trim().split(/\s+/).length &&
+          blank.current++ === 0
+        )
       ) {
         // The phrase did not come through: work on exactly the words that
         // failed, one at a time, before trying the whole phrase again.
@@ -683,6 +693,9 @@ export function Pio() {
         pause();
         return;
       }
+      // Somebody is clearly there: only turns nobody answers count towards
+      // pausing by itself.
+      unattended.current = 0;
       await submit(blob, token);
     } catch (error) {
       if (token === epoch.current) {

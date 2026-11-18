@@ -116,15 +116,25 @@ async function scribe(audio: Buffer, signal: AbortSignal, language?: string) {
   body.set("timestamps_granularity", "word");
   // Never seed recognition with the expected phrase. Only the language may be fixed.
   if (language) body.set("language_code", language);
-  const response = await checkedFetch(
-    "https://api.elevenlabs.io/v1/speech-to-text",
-    {
-      method: "POST",
-      headers: { "xi-api-key": secret("ELEVENLABS_API_KEY") },
-      body,
-    },
-    signal,
-  );
+  const ask = () =>
+    checkedFetch(
+      "https://api.elevenlabs.io/v1/speech-to-text",
+      {
+        method: "POST",
+        headers: { "xi-api-key": secret("ELEVENLABS_API_KEY") },
+        body,
+      },
+      signal,
+    );
+  // The recognizer sometimes answers "busy" for an instant: ask once more
+  // before giving the learner an error.
+  const response = await ask().catch(async (error) => {
+    if (!(error instanceof Error) || error.message !== "provider-busy")
+      throw error;
+    await new Promise((done) => setTimeout(done, 400));
+    signal.throwIfAborted();
+    return ask();
+  });
   return parseScribe(await response.json());
 }
 const heardLanguage = (r: ScribeResponse) =>

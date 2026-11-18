@@ -1084,3 +1084,29 @@ test("a whole attempt that came through badly practises only its worst words", a
   assert.ok(result.weak!.length <= 3, result.weak!.join(" "));
   assert.ok(result.weak!.length >= 1);
 });
+
+test("words the recognizer missed but that fit the audio are not counted as missing", async () => {
+  const { rescue } = await import("../lib/scribe-result.ts");
+  const t = scripted("Ich möchte einen Kaffee bestellen.");
+  // An accent the recognizer wrote down as other words.
+  const before = scribeEvidence(said("Is mojte ainen Cafe besteyen", -0.4), t);
+  assert.ok(before.words.filter((w) => w.error === "Omission").length >= 3);
+  const fit = (losses: number[], loss: number) => ({
+    loss,
+    words: "Ich möchte einen Kaffee bestellen.".split(" ").map((text, at) => ({
+      text,
+      start: at * 0.3,
+      end: at * 0.3 + 0.25,
+      loss: losses[at],
+    })),
+  });
+  // Every word is in the audio except one.
+  const after = rescue(before, fit([0.8, 0.7, 0.9, 2.1, 0.8], 1.0));
+  assert.deepEqual(
+    after.words.filter((w) => w.error === "Omission").map((w) => w.text),
+    ["Kaffee"],
+  );
+  // Other speech altogether: nothing is rescued.
+  const other = rescue(before, fit([2.2, 2.1, 1.9, 2.4, 1.8], 2.1));
+  assert.deepEqual(other, before);
+});

@@ -8,6 +8,8 @@ import { anySignal } from "./signal.ts";
 import { parseAzure } from "./azure-result.ts";
 import {
   parseScribe,
+  alignmentSchema,
+  rescue,
   scribeEvidence,
   type ScribeResponse,
 } from "./scribe-result.ts";
@@ -142,7 +144,47 @@ async function assessScribe(audio: Buffer, turn: Turn, signal: AbortSignal) {
     "for",
     JSON.stringify(turn.reference?.text ?? ""),
   );
-  return scribeEvidence(response, turn);
+  const evidence = scribeEvidence(response, turn);
+  if (!turn.reference || evidence.words.every((w) => w.error === "None"))
+    return evidence;
+  // Words the recognizer missed get a second opinion before they count as
+  // not said. It is quick or it is skipped: the lesson never waits for it.
+  try {
+    const body = new FormData();
+    body.set(
+      "file",
+      new Blob([new Uint8Array(audio)], { type: "audio/wav" }),
+      "turn.wav",
+    );
+    body.set("text", turn.reference.text);
+    const aligned = alignmentSchema.parse(
+      await (
+        await checkedFetch(
+          "https://api.elevenlabs.io/v1/forced-alignment",
+          {
+            method: "POST",
+            headers: { "xi-api-key": secret("ELEVENLABS_API_KEY") },
+            body,
+          },
+          signal,
+          3000,
+        )
+      ).json(),
+    );
+    console.log(
+      "pio-fit",
+      aligned.loss.toFixed(2),
+      aligned.words
+        .filter((w) => w.text.trim())
+        .map((w) => w.loss.toFixed(2))
+        .join(" "),
+    );
+    return rescue(evidence, aligned);
+  } catch (error) {
+    if (signal.aborted) throw error;
+    console.error("pio-fit-skipped", String(error).slice(0, 80));
+    return evidence;
+  }
 }
 export const services: Services = {
   async transcribe(audio, signal) {

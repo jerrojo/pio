@@ -172,3 +172,61 @@ export function scribeEvidence(response: ScribeResponse, turn: Turn): Evidence {
     words,
   };
 }
+
+// A second opinion on the words the recognizer did not write down. The aligner
+// is told the phrase and reports how well the audio fits each word (lower is
+// a better fit), so a learner's accent does not turn a word that was said
+// into a missing one. It cannot hear fine mistakes; it only tells "this word
+// is in there" from "something else was said". Bounds measured on recordings:
+// words that were said fit at 0.6 to 1.2, other speech at 1.3 and above.
+export const alignmentSchema = z.object({
+  loss: z.number(),
+  words: z.array(
+    z.object({
+      text: z.string(),
+      start: z.number(),
+      end: z.number(),
+      loss: z.number(),
+    }),
+  ),
+});
+export function rescue(
+  evidence: Evidence,
+  alignment: z.infer<typeof alignmentSchema>,
+): Evidence {
+  const language = evidence.locale;
+  const fits = alignment.words.flatMap((w) =>
+    pieces(w.text)
+      .filter((piece) => canon(piece, language))
+      .map(() => ({ loss: w.loss, long: w.end - w.start >= 0.06 })),
+  );
+  const expected = evidence.words.flatMap((w) =>
+    pieces(w.text).filter((piece) => canon(piece, language)),
+  );
+  // The whole audio is something else, or the words cannot be paired up.
+  // A word said alone has nothing around it to lean on, so it must fit well.
+  const limit = evidence.words.length === 1 ? 1 : 1.3;
+  if (
+    fits.filter((w) => w.loss >= 1.3).length * 2 > fits.length ||
+    fits.length !== expected.length ||
+    expected.length !== evidence.words.length
+  )
+    return evidence;
+  const words = evidence.words.map((word, at) =>
+    word.error === "Omission" && fits[at].long && fits[at].loss < limit
+      ? {
+          ...word,
+          error: "None" as const,
+          accuracy: fits[at].loss < 1 ? 75 : 60,
+        }
+      : word,
+  );
+  return {
+    ...evidence,
+    words,
+    accuracy: mean(words.map((w) => w.accuracy)),
+    completeness: Math.round(
+      (words.filter((w) => w.error === "None").length / words.length) * 100,
+    ),
+  };
+}

@@ -145,14 +145,14 @@ export async function runTurn(
   const unlike =
     (evidence.completeness ?? 0) < 40 &&
     likeness(transcript.text, ref.text, target) < 0.55;
-  const worst = [...lost]
+  // None failed outright: then the ones heard with some doubt.
+  const pool = lost.length
+    ? lost
+    : evidence.words.filter((w) => w.accuracy < 70);
+  const worst = [...pool]
     .sort((a, b) => a.accuracy - b.accuracy)
     .slice(0, Math.max(1, Math.ceil(evidence.words.length / 3)));
-  const weak = unlike
-    ? lost
-    : lost.length
-      ? evidence.words.filter((w) => worst.includes(w))
-      : evidence.words.filter((w) => w.accuracy < 70);
+  const weak = unlike ? pool : evidence.words.filter((w) => worst.includes(w));
   const all = weak
     .map((w) => w.text)
     .filter((word, at, list) => list.indexOf(word) === at)

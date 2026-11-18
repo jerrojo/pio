@@ -167,7 +167,7 @@ async function assessScribe(audio: Buffer, turn: Turn, signal: AbortSignal) {
             body,
           },
           signal,
-          3000,
+          2000,
         )
       ).json(),
     );

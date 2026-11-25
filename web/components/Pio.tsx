@@ -894,7 +894,9 @@ export function Pio() {
               (sentence === "over"
                 ? 0.45
                 : sentence === "open" && listener.alive
-                  ? 2.2
+                  ? drill.current
+                    ? 1.4
+                    : 2.2
                   : reference.current
                     ? 1.4
                     : 1.1))

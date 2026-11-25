@@ -70,6 +70,7 @@ const frames = [
   "listening",
   "thinking",
   "happy",
+  "cheer",
   "sleepy",
 ] as const;
 

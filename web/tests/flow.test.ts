@@ -1110,3 +1110,59 @@ test("words the recognizer missed but that fit the audio are not counted as miss
   const other = rescue(before, fit([2.2, 2.1, 1.9, 2.4, 1.8], 2.1));
   assert.deepEqual(other, before);
 });
+
+test("a phrase that needed help is kept for review until it is said well", async () => {
+  const { addPending, winPending, pendingFor, hardToday, readReview } =
+    await import("../lib/domain.ts");
+  const p = {
+    version: 3 as const,
+    native: "es-MX" as const,
+    target: "de-DE" as const,
+  };
+  const reference = {
+    id: crypto.randomUUID(),
+    text: "Ich möchte einen Kaffee.",
+    locale: p.target,
+  };
+  const practice = {
+    id: crypto.randomUUID(),
+    outcome: "practice" as const,
+    heard: "",
+    text: reference.text,
+    reference,
+    evidence: null,
+    focus: ["möchte"],
+  };
+  // Without the server's proof Pío could not say it again: nothing is kept.
+  assert.equal(addPending([], practice, undefined, p, "2026-11-25").length, 0);
+  let list = addPending([], practice, "p".repeat(43), p, "2026-11-25");
+  list = addPending(
+    list,
+    { ...practice, focus: ["Kaffee"] },
+    "p".repeat(43),
+    p,
+    "2026-11-25",
+  );
+  assert.equal(list.length, 1);
+  assert.deepEqual(list[0].words, ["möchte", "Kaffee"]);
+  assert.equal(pendingFor(list, p)[0].text, reference.text);
+  assert.equal(pendingFor(list, { ...p, target: "fr-FR" }).length, 0);
+  // Stored and read back unchanged; anything malformed is dropped.
+  assert.deepEqual(readReview(JSON.stringify(list), "2026-11-26"), list);
+  assert.deepEqual(readReview('[{"pair":1}]'), []);
+  list = winPending(
+    list,
+    {
+      ...practice,
+      outcome: "accepted",
+      text: "ich möchte einen kaffee",
+      reference: { ...reference, text: "ich möchte einen Kaffee" },
+    },
+    p,
+    "2026-11-25",
+  );
+  assert.equal(pendingFor(list, p).length, 0);
+  assert.deepEqual(hardToday(list, p, "2026-11-25"), ["möchte", "Kaffee"]);
+  // The next day a phrase already won is forgotten.
+  assert.equal(readReview(JSON.stringify(list), "2026-11-26").length, 0);
+});

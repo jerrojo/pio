@@ -70,6 +70,8 @@ export type Mood =
   | "thinking"
   | "speaking"
   | "happy"
+  // After a miss: Pío cheers the learner on.
+  | "cheer"
   | "sleepy";
 // Pío's gesture. The live phase always wins over an old result, and Pío never
 // celebrates or invites speech while practice is blocked.
@@ -81,6 +83,7 @@ export function mascotMood(
 ): Mood {
   if (phase === "listening") return "listening";
   if (phase === "permission") return "curious";
+  if (phase === "preparing-voice" && outcome === "practice") return "cheer";
   if (phase === "thinking" || phase === "preparing-voice") return "thinking";
   if (phase === "speaking") return "speaking";
   if (connection === "checking") return "thinking";
@@ -88,6 +91,7 @@ export function mascotMood(
   if (phase === "waking") return "idle";
   if (paused) return "sleepy";
   if (outcome === "accepted") return "happy";
+  if (outcome === "practice") return "cheer";
   return "idle";
 }
 export type Moment = {

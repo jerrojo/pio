@@ -100,7 +100,9 @@ test("Pío's gesture follows the live phase and never celebrates or invites spee
   assert.equal(mascotMood("preparing-voice", "ready"), "thinking");
   assert.equal(mascotMood("permission", "ready"), "curious");
   assert.equal(mascotMood("idle", "ready", "accepted"), "happy");
-  assert.equal(mascotMood("idle", "ready", "practice"), "idle");
+  assert.equal(mascotMood("idle", "ready", "practice"), "cheer");
+  assert.equal(mascotMood("preparing-voice", "ready", "practice"), "cheer");
+  assert.equal(mascotMood("idle", "ready", "practice", true), "sleepy");
   assert.equal(mascotMood("idle", "ready", "translation", true), "sleepy");
   assert.equal(mascotMood("waking", "ready", "accepted"), "idle");
   assert.equal(mascotMood("idle", "checking", "accepted"), "thinking");

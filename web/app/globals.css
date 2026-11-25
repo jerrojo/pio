@@ -324,8 +324,12 @@ p {
 .mood-listening .f-listening,
 .mood-thinking .f-thinking,
 .mood-happy .f-happy,
+.mood-cheer .f-cheer,
 .mood-sleepy .f-sleepy {
   opacity: 1;
+}
+.mood-cheer .f-cheer {
+  animation: pose-a 0.45s var(--spring);
 }
 .mood-curious .f-listening,
 .mood-listening .f-listening {
@@ -1741,4 +1745,62 @@ select {
   font-style: italic;
   opacity: 0.75;
   overflow-wrap: anywhere;
+}
+/* What today's practice left, shown when the session rests. */
+.recap,
+.revisit {
+  width: 100%;
+  max-width: 420px;
+  margin: 16px auto 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  text-align: left;
+  overflow-wrap: anywhere;
+  animation: rise 0.3s var(--spring);
+}
+.recap h2 {
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.recap p {
+  margin-top: 6px;
+  font-size: 0.95rem;
+}
+.recap p + p {
+  color: var(--ink);
+  font-weight: 700;
+}
+.recap p + p span {
+  color: var(--muted);
+  font-weight: 400;
+}
+.revisit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.revisit p {
+  flex: 1;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.revisit q {
+  display: block;
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 1rem;
+}
+.revisit button {
+  flex: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .recap,
+  .revisit {
+    animation: none;
+  }
 }

@@ -252,3 +252,102 @@ export function readMastery(raw: string | null): Mastered[] {
     return [];
   }
 }
+// Phrases that needed help, kept so the learner can come back to them. Each
+// one carries the proof that lets Pío say it again without a new translation.
+export type Pending = {
+  pair: string;
+  text: string;
+  proof: string;
+  // Words that did not come through, as shown on the phrase.
+  words: string[];
+  day: string;
+  // The day it was finally said well. Kept that day for the summary.
+  won?: string;
+};
+export const reviewKey = "pio.review.v1";
+const samePhrase = (a: string, b: string) =>
+  keysOf(a).join(" ") === keysOf(b).join(" ");
+export function addPending(
+  list: Pending[],
+  r: Result,
+  proof: string | undefined,
+  p: Preferences,
+  day = localDay(),
+): Pending[] {
+  if (r.outcome !== "practice" || !r.reference || !proof) return list;
+  const pair = `${p.native}:${p.target}`,
+    text = r.reference.text;
+  const old = list.find((e) => e.pair === pair && samePhrase(e.text, text));
+  const words = [...new Set([...(old?.words || []), ...r.focus])].slice(0, 12);
+  return [
+    ...list.filter((e) => e !== old),
+    { pair, text, proof, words, day },
+  ].slice(-40);
+}
+export function winPending(
+  list: Pending[],
+  r: Result,
+  p: Preferences,
+  day = localDay(),
+): Pending[] {
+  if (r.outcome !== "accepted" || !r.reference) return list;
+  const pair = `${p.native}:${p.target}`,
+    text = r.reference.text;
+  return list.map((e) =>
+    e.pair === pair && !e.won && samePhrase(e.text, text)
+      ? { ...e, won: day }
+      : e,
+  );
+}
+// Still to be said well, newest first.
+export const pendingFor = (list: Pending[], p: Preferences) =>
+  list.filter((e) => e.pair === `${p.native}:${p.target}` && !e.won).reverse();
+// Words that took work today, whether or not the phrase came out in the end.
+export function hardToday(list: Pending[], p: Preferences, day = localDay()) {
+  return [
+    ...new Set(
+      list
+        .filter(
+          (e) =>
+            e.pair === `${p.native}:${p.target}` &&
+            (e.day === day || e.won === day),
+        )
+        .flatMap((e) => e.words),
+    ),
+  ];
+}
+export function readReview(raw: string | null, day = localDay()): Pending[] {
+  try {
+    const list: unknown = JSON.parse(raw || "[]");
+    if (!Array.isArray(list) || list.length > 40) return [];
+    const text = (v: unknown): v is string => typeof v === "string";
+    return (
+      list
+        .filter(
+          (e) =>
+            e &&
+            text(e.pair) &&
+            text(e.text) &&
+            e.text.length <= 500 &&
+            text(e.proof) &&
+            text(e.day) &&
+            Array.isArray(e.words) &&
+            e.words.length <= 12 &&
+            e.words.every(text) &&
+            (e.won === undefined || text(e.won)),
+        )
+        .map((e) => ({
+          pair: e.pair,
+          text: e.text,
+          proof: e.proof,
+          words: e.words,
+          day: e.day,
+          ...(e.won ? { won: e.won } : {}),
+        }))
+        // A phrase already won only matters for that day's summary.
+        .filter((e) => !e.won || e.won === day)
+    );
+  } catch {
+    return [];
+  }
+}

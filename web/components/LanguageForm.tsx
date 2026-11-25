@@ -15,7 +15,16 @@ export function LanguageForm({
   saved: Preferences | null;
   onSave: (p: Preferences) => void;
 }) {
-  const [native, setNative] = useState<Locale | "">(saved?.native || "");
+  // A first visit starts with the browser's own language already chosen.
+  const [native, setNative] = useState<Locale | "">(() => {
+    if (saved) return saved.native;
+    const mine = typeof navigator === "undefined" ? "" : navigator.language;
+    return (
+      locales.find((l) => l === mine) ||
+      locales.find((l) => mine && base(l) === base(mine)) ||
+      ""
+    );
+  });
   const [target, setTarget] = useState<Locale | "">(saved?.target || "");
   const valid = native && target && base(native) !== base(target);
   const hintId = useId();

@@ -21,6 +21,7 @@ const moods: Mood[] = [
   "thinking",
   "speaking",
   "happy",
+  "cheer",
   "sleepy",
 ];
 export function PracticePreview() {

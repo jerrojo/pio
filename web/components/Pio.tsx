@@ -2,7 +2,13 @@
 import { useEffect, useId, useRef, useState } from "react";
 import {
   addMastery,
+  addPending,
   countMastery,
+  hardToday,
+  pendingFor,
+  readReview,
+  reviewKey,
+  winPending,
   names,
   preferenceKey,
   progressKey,
@@ -10,6 +16,7 @@ import {
   readPreferences,
   streak,
   type Mastered,
+  type Pending,
   type Preferences,
   type Reference,
   type Result,
@@ -149,6 +156,7 @@ export function Pio() {
     null,
   );
   const [entries, setEntries] = useState<Mastered[]>([]),
+    [review, setReview] = useState<Pending[]>([]),
     [slow, setSlow] = useState(false),
     [settingsRevision, setSettingsRevision] = useState(0),
     [recovery, setRecovery] = useState<"record" | "submit" | "play" | null>(
@@ -250,6 +258,7 @@ export function Pio() {
     try {
       setPreferences(readPreferences(localStorage.getItem(preferenceKey)));
       setEntries(readMastery(localStorage.getItem(progressKey)));
+      setReview(readReview(localStorage.getItem(reviewKey)));
       // The last known status shows the microphone at once on a return visit;
       // the real one is confirmed in the background.
       const cached = readStatus(
@@ -343,6 +352,7 @@ export function Pio() {
         setPreferences(readPreferences(event.newValue));
       }
       if (event.key === progressKey) setEntries(readMastery(event.newValue));
+      if (event.key === reviewKey) setReview(readReview(event.newValue));
     };
     window.addEventListener("storage", changed);
     return () => window.removeEventListener("storage", changed);
@@ -521,6 +531,28 @@ export function Pio() {
       setEntries(updated);
       try {
         localStorage.setItem(progressKey, JSON.stringify(updated));
+      } catch {}
+    }
+    // A phrase that needed help is remembered until it is said well.
+    if (reply.outcome === "practice" || reply.outcome === "accepted") {
+      let list = review;
+      try {
+        list = readReview(localStorage.getItem(reviewKey));
+      } catch {}
+      const next =
+        reply.outcome === "practice"
+          ? addPending(
+              list,
+              reply,
+              reply.reference
+                ? proofs.current.get(reply.reference.text)
+                : undefined,
+              preferences,
+            )
+          : winPending(list, reply, preferences);
+      setReview(next);
+      try {
+        localStorage.setItem(reviewKey, JSON.stringify(next));
       } catch {}
     }
     if (reply.outcome === "conversation")
@@ -927,6 +959,28 @@ export function Pio() {
       word,
     );
   }
+  // Back to a phrase left pending: Pío says it and listens, as if it had
+  // just been translated.
+  function revisit(item: Pending) {
+    if (!preferences) return;
+    unlockVoice();
+    reset();
+    keep({
+      id: crypto.randomUUID(),
+      outcome: "translation",
+      heard: "",
+      text: item.text,
+      reference: {
+        id: crypto.randomUUID(),
+        text: item.text,
+        locale: preferences.target,
+      },
+      evidence: null,
+      focus: [],
+      voice: item.proof,
+    });
+    void play(item.text, epoch.current, true);
+  }
   const connection = preferences
     ? connectionState(status, preferences.target, checkingStatus, statusFailed)
     : "checking";
@@ -934,6 +988,12 @@ export function Pio() {
   const active = phase !== "idle";
   const today = preferences ? countMastery(entries, preferences) : 0;
   const days = preferences ? streak(entries, preferences) : 0;
+  const hard = preferences ? hardToday(review, preferences) : [];
+  const next = preferences
+    ? pendingFor(review, preferences).find(
+        (e) => e.text !== result?.reference?.text,
+      )
+    : undefined;
   const mood = mascotMood(phase, connection, result?.outcome, paused && !issue);
   const { title, description } =
     connection !== "ready" && !active
@@ -1092,6 +1152,38 @@ export function Pio() {
               <p className="example">
                 Prueba con: <q>{examples[new Date().getDay()]}</q>
               </p>
+            )}
+            {ready &&
+              paused &&
+              !active &&
+              !issue &&
+              (today > 0 || hard.length > 0) && (
+                <div className="recap">
+                  <h2>Tu práctica de hoy</h2>
+                  <p>
+                    <strong>{today}</strong>{" "}
+                    {today === 1 ? "frase lograda" : "frases logradas"}
+                    {days > 1 && <> · {days} días seguidos</>}
+                  </p>
+                  {hard.length > 0 && (
+                    <p lang={preferences.target}>
+                      <span lang="es">Te costaron: </span>
+                      {hard.slice(0, 6).join(", ")}
+                    </p>
+                  )}
+                </div>
+              )}
+            {ready && !active && !issue && next && (!result || paused) && (
+              <div className="revisit">
+                <p>
+                  Te quedó pendiente:{" "}
+                  <q lang={preferences.target}>{next.text}</q>
+                </p>
+                <button className="secondary" onClick={() => revisit(next)}>
+                  <Icon name="refresh" size={18} />
+                  Repasarla
+                </button>
+              </div>
             )}
             {result?.heard && (
               <div className="bubble mine">

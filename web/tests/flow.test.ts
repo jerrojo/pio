@@ -1197,8 +1197,9 @@ test("a new sentence in the learner's language is never held as an attempt at th
     await run({ ...phrase, loose: true }, "Te amo.", "pt", 0.6),
     "translation",
   );
-  // Still working on the phrase: a firm detection is needed.
-  assert.equal(await run(phrase, "Te amo.", "es", 0.9), "translation");
+  // Still working on the phrase, the detector unsure, and not one word of
+  // the phrase in what was said.
+  assert.equal(await run(phrase, "Te amo.", "it", 0.46), "translation");
   // An attempt the detector takes for English is still an attempt.
   assert.notEqual(
     await run({ ...phrase, loose: true }, "We has to push nothing.", "en", 0.9),
@@ -1209,5 +1210,5 @@ test("a new sentence in the learner's language is never held as an attempt at th
   const word = { ...scripted("Wie"), intent: "target" as const };
   assert.equal(await run(word, "No, no, te amo.", "es", 0.95), "translation");
   assert.notEqual(await run(word, "Vi.", "es", 0.95), "translation");
-  assert.notEqual(await run(word, "No, no, te amo.", "es", 0.6), "translation");
+  assert.equal(await run(word, "No, no te amo.", "it", 0.5), "translation");
 });

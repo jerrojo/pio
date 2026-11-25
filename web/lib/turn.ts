@@ -77,7 +77,6 @@ export async function runTurn(
     if (
       keysOf(ref.text, target).length === 1 &&
       keysOf(transcript.text, target).length >= 3 &&
-      transcript.confidence >= 0.8 &&
       route(transcript, turn.preferences, "auto") === "native" &&
       overlap(transcript.text, ref.text, target) === 0 &&
       likeness(transcript.text, ref.text, target) < 0.55
@@ -86,7 +85,7 @@ export async function runTurn(
   }
   if (intent === "native" && ref && again.test(canon(transcript.text)))
     return { ...initial, outcome: "translation", text: ref.text };
-  if (intent === "native") {
+  const translate = async (): Promise<Result> => {
     const text = (
       await services.generate("translate", transcript.text, turn, signal)
     ).trim();
@@ -102,7 +101,8 @@ export async function runTurn(
         locale: turn.preferences.target,
       },
     };
-  }
+  };
+  if (intent === "native") return translate();
   if (intent === "target") {
     // Free speech in the language being learned: Pío simply answers. The
     // learner's own sentence never becomes a model phrase to repeat.
@@ -141,6 +141,25 @@ export async function runTurn(
       : null;
   const evidence = await services.assess(audio, turn, signal);
   signal.throwIfAborted();
+  // Short sentences in the learner's own language leave the detector unsure
+  // ("te amo" comes back as Italian at half confidence), so they reach this
+  // point as an attempt. When not one word of the phrase was there, and what
+  // was heard reads as the learner's language with nothing of the phrase in
+  // it, it was a new sentence: translate it instead of holding the learner.
+  if (
+    ref &&
+    turn.intent === "auto" &&
+    evidence.words.length > 1 &&
+    evidence.words.every((w) => w.error !== "None") &&
+    keysOf(transcript.text, target).length > 1 &&
+    route(transcript, turn.preferences, "auto") === "native" &&
+    overlap(transcript.text, ref.text, target) === 0 &&
+    // Well below what an accented attempt written in other words reaches.
+    likeness(transcript.text, ref.text, target) < 0.3
+  ) {
+    listening.abort();
+    return translate();
+  }
   const decision = judge(evidence, turn.id, target, ref);
   // Advice is only wanted for a word that was missed.
   if (decision !== "practice") listening.abort();

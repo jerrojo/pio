@@ -69,7 +69,21 @@ export async function runTurn(
       // the phrase, however little of it came through.
       intent = share >= 0.5 || alike || said !== "native" ? "repeat" : "native";
     else intent = sure && !alike && (share < bar || long) ? "native" : "repeat";
-  } else if (ref && said === "target") intent = "repeat";
+  } else if (ref && said === "target") {
+    intent = "repeat";
+    // Practising one word, the learner can still say something new in their
+    // own language: a whole sentence of it, with nothing of the word in it,
+    // is translated instead of graded, so nobody is held in the practice.
+    if (
+      keysOf(ref.text, target).length === 1 &&
+      keysOf(transcript.text, target).length >= 3 &&
+      transcript.confidence >= 0.8 &&
+      route(transcript, turn.preferences, "auto") === "native" &&
+      overlap(transcript.text, ref.text, target) === 0 &&
+      likeness(transcript.text, ref.text, target) < 0.55
+    )
+      intent = "native";
+  }
   if (intent === "native" && ref && again.test(canon(transcript.text)))
     return { ...initial, outcome: "translation", text: ref.text };
   if (intent === "native") {

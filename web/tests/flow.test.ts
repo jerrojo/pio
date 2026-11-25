@@ -1166,3 +1166,48 @@ test("a phrase that needed help is kept for review until it is said well", async
   // The next day a phrase already won is forgotten.
   assert.equal(readReview(JSON.stringify(list), "2026-11-26").length, 0);
 });
+
+test("a new sentence in the learner's language is never held as an attempt at the phrase or the word on turn", async () => {
+  const run = async (
+    current: Turn,
+    text: string,
+    language: string,
+    confidence: number,
+  ) =>
+    (
+      await runTurn(
+        Buffer.alloc(1),
+        current,
+        mock({
+          transcribe: async () => ({ text, language, confidence }),
+          assess: async (_audio, t) =>
+            t.reference
+              ? scribeEvidence(said(text), t)
+              : evidence({ audioId: t.id, text }),
+          generate: async (task) =>
+            task === "translate" ? "Ich liebe dich." : "Antwort",
+        }),
+        signal(),
+      )
+    ).outcome;
+  const phrase = scripted("Wie hast du geschlafen?");
+  // From a real session: "Te amo" after the phrase was done, taken by the
+  // detector for Portuguese, was graded against the German phrase.
+  assert.equal(
+    await run({ ...phrase, loose: true }, "Te amo.", "pt", 0.6),
+    "translation",
+  );
+  // Still working on the phrase: a firm detection is needed.
+  assert.equal(await run(phrase, "Te amo.", "es", 0.9), "translation");
+  // An attempt the detector takes for English is still an attempt.
+  assert.notEqual(
+    await run({ ...phrase, loose: true }, "We has to push nothing.", "en", 0.9),
+    "translation",
+  );
+  // Practising one word: a whole sentence in Spanish leaves the practice,
+  // a short or unsure answer does not.
+  const word = { ...scripted("Wie"), intent: "target" as const };
+  assert.equal(await run(word, "No, no, te amo.", "es", 0.95), "translation");
+  assert.notEqual(await run(word, "Vi.", "es", 0.95), "translation");
+  assert.notEqual(await run(word, "No, no, te amo.", "es", 0.6), "translation");
+});

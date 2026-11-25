@@ -675,7 +675,13 @@ export function Pio() {
         ready = await readTurn(response, (reply) => {
           if (token !== epoch.current || reply.id !== id) return;
           got.result = reply;
-          if (!reply.text || word) return;
+          // A word being practised keeps its phrase on screen, unless the
+          // learner said something new instead.
+          if (!reply.text || (word && reply.outcome !== "translation")) return;
+          if (word) {
+            drill.current = null;
+            setStep(null);
+          }
           // Show the phrase the moment it arrives, while its voice downloads.
           keep(reply);
           if (spoken(reply)) go("preparing-voice");

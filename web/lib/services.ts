@@ -213,6 +213,12 @@ export const services: Services = {
   async transcribe(audio, signal) {
     const parsed = await scribe(audio, signal);
     heardCache.set(audio, parsed);
+    // Temporary: which language the detector took the turn for.
+    console.log(
+      "pio-lang",
+      heardLanguage(parsed),
+      Number(parsed.language_probability).toFixed(2),
+    );
     return {
       text: parsed.text.trim(),
       language: heardLanguage(parsed),

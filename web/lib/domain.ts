@@ -147,9 +147,10 @@ export function judge(
 }
 // Languages the detector may guess for someone speaking their own language.
 const lookalikes: Record<string, string[]> = {
-  es: ["ca", "cat", "gl", "glg", "oc", "oci", "ast", "an", "arg"],
-  pt: ["gl", "glg"],
-  it: ["co", "cos", "sc", "srd"],
+  // A short sentence ("te amo") reads the same in the sister languages.
+  es: ["ca", "cat", "gl", "glg", "oc", "oci", "ast", "an", "arg", "pt", "it"],
+  pt: ["gl", "glg", "es"],
+  it: ["co", "cos", "sc", "srd", "es"],
   fr: ["oc", "oci", "ca", "cat"],
   de: ["lb", "ltz", "gsw"],
   en: ["sco"],

@@ -16,6 +16,7 @@ import {
   type Turn,
 } from "../lib/domain";
 import { Recorder, releaseMic } from "../lib/recorder";
+import { Ear } from "../lib/ear";
 import { anySignal } from "../lib/signal";
 import { readTurn } from "../lib/turn-reply";
 import { encodeWav } from "../lib/wav";
@@ -176,6 +177,20 @@ export function Pio() {
   const noiseFloor = useRef(0.004);
   // Consecutive turns where nothing usable was heard.
   const misses = useRef(0);
+  // Live listening: what Pío is hearing right now, and the permit for the
+  // next turn, asked for while Pío is still speaking.
+  const [hearing, setHearing] = useState("");
+  const ear = useRef<Ear | null>(null);
+  const permit = useRef<Promise<string | null> | null>(null);
+  function askPermit() {
+    return fetch("/api/ear", {
+      method: "POST",
+      signal: anySignal(6000),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => (typeof body?.token === "string" ? body.token : null))
+      .catch(() => null);
+  }
   // Attempts at the current phrase of which nothing was understood.
   const blank = useRef(0);
   // Turns Pío started by itself since the learner last touched the screen or
@@ -271,6 +286,8 @@ export function Pio() {
     if (celebration.current) clearTimeout(celebration.current);
     watchdog.current = celebration.current = null;
     controller.current?.abort();
+    ear.current?.close();
+    ear.current = null;
     recorder.current?.cancel();
     recorder.current = null;
     audio.current?.pause();
@@ -384,6 +401,7 @@ export function Pio() {
   ) {
     if (!preferences) return;
     lastPlayback.current = { text, word };
+    if (resume && !permit.current) permit.current = askPermit();
     setRecovery(null);
     setIssue("");
     setPaused(false);
@@ -789,6 +807,26 @@ export function Pio() {
     }
     const capture = new Recorder(captureContext.current);
     recorder.current = capture;
+    setHearing("");
+    // What the live recognizer makes of the turn: nothing yet, a sentence
+    // still going, or a finished one.
+    let sentence: "none" | "open" | "over" = "none";
+    const listener = new Ear((text, over) => {
+      if (token !== epoch.current) return;
+      sentence = over ? "over" : "open";
+      setHearing(text.slice(0, 200));
+    });
+    ear.current = listener;
+    // A word or a phrase being practised is in the language being learned;
+    // anything else may be either language.
+    void listener.open(
+      permit.current || askPermit(),
+      reference.current && !loose.current
+        ? preferences.target.split("-")[0]
+        : undefined,
+    );
+    permit.current = null;
+    capture.onSamples = (samples, rate) => listener.send(samples, rate);
     const waited = granted.current;
     let heard = false,
       lastVoice = 0,
@@ -848,7 +886,18 @@ export function Pio() {
         if (
           time >= 24.5 ||
           (!heard && time >= 8 && quiet > 0.6) ||
-          (heard && quiet > (reference.current ? 1.4 : 1.1))
+          // The live recognizer follows the sentence: once it takes it as
+          // finished there is no need to wait out the whole pause, and while
+          // it takes it as unfinished a hesitation gets more time.
+          (heard &&
+            quiet >
+              (sentence === "over"
+                ? 0.45
+                : sentence === "open" && listener.alive
+                  ? 2.2
+                  : reference.current
+                    ? 1.4
+                    : 1.1))
         )
           manualStop.current();
       });
@@ -1021,6 +1070,11 @@ export function Pio() {
             <div className="session-copy">
               <h1 id="session-title">{title}</h1>
               <p>{description}</p>
+              {phase === "listening" && hearing && (
+                <p className="hearing" aria-hidden="true">
+                  {hearing}
+                </p>
+              )}
             </div>
             <p className="sr-only" role="status">
               {announce}

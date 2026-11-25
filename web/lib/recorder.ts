@@ -35,6 +35,8 @@ export class Recorder {
   private closed = false;
   private flushed: (() => void) | null = null;
   onLost: (() => void) | null = null;
+  // Every piece of microphone audio as it arrives, for live listening.
+  onSamples: ((samples: Float32Array, rate: number) => void) | null = null;
   get started() {
     return !!this.node && !this.closed;
   }
@@ -93,6 +95,7 @@ export class Recorder {
         const samples = event.data.samples as Float32Array;
         if (this.closed || !samples) return;
         this.chunks.push(samples);
+        this.onSamples?.(samples, this.context!.sampleRate);
         count += samples.length;
         const rms = Math.sqrt(
           samples.reduce((n, x) => n + x * x, 0) / samples.length,
@@ -158,6 +161,7 @@ export class Recorder {
   cancel() {
     this.closed = true;
     this.onLost = null;
+    this.onSamples = null;
     try {
       this.node?.port.postMessage("stop");
     } catch {}

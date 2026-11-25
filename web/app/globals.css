@@ -1733,3 +1733,12 @@ select {
     400 1rem/1.4 var(--font-text),
     sans-serif;
 }
+
+/* What Pío is hearing right now, while the learner speaks. */
+.session-copy p.hearing {
+  margin-top: 0.5rem;
+  min-height: 1.4em;
+  font-style: italic;
+  opacity: 0.75;
+  overflow-wrap: anywhere;
+}

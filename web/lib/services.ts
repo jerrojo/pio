@@ -196,6 +196,19 @@ async function assessScribe(audio: Buffer, turn: Turn, signal: AbortSignal) {
     return evidence;
   }
 }
+// A single-use permit for one live-listening session from the browser.
+export async function earToken(signal: AbortSignal) {
+  const response = await checkedFetch(
+    "https://api.elevenlabs.io/v1/single-use-token/realtime_scribe?max_session_duration_seconds=40",
+    { method: "POST", headers: { "xi-api-key": secret("ELEVENLABS_API_KEY") } },
+    signal,
+    5000,
+  );
+  const token = ((await response.json()) as { token?: unknown }).token;
+  if (typeof token !== "string" || !token)
+    throw new Error("provider-unavailable");
+  return token;
+}
 export const services: Services = {
   async transcribe(audio, signal) {
     const parsed = await scribe(audio, signal);

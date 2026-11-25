@@ -12,13 +12,16 @@ export function prepareCapture(context: AudioContext) {
   return ready;
 }
 // Asking for the microphone takes a moment every time. During a session it
-// stays open between turns so Pío listens the instant its voice ends. Not on
-// iPhone and iPad: there an open microphone makes everything play quietly.
+// stays open between turns so Pío listens the instant its voice ends. That
+// includes iPhone and iPad, where opening takes about a second: closing it
+// between turns lost the learner's first word, and opening it while Pío was
+// still speaking made the voice stutter.
 let mic: MediaStream | null = null,
   idle: ReturnType<typeof setTimeout> | null = null;
-const keeps = () =>
-  !/iPad|iPhone|iPod/.test(navigator.userAgent) &&
-  !(navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const keeps = () => true;
+const apple = () =>
+  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const wanted = {
   audio: {
     channelCount: 1,
@@ -33,7 +36,9 @@ const wanted = {
 // phrase, and is already open when the learner starts.
 let warming: Promise<void> | null = null;
 export function warmMic() {
+  // Not on iPhone and iPad: opening it there interrupts the voice playing.
   if (
+    apple() ||
     warming ||
     mic?.getAudioTracks()[0]?.readyState === "live" ||
     !navigator.mediaDevices?.getUserMedia

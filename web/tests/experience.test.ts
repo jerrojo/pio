@@ -134,3 +134,30 @@ test("words that already came through alone are not practised again, and a mostl
   assert.deepEqual(toDrill(lost, "Du bist total mein Typ.", null, first), lost);
   assert.deepEqual(toDrill(["Hallo."], "Hallo.", null, first), []);
 });
+
+test("a pause the learner asked for is not described as Pío waiting, and one word is never spoken of as several", () => {
+  const asked = sessionCopy({ phase: "idle", paused: true, stopped: true });
+  assert.equal(asked.title, "En pausa");
+  assert.doesNotMatch(asked.description, /esperando/);
+  assert.equal(sessionCopy({ phase: "idle", paused: true }).title, "Aquí sigo");
+  const whole = sessionCopy({
+    phase: "speaking",
+    outcome: "practice",
+    whole: true,
+  });
+  assert.doesNotMatch(whole.title + whole.description, /\blas\b|cada palabra/);
+  // The advice about a missed word stays in sight while the learner tries.
+  assert.match(
+    sessionCopy({
+      phase: "listening",
+      drill: {
+        word: "Kaffee",
+        at: 1,
+        total: 1,
+        again: true,
+        hint: "La «ff» es corta.",
+      },
+    }).description,
+    /La «ff» es corta\./,
+  );
+});

@@ -125,6 +125,7 @@ export function Pio() {
     [notice, setNotice] = useState(""),
     // The session stopped listening and waits for a tap.
     [paused, setPaused] = useState(false),
+    [stopped, setStopped] = useState(false),
     // The last attempt was not heard; the phrase on screen is unchanged.
     [missed, setMissed] = useState(false),
     // Failed attempts in a row at the phrase on screen.
@@ -318,10 +319,11 @@ export function Pio() {
   }
   // Stop everything and say so: Pío never looks like it is listening when the
   // microphone is off.
-  function pause() {
+  function pause(byLearner = false) {
     cancel();
     releaseMic();
     setPaused(true);
+    setStopped(byLearner);
   }
   const pauseRef = useRef(pause);
   pauseRef.current = pause;
@@ -975,11 +977,14 @@ export function Pio() {
                 ? 0.45
                 : sentence === "open" && listener.alive
                   ? drill.current
-                    ? 1.4
+                    ? 1.2
                     : 2.2
-                  : reference.current
-                    ? 1.4
-                    : 1.1))
+                  : // One word on its own is over quickly.
+                    drill.current
+                    ? 0.9
+                    : reference.current
+                      ? 1.4
+                      : 1.1))
         )
           manualStop.current();
       });
@@ -1052,6 +1057,7 @@ export function Pio() {
             phase,
             outcome: result?.outcome,
             paused,
+            stopped,
             missed,
             target: preferences
               ? names[preferences.target].split(" ·")[0].toLocaleLowerCase()
@@ -1196,42 +1202,10 @@ export function Pio() {
                 ))}
               </div>
             )}
-            {ready && !active && !result && !issue && (
+            {ready && !active && !result && !issue && !paused && (
               <p className="example">
                 Prueba con: <q>{examples[new Date().getDay()]}</q>
               </p>
-            )}
-            {ready &&
-              paused &&
-              !active &&
-              !issue &&
-              (today > 0 || hard.length > 0) && (
-                <div className="recap">
-                  <h2>Tu práctica de hoy</h2>
-                  <p>
-                    <strong>{today}</strong>{" "}
-                    {today === 1 ? "frase lograda" : "frases logradas"}
-                    {days > 1 && <> · {days} días seguidos</>}
-                  </p>
-                  {hard.length > 0 && (
-                    <p lang={preferences.target}>
-                      <span lang="es">Te costaron: </span>
-                      {hard.slice(0, 6).join(", ")}
-                    </p>
-                  )}
-                </div>
-              )}
-            {ready && !active && !issue && next && (!result || paused) && (
-              <div className="revisit">
-                <p>
-                  Te quedó pendiente:{" "}
-                  <q lang={preferences.target}>{next.text}</q>
-                </p>
-                <button className="secondary" onClick={() => revisit(next)}>
-                  <Icon name="refresh" size={18} />
-                  Repasarla
-                </button>
-              </div>
             )}
             {result?.heard && (
               <div className="bubble mine">
@@ -1265,6 +1239,42 @@ export function Pio() {
                 onPlay={listen}
                 current={step?.word}
               />
+            )}
+            {ready &&
+              paused &&
+              !active &&
+              !issue &&
+              (today > 0 || hard.length > 0) && (
+                <div className="recap">
+                  <h2>Tu práctica de hoy</h2>
+                  {today > 0 && (
+                    <p>
+                      <strong>{today}</strong>{" "}
+                      {today === 1 ? "frase lograda" : "frases logradas"}
+                      {days > 1 && <> · {days} días seguidos</>}
+                    </p>
+                  )}
+                  {hard.length > 0 && (
+                    <p lang={preferences.target}>
+                      <span lang="es">
+                        {hard.length === 1 ? "Te costó: " : "Te costaron: "}
+                      </span>
+                      {hard.slice(0, 6).join(", ")}
+                    </p>
+                  )}
+                </div>
+              )}
+            {ready && !active && !issue && next && (!result || paused) && (
+              <div className="revisit">
+                <p>
+                  Te quedó pendiente:{" "}
+                  <q lang={preferences.target}>{next.text}</q>
+                </p>
+                <button className="secondary" onClick={() => revisit(next)}>
+                  <Icon name="refresh" size={18} />
+                  Repasarla
+                </button>
+              </div>
             )}
             {issue && recovery && ready && !active && (
               <div className="connection-action" role="alert">
@@ -1314,7 +1324,7 @@ export function Pio() {
                     if (phase === "listening") manualStop.current();
                     else if (phase === "permission") return;
                     else if (phase === "thinking" || phase === "waking")
-                      pause();
+                      pause(true);
                     // Idle starts a session; while Pío talks, one tap
                     // interrupts and listens straight away.
                     else void start();
@@ -1336,7 +1346,7 @@ export function Pio() {
                 )}
                 <div className="dock-actions">
                   {active && phase !== "permission" && (
-                    <button className="text-button" onClick={pause}>
+                    <button className="text-button" onClick={() => pause(true)}>
                       <Icon name="pause" size={18} />
                       Pausar
                     </button>

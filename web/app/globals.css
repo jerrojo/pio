@@ -166,13 +166,6 @@ p {
   font-weight: 800;
   color: var(--mint);
 }
-.session-meta {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 8px;
-}
 .chip {
   display: inline-flex;
   align-items: center;
@@ -184,15 +177,6 @@ p {
   color: var(--muted);
   font-size: 0.875rem;
   font-weight: 600;
-}
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--warn);
-}
-.chip.ready .status-dot {
-  background: var(--mint);
 }
 .chip.progress.earned {
   color: var(--chick);
@@ -526,23 +510,6 @@ p {
   margin: 8px auto 0;
   max-width: 440px;
 }
-.recording-time {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--recording);
-  font-variant-numeric: tabular-nums;
-}
-.rec-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--recording);
-  animation: breathe 1.2s ease-in-out infinite;
-}
 .example {
   margin-top: 16px;
   color: var(--muted);
@@ -758,13 +725,6 @@ p {
 .connection-action .access-form {
   width: min(100%, 360px);
 }
-.clarify {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  margin-top: 16px;
-  flex-wrap: wrap;
-}
 
 /* Primary action, anchored within thumb reach */
 .dock {
@@ -798,33 +758,14 @@ p {
 .mic-button:hover {
   background: var(--mint-hi);
 }
-.mic-icon {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--mint-ink);
-  color: var(--mint);
-}
 .mic-button.listening {
   background: var(--recording);
   color: var(--coral-ink);
-}
-.mic-button.listening .mic-icon {
-  background: var(--coral-ink);
-  color: var(--recording);
-  animation: breathe 1.2s ease-in-out infinite;
 }
 .mic-button:is(.permission, .thinking, .preparing-voice, .speaking) {
   background: var(--panel-raised);
   color: var(--ink);
   box-shadow: inset 0 0 0 1px var(--control);
-}
-.mic-button:is(.permission, .thinking, .preparing-voice, .speaking) .mic-icon {
-  background: var(--ink);
-  color: var(--bg);
 }
 .text-button {
   display: inline-flex;
@@ -840,9 +781,6 @@ p {
 }
 .text-button:hover {
   color: var(--ink);
-}
-.new-idea {
-  margin-top: 8px;
 }
 .help-details {
   margin-top: 24px;
@@ -873,15 +811,6 @@ p {
 }
 .help-details li + li {
   margin-top: 8px;
-}
-footer {
-  padding: 24px 0 calc(24px + env(safe-area-inset-bottom));
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 8px 24px;
-  color: var(--muted);
-  font-size: 0.875rem;
 }
 
 /* Welcome */
@@ -1540,9 +1469,6 @@ h1 {
   font-size: 0.875rem;
   color: var(--muted);
 }
-.new-idea {
-  margin-top: 0;
-}
 .help-details {
   margin-top: 16px;
   background: none;
@@ -1803,4 +1729,63 @@ select {
   .revisit {
     animation: none;
   }
+}
+
+/* With a phrase on screen, Pío and what it says sit side by side in one
+   compact row, so the phrase and the microphone fit on a phone without
+   scrolling. The microphone stays within reach at the bottom. */
+.conversation.has-phrase {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: center;
+}
+.conversation.has-phrase > * {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.conversation.has-phrase > .pio-orb {
+  --size: 88px;
+  grid-column: 1;
+  margin: 0;
+}
+.conversation.has-phrase > .session-copy {
+  grid-column: 2;
+  text-align: left;
+}
+.conversation.has-phrase .session-copy h1 {
+  font-size: clamp(1.35rem, 5.6vw, 1.7rem);
+}
+.conversation.has-phrase .session-copy p {
+  margin-top: 2px;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+.conversation.has-phrase .bubble.mine {
+  justify-self: end;
+  margin-top: 12px;
+}
+.conversation.has-phrase .phrase-card {
+  margin-top: 12px;
+}
+.conversation.has-phrase .celebrate {
+  top: 44px;
+  left: 44px;
+}
+.conversation.has-phrase .dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-top: 4px;
+  padding-top: 18px;
+  background: linear-gradient(to top, var(--bg) 80%, transparent);
+}
+.conversation.has-phrase .mic-button {
+  width: 76px;
+  height: 76px;
+  min-height: 76px;
+}
+/* The label never sits under the button's pulsing ring. */
+.dock-label {
+  margin-top: 8px;
 }

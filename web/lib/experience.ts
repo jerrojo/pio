@@ -99,6 +99,8 @@ export type Moment = {
   outcome?: Result["outcome"];
   // The session stopped listening by itself or was paused by the learner.
   paused?: boolean;
+  // The learner paused it on purpose, so Pío did not "wait" for anything.
+  stopped?: boolean;
   // The last attempt could not be heard; the phrase on screen is unchanged.
   missed?: boolean;
   // Name of the language being learned, in lower case ("alemán").
@@ -147,11 +149,12 @@ export function sessionCopy(m: Moment): { title: string; description: string } {
     if (m.phase === "listening")
       return {
         title: m.missed ? "No te alcancé a oír" : "Te escucho",
-        description: `Di solo: «${word}».`,
+        // The advice stays in sight while the learner tries again.
+        description: `Di solo: «${word}».${again ? care : ""}`,
       };
     return m.paused
       ? {
-          title: "Aquí sigo",
+          title: m.stopped ? "En pausa" : "Aquí sigo",
           description: `Toca el micrófono y di: «${word}».`,
         }
       : { title: `«${word}»`, description: `Ahora dila tú.${place}` };
@@ -159,13 +162,13 @@ export function sessionCopy(m: Moment): { title: string; description: string } {
   if (m.whole && m.outcome === "practice" && !m.paused) {
     if (m.phase === "preparing-voice" || m.phase === "speaking")
       return {
-        title: "¡Ya las tienes!",
+        title: "¡Eso es!",
         description: "Escucha la frase completa una vez más.",
       };
     if (m.phase !== "listening")
       return {
         title: "¡Ahora completa!",
-        description: "Ya dijiste bien cada palabra. Dila toda junta.",
+        description: "Ya te salió por partes. Dila toda junta.",
       };
   }
   if (m.phase === "preparing-voice" || m.phase === "speaking") {
@@ -212,6 +215,13 @@ export function sessionCopy(m: Moment): { title: string; description: string } {
     return {
       title: "¡Bien dicho!",
       description: "Se te entendió todo. Vamos por otra.",
+    };
+  if (m.paused && m.stopped)
+    return {
+      title: "En pausa",
+      description: phrase
+        ? "Toca el micrófono para seguir con tu frase."
+        : "Toca el micrófono cuando quieras seguir.",
     };
   if (m.paused)
     return {

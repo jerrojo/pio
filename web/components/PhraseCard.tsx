@@ -26,7 +26,9 @@ export function PhraseCard({
   const missing = result.evidence?.words.some((w) => w.error === "Omission");
   return (
     <article
-      className={`phrase-card ${result.outcome}`}
+      // "conversation" is also the name of the page section, whose spacing
+      // must not reach this card.
+      className={`phrase-card ${result.outcome === "conversation" ? "reply" : result.outcome}`}
       aria-label="Frase de práctica"
     >
       <div className="phrase-top">
@@ -67,7 +69,9 @@ export function PhraseCard({
               ? "Te faltó decir:"
               : result.evidence?.source === "azure-acoustic"
                 ? "Hay que pulir:"
-                : "No se entendieron bien:"}
+                : result.focus.length === 1
+                  ? "No se entendió bien:"
+                  : "No se entendieron bien:"}
           </span>
           {result.focus.map((word, index) => (
             <button

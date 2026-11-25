@@ -41,6 +41,7 @@ import {
   sessionCopy,
   type Phase,
   type Status,
+  toDrill,
 } from "../lib/experience";
 // Everything is said by Pío, in the first person, without jargon.
 const errorText: Record<string, string> = {
@@ -201,6 +202,15 @@ export function Pio() {
   }
   // Attempts at the current phrase of which nothing was understood.
   const blank = useRef(0);
+  // Words of the phrase on turn that already came through alone: saying them
+  // alone again teaches nothing, so they are not practised twice.
+  const known = useRef<{ text: string; words: Set<string> }>({
+    text: "",
+    words: new Set(),
+  });
+  // How the last recording began: how long the microphone took to open and
+  // when the voice started. Numbers only, to find cut-off beginnings.
+  const micStat = useRef("");
   // Turns Pío started by itself since the learner last touched the screen or
   // got a phrase right. A room with a TV on must not keep a session going.
   const unattended = useRef(0);
@@ -586,6 +596,9 @@ export function Pio() {
     if (passed) {
       buzz(12);
       chime([880]);
+      if (known.current.text !== phrase.text)
+        known.current = { text: phrase.text, words: new Set() };
+      known.current.words.add(d.words[d.at]);
     }
     if (passed || d.tries >= 2) {
       d.at++;
@@ -632,6 +645,7 @@ export function Pio() {
         await fetch("/api/turn", {
           method: "POST",
           body: form,
+          headers: micStat.current ? { "x-pio-mic": micStat.current } : {},
           signal: anySignal(40000, control.signal),
         }),
       );
@@ -653,6 +667,7 @@ export function Pio() {
       }
       const next = got.result;
       if (!next || token !== epoch.current) return;
+      let again: string[] = [];
       retained.current = null;
       noteSounds(next);
       if (!word && next.outcome !== "practice") blank.current = 0;
@@ -667,20 +682,19 @@ export function Pio() {
         await nextWord(token, next.outcome === "accepted");
       } else if (
         next.outcome === "practice" &&
-        next.weak?.length &&
-        next.text.trim().split(/\s+/).length > 1 &&
-        // Nothing of the phrase came through: that can be a cut-off start or
-        // a noise, so the first time Pío just says it again. Only a second
-        // miss like that goes through every word.
-        !(
-          next.weak.length >= next.text.trim().split(/\s+/).length &&
-          blank.current++ === 0
-        )
+        (again = toDrill(
+          next.weak ?? [],
+          next.text,
+          known.current.text === next.text ? known.current.words : null,
+          // Most of the phrase did not come through: that can be a cut-off
+          // start or a noise, so the first time Pío just says it again.
+          () => blank.current++ === 0,
+        )).length
       ) {
         // The phrase did not come through: work on exactly the words that
         // failed, one at a time, before trying the whole phrase again.
         misses.current = 0;
-        drill.current = { words: next.weak, at: 0, tries: 0 };
+        drill.current = { words: again, at: 0, tries: 0 };
         setWhole(false);
         await sayWord(token);
       } else if (spoken(next)) {
@@ -868,7 +882,10 @@ export function Pio() {
       previous = 0,
       floor = noiseFloor.current,
       lastChunk = performance.now(),
-      chunks = 0;
+      chunks = 0,
+      onset = -1;
+    const asked = performance.now();
+    micStat.current = "";
     manualStop.current = () => {
       if (!stopping) {
         stopping = true;
@@ -890,7 +907,12 @@ export function Pio() {
       await capture.start((rms, time) => {
         if (token !== epoch.current || stopping) return;
         lastChunk = performance.now();
+        if (!chunks) micStat.current = `open=${Math.round(lastChunk - asked)}`;
         chunks++;
+        if (onset < 0 && rms > Math.max(0.01, floor * 3)) {
+          onset = time;
+          micStat.current += `;onset=${time.toFixed(2)}`;
+        }
         granted.current = true;
         // Only now is Pío really listening.
         if (live.current !== "listening") go("listening");

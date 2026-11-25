@@ -92,6 +92,10 @@ export async function POST(request: Request) {
           ? "android"
           : "desktop",
       JSON.stringify(heard.heard ?? ""),
+      // How the recording began, as the page measured it.
+      (request.headers.get("x-pio-mic") || "")
+        .replace(/[^\w.;=-]/g, "")
+        .slice(0, 40),
     );
     // How each word of the phrase came through, as numbers only (x = missing),
     // so the grading can be tuned on real attempts without keeping any speech.

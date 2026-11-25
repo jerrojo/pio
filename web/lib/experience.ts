@@ -267,3 +267,18 @@ export const examples = [
   "No entiendo, ¿puedes repetirlo?",
   "Buenos días, ¿cómo estás?",
 ];
+
+// Which words to practise one at a time after a phrase did not come through.
+// Empty means: just say the phrase again.
+export function toDrill(
+  weak: string[],
+  phrase: string,
+  known: Set<string> | null,
+  firstBlank: () => boolean,
+) {
+  const size = phrase.trim().split(/\s+/).length;
+  if (size < 2 || !weak.length) return [];
+  // More than half missing is closer to "nothing was heard" than to a slip.
+  if (weak.length * 2 > size && firstBlank()) return [];
+  return weak.filter((word) => !known?.has(word));
+}

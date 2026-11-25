@@ -7,6 +7,7 @@ import {
   microphoneLabel,
   mascotMood,
   connectionCopy,
+  toDrill,
   type Status,
 } from "../lib/experience.ts";
 
@@ -111,4 +112,25 @@ test("Pío's gesture follows the live phase and never celebrates or invites spee
     assert.ok(connectionCopy[connection].title);
     assert.ok(connectionCopy[connection].description);
   }
+});
+
+test("words that already came through alone are not practised again, and a mostly lost phrase is first just said again", () => {
+  const phrase = "Na dann, guten Morgen.";
+  let blanks = 0;
+  const first = () => blanks++ === 0;
+  // The loop from a real session: "Na" passed alone, then failed in the phrase.
+  assert.deepEqual(toDrill(["Na"], phrase, null, first), ["Na"]);
+  assert.deepEqual(toDrill(["Na", "dann"], phrase, new Set(["Na"]), first), [
+    "dann",
+  ]);
+  assert.deepEqual(
+    toDrill(["Na", "dann"], phrase, new Set(["Na", "dann"]), first),
+    [],
+  );
+  assert.equal(blanks, 0);
+  // Four of five words missing: said again once, practised the second time.
+  const lost = ["Du", "bist", "total", "Typ."];
+  assert.deepEqual(toDrill(lost, "Du bist total mein Typ.", null, first), []);
+  assert.deepEqual(toDrill(lost, "Du bist total mein Typ.", null, first), lost);
+  assert.deepEqual(toDrill(["Hallo."], "Hallo.", null, first), []);
 });

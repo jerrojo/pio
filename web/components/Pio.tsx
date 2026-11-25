@@ -22,7 +22,7 @@ import {
   type Result,
   type Turn,
 } from "../lib/domain";
-import { Recorder, releaseMic } from "../lib/recorder";
+import { Recorder, releaseMic, warmMic } from "../lib/recorder";
 import { Ear } from "../lib/ear";
 import { anySignal } from "../lib/signal";
 import { readTurn } from "../lib/turn-reply";
@@ -469,6 +469,7 @@ export function Pio() {
         player.onerror =
         player.onpause =
         player.onplaying =
+        player.ontimeupdate =
           null;
       player.src = audioUrl.current;
       audio.current = player;
@@ -489,8 +490,27 @@ export function Pio() {
       };
       // Headphones pulled out, a call, the lock screen: the voice was stopped
       // from outside, so wait for the learner instead of hanging in "speaking".
+      // Near the end of the phrase the microphone starts opening, so it is
+      // already listening when the learner answers and no first word is lost.
+      let warmed = false;
+      const left = () =>
+        Number.isFinite(player.duration)
+          ? (player.duration - player.currentTime) / (player.playbackRate || 1)
+          : Infinity;
+      player.ontimeupdate = () => {
+        if (warmed || !resume || !granted.current || !mine()) return;
+        if (left() > 0.8) return;
+        warmed = true;
+        warmMic();
+      };
       player.onpause = () => {
-        if (mine() && !player.ended) pause();
+        if (!mine() || player.ended) return;
+        // A phone may stop the last instant of the voice as the microphone
+        // opens: that is the phrase ending, not an interruption.
+        if (warmed && left() < 1.2) {
+          audio.current = null;
+          done(token, resume);
+        } else pause();
       };
       player.onerror = () => {
         if (!mine()) return;

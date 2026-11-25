@@ -19,6 +19,39 @@ let mic: MediaStream | null = null,
 const keeps = () =>
   !/iPad|iPhone|iPod/.test(navigator.userAgent) &&
   !(navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const wanted = {
+  audio: {
+    channelCount: 1,
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+  },
+  video: false,
+};
+// Opening the microphone takes long enough to lose the first word of someone
+// who answers at once. So it is asked for while Pío is still finishing its
+// phrase, and is already open when the learner starts.
+let warming: Promise<void> | null = null;
+export function warmMic() {
+  if (
+    warming ||
+    mic?.getAudioTracks()[0]?.readyState === "live" ||
+    !navigator.mediaDevices?.getUserMedia
+  )
+    return;
+  warming = navigator.mediaDevices
+    .getUserMedia(wanted)
+    .then((stream) => {
+      releaseMic();
+      mic = stream;
+      // Never left open if no turn comes to use it.
+      idle = setTimeout(releaseMic, keeps() ? 30000 : 4000);
+    })
+    .catch(() => {})
+    .finally(() => {
+      warming = null;
+    });
+}
 export function releaseMic() {
   if (idle) clearTimeout(idle);
   idle = null;
@@ -55,20 +88,13 @@ export class Recorder {
     }
     try {
       const module = prepareCapture(this.context);
+      if (warming) await warming;
       if (idle) clearTimeout(idle);
       idle = null;
       const open = mic?.getAudioTracks()[0]?.readyState === "live";
       const stream = open
         ? mic!
-        : await navigator.mediaDevices.getUserMedia({
-            audio: {
-              channelCount: 1,
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-            },
-            video: false,
-          });
+        : await navigator.mediaDevices.getUserMedia(wanted);
       if (!open) {
         releaseMic();
         if (keeps()) mic = stream;
@@ -165,11 +191,12 @@ export class Recorder {
     try {
       this.node?.port.postMessage("stop");
     } catch {}
-    if (this.stream && this.stream === mic) {
+    if (this.stream && this.stream === mic && keeps()) {
       // Kept for the next turn, but never left open if none comes.
       if (idle) clearTimeout(idle);
       idle = setTimeout(releaseMic, 30000);
-    } else this.stream?.getTracks().forEach((t) => t.stop());
+    } else if (this.stream && this.stream === mic) releaseMic();
+    else this.stream?.getTracks().forEach((t) => t.stop());
     this.stream = null;
     this.source?.disconnect();
     this.node?.disconnect();

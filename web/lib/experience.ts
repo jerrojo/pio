@@ -121,6 +121,8 @@ export type Moment = {
     again: boolean;
     // Advice about the sound to fix, as a short sentence, when there is one.
     hint?: string;
+    // What the word means in the learner's own language, when known.
+    means?: string;
   } | null;
   // Every word has just been practised: time for the whole phrase.
   whole?: boolean;
@@ -138,19 +140,22 @@ export function sessionCopy(m: Moment): { title: string; description: string } {
   if (m.phase === "thinking")
     return { title: "Déjame pensar…", description: "Un segundito." };
   if (m.drill) {
-    const { word, at, total, again, hint } = m.drill;
+    const { at, total, again, hint, means } = m.drill;
+    const word = m.drill.word,
+      // The word and, in the learner's language, what it is.
+      named = means ? `«${word}» (${means})` : `«${word}»`;
     const care = hint ? ` ${hint}` : "";
     const place = total > 1 ? ` Palabra ${at} de ${total}.` : "";
     if (m.phase === "preparing-voice" || m.phase === "speaking")
       return {
         title: again ? "Otra vez, despacito" : "Vamos por partes",
-        description: `Escucha: «${word}».${again ? care : place}`,
+        description: `Escucha: ${named}.${again ? care : place}`,
       };
     if (m.phase === "listening")
       return {
         title: m.missed ? "No te alcancé a oír" : "Te escucho",
         // The advice stays in sight while the learner tries again.
-        description: `Di solo: «${word}».${again ? care : ""}`,
+        description: `Di solo: ${named}.${again ? care : ""}`,
       };
     return m.paused
       ? {
@@ -291,4 +296,20 @@ export function toDrill(
   // More than half missing is closer to "nothing was heard" than to a slip.
   if (weak.length * 2 > size && firstBlank()) return [];
   return weak.filter((word) => !known?.has(word));
+}
+
+// The meaning of one word of a phrase, from the word-by-word meanings.
+export function meaningOf(
+  phrase: string | undefined,
+  meanings: string[] | undefined,
+  word: string,
+) {
+  if (!phrase || !meanings) return undefined;
+  const clean = (w: string) =>
+    w.toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  const at = phrase
+    .trim()
+    .split(/\s+/)
+    .findIndex((w) => clean(w) === clean(word));
+  return at < 0 ? undefined : meanings[at];
 }

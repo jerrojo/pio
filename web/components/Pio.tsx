@@ -42,6 +42,7 @@ import {
   type Phase,
   type Status,
   toDrill,
+  meaningOf,
 } from "../lib/experience";
 // Everything is said by Pío, in the first person, without jargon.
 const errorText: Record<string, string> = {
@@ -126,6 +127,8 @@ export function Pio() {
     // The session stopped listening and waits for a tap.
     [paused, setPaused] = useState(false),
     [stopped, setStopped] = useState(false),
+    // What each word of a phrase means, by phrase, as it arrives.
+    [glosses, setGlosses] = useState<Record<string, string[]>>({}),
     // The last attempt was not heard; the phrase on screen is unchanged.
     [missed, setMissed] = useState(false),
     // Failed attempts in a row at the phrase on screen.
@@ -541,6 +544,37 @@ export function Pio() {
       }
     }
   }
+  // Asks once per phrase what each of its words means. It never holds the
+  // turn up, and without an answer the phrase simply shows as before.
+  const asked = useRef(new Set<string>());
+  function explain(text: string) {
+    const proof = proofs.current.get(text);
+    if (!preferences || !text || !proof || asked.current.has(text)) return;
+    asked.current.add(text);
+    void fetch("/api/gloss", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        locale: preferences.target,
+        native: preferences.native,
+        proof,
+      }),
+      signal: anySignal(15000),
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { words?: unknown } | null) => {
+        const words = data?.words;
+        if (
+          Array.isArray(words) &&
+          words.length === text.trim().split(/\s+/).length &&
+          words.every((w) => typeof w === "string")
+        )
+          setGlosses((all) => ({ ...all, [text]: words as string[] }));
+        else asked.current.delete(text);
+      })
+      .catch(() => asked.current.delete(text));
+  }
   // Everything the session must remember about a reply is stored the moment
   // it arrives, so nothing is lost if the learner interrupts its voice.
   function keep(reply: Result) {
@@ -548,6 +582,7 @@ export function Pio() {
     setResult(reply);
     setMissed(false);
     if (reply.voice) proofs.current.set(reply.text, reply.voice);
+    explain(reply.text);
     // The phrase stays after it is said well, and Pío's own answers become
     // phrases too, so saying either again is graded, never answered.
     reference.current = reply.reference;
@@ -1068,7 +1103,14 @@ export function Pio() {
             ),
             tries,
             streak: days,
-            drill: step,
+            drill: step && {
+              ...step,
+              means: meaningOf(
+                result?.text,
+                result ? glosses[result.text] : undefined,
+                step.word,
+              ),
+            },
             whole,
           });
   // Short spoken updates for screen readers, only when something changed for
@@ -1238,6 +1280,7 @@ export function Pio() {
                 }}
                 onPlay={listen}
                 current={step?.word}
+                meanings={glosses[result.text]}
               />
             )}
             {ready &&

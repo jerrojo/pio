@@ -8,6 +8,7 @@ import {
   mascotMood,
   connectionCopy,
   toDrill,
+  meaningOf,
   type Status,
 } from "../lib/experience.ts";
 
@@ -159,5 +160,24 @@ test("a pause the learner asked for is not described as Pío waiting, and one wo
       },
     }).description,
     /La «ff» es corta\./,
+  );
+});
+
+test("a word being practised is named with what it means, taken from the phrase's word-by-word meanings", () => {
+  const phrase = "Ich möchte einen Kaffee bestellen.";
+  const meanings = ["yo", "quisiera", "un", "café", "pedir"];
+  assert.equal(meaningOf(phrase, meanings, "Kaffee"), "café");
+  assert.equal(meaningOf(phrase, meanings, "bestellen"), "pedir");
+  assert.equal(meaningOf(phrase, meanings, "Tee"), undefined);
+  assert.equal(meaningOf(phrase, undefined, "Kaffee"), undefined);
+  const drill = { word: "Kaffee", at: 1, total: 1, again: false };
+  assert.match(
+    sessionCopy({ phase: "speaking", drill: { ...drill, means: "café" } })
+      .description,
+    /«Kaffee» \(café\)/,
+  );
+  assert.match(
+    sessionCopy({ phase: "listening", drill }).description,
+    /Di solo: «Kaffee»\./,
   );
 });

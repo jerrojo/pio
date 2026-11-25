@@ -1789,3 +1789,29 @@ select {
 .dock-label {
   margin-top: 8px;
 }
+
+/* Under each word of the phrase, what it means in the learner's language. */
+.phrase-card > p.glossed {
+  line-height: 1.2;
+}
+.phrase-card .word {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: top;
+  margin-bottom: 8px;
+}
+.phrase-card .word small {
+  margin-top: 2px;
+  color: var(--muted);
+  font:
+    600 0.8rem/1.2 var(--font-text),
+    sans-serif;
+  letter-spacing: 0;
+  animation: rise 0.3s var(--spring);
+}
+@media (prefers-reduced-motion: reduce) {
+  .phrase-card .word small {
+    animation: none;
+  }
+}

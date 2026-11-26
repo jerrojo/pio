@@ -820,7 +820,7 @@ const scenarios = {
       await sleep(250);
       await expect(
         (await js(`document.querySelector('.welcome h1').textContent`)) ===
-          `${t.welcome.hello} Pío`,
+          `${t.welcome.hello} pío`,
         `greeting switches to ${native}`,
         native,
       );

@@ -63,7 +63,7 @@ export function PhraseCard({
           {accepted
             ? copy.card.wellSaid
             : result.outcome === "conversation"
-              ? "Pío"
+              ? "pío"
               : copy.card.yourPhrase(language)}
         </span>
         {score !== null && (

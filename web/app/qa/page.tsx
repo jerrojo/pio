@@ -25,9 +25,9 @@ export default async function QA({
       </>
     );
   const cases = [
-    { title: "Pío 320px", width: 320, src: "/" },
-    { title: "Pío 390px", width: 390, src: "/" },
-    { title: "Pío 768px", width: 768, src: "/" },
+    { title: "pío 320px", width: 320, src: "/" },
+    { title: "pío 390px", width: 390, src: "/" },
+    { title: "pío 768px", width: 768, src: "/" },
     { title: "Texto 200% a 320px", width: 320, src: "/qa?view=app&scale=200" },
     { title: "Frase larga 320px", width: 320, src: "/qa?view=practice" },
     {

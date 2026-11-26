@@ -16,19 +16,19 @@ const text = Nunito({
   display: "swap",
 });
 export const metadata: Metadata = {
-  title: "Pío · Tu voz, un nuevo idioma",
+  title: "pío · Tu voz, un nuevo idioma",
   description:
     "Practica idiomas hablando. Traduce, repite y conversa a tu ritmo.",
   metadataBase: new URL("https://pio.today"),
   // What a shared link shows in a chat.
   openGraph: {
-    title: "Pío · Tu voz, un nuevo idioma",
+    title: "pío · Tu voz, un nuevo idioma",
     description: "Practica idiomas hablando, una frase a la vez.",
     url: "/",
-    siteName: "Pío",
+    siteName: "pío",
     locale: "es_MX",
     type: "website",
-    images: [{ url: "/pio/share.jpg", width: 1200, height: 630, alt: "Pío" }],
+    images: [{ url: "/pio/share.jpg", width: 1200, height: 630, alt: "pío" }],
   },
   twitter: { card: "summary_large_image", images: ["/pio/share.jpg"] },
   robots: { index: false, follow: false },
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   // Opens full screen, like an app, when added to the home screen.
   appleWebApp: {
     capable: true,
-    title: "Pío",
+    title: "pío",
     statusBarStyle: "black-translucent",
   },
 };

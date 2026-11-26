@@ -4,10 +4,10 @@ import os, subprocess
 here = os.path.dirname(os.path.abspath(__file__))
 W, H = 1320, 2868
 panels = [
-    ("1-learn", "Learn a language<br>by <em>speaking</em>", "Say it your way. Pío shows you how.", "inicio", "saluda", "right"),
-    ("2-listen", "Just talk.<br><em>Pío listens.</em>", "Tap once. No typing, no menus.", "escucha", "escucha", "left"),
+    ("1-learn", "Learn a language<br>by <em>speaking</em>", "Say it your way. pío shows you how.", "inicio", "saluda", "right"),
+    ("2-listen", "Just talk.<br><em>pío listens.</em>", "Tap once. No typing, no menus.", "escucha", "escucha", "left"),
     ("3-phrase", "Hear it.<br><em>Repeat it.</em>", "Every word comes with its meaning.", "frase", "animo", "right"),
-    ("4-parts", "Stuck on a word?<br><em>Practice only that.</em>", "Pío slows down and gives you a tip.", "partes", "escucha", "left"),
+    ("4-parts", "Stuck on a word?<br><em>Practice only that.</em>", "pío slows down and gives you a tip.", "partes", "escucha", "left"),
     ("5-star", "Nail the phrase,<br><em>earn your star</em>", "See how clearly you were understood.", "logro", "celebra", "right"),
     ("6-free", "6 languages.<br><em>Zero pressure.</em>", "No account. Spanish, English, German, French, Italian, Portuguese.", "inicio", "viajero", "left"),
 ]

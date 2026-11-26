@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 export const metadata: Metadata = {
-  title: "Pío · Privacidad",
-  description: "Qué hace Pío con tu voz y tus datos.",
+  title: "pío · Privacidad",
+  description: "Qué hace pío con tu voz y tus datos.",
   robots: { index: true, follow: true },
 };
 // The privacy policy, in plain words, in Spanish and in English. It describes
@@ -12,12 +12,12 @@ export default function Privacy() {
     <div className="app-shell">
       <main className="policy">
         <p>
-          <Link href="/">← Pío</Link>
+          <Link href="/">← pío</Link>
         </p>
         <h1>Privacidad</h1>
         <p className="policy-date">Vigente desde el 25 de noviembre de 2026.</p>
         <p>
-          Pío es una app para practicar idiomas hablando. No pide cuenta, no
+          pío es una app para practicar idiomas hablando. No pide cuenta, no
           muestra anuncios y no te rastrea.
         </p>
         <h2>Tu voz</h2>
@@ -30,7 +30,7 @@ export default function Privacy() {
           <li>
             El audio va a ElevenLabs, que lo convierte en texto y revisa qué tan
             claro se entendió cada palabra. ElevenLabs también genera la voz de
-            Pío.
+            pío.
           </li>
           <li>
             El texto, y el audio de una palabra suelta que no salió, van a
@@ -38,7 +38,7 @@ export default function Privacy() {
           </li>
         </ul>
         <p>
-          Pío no guarda tus grabaciones ni las asocia a tu identidad. Esos
+          pío no guarda tus grabaciones ni las asocia a tu identidad. Esos
           proveedores las procesan en nuestro nombre y bajo sus propias
           políticas.
         </p>
@@ -58,12 +58,12 @@ export default function Privacy() {
         <h2>Lo que no hacemos</h2>
         <p>
           No vendemos datos, no usamos publicidad ni herramientas de
-          seguimiento, y no usamos tu voz para identificarte. Pío no está
+          seguimiento, y no usamos tu voz para identificarte. pío no está
           dirigido a menores de 13 años.
         </p>
         <h2>Cambios</h2>
         <p>
-          Si cambia lo que Pío hace con tus datos, esta página cambia primero y
+          Si cambia lo que pío hace con tus datos, esta página cambia primero y
           se actualiza la fecha de arriba.
         </p>
 
@@ -71,7 +71,7 @@ export default function Privacy() {
         <div lang="en">
           <p className="policy-date">Effective 25 November 2026.</p>
           <p>
-            Pío is an app for practising languages by speaking. It asks for no
+            pío is an app for practising languages by speaking. It asks for no
             account, shows no ads and does not track you.
           </p>
           <h2>Your voice</h2>
@@ -84,7 +84,7 @@ export default function Privacy() {
             <li>
               The audio goes to ElevenLabs, which turns it into text and checks
               how clearly each word came through. ElevenLabs also generates
-              Pío&apos;s voice.
+              pío&apos;s voice.
             </li>
             <li>
               The text, and the audio of a single word that did not come out, go
@@ -92,7 +92,7 @@ export default function Privacy() {
             </li>
           </ul>
           <p>
-            Pío does not keep your recordings or link them to your identity.
+            pío does not keep your recordings or link them to your identity.
             Those providers process them on our behalf and under their own
             policies.
           </p>
@@ -112,11 +112,11 @@ export default function Privacy() {
           <h2>What we do not do</h2>
           <p>
             We do not sell data, use advertising or tracking tools, or use your
-            voice to identify you. Pío is not directed at children under 13.
+            voice to identify you. pío is not directed at children under 13.
           </p>
           <h2>Changes</h2>
           <p>
-            If what Pío does with your data changes, this page changes first and
+            If what pío does with your data changes, this page changes first and
             the date above is updated.
           </p>
         </div>

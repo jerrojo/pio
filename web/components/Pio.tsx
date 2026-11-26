@@ -1254,7 +1254,7 @@ export function Pio() {
               </div>
             </div>
             <h1>
-              {t.welcome.hello} <em>Pío</em>
+              {t.welcome.hello} <em>pío</em>
             </h1>
             <p className="intro">{t.welcome.intro}</p>
             <ol className="steps">

@@ -21,28 +21,28 @@ Todo lo que pide App Store Connect, listo para copiar. Los límites de Apple van
 
 ## Español (México)
 
-**Nombre (30):** Pío: aprende hablando
+**Nombre (30):** pío: aprende hablando
 
 **Subtítulo (30):** Un idioma, una frase a la vez
 
 **Texto promocional (170):**
-Di lo que quieras en tu idioma. Pío te enseña cómo se dice, te escucha repetirlo y te ayuda con la palabra que no salió. Sin cuenta y sin presión.
+Di lo que quieras en tu idioma. pío te enseña cómo se dice, te escucha repetirlo y te ayuda con la palabra que no salió. Sin cuenta y sin presión.
 
 **Descripción (4000):**
-Pío es un pajarito que te ayuda a hablar otro idioma, una frase a la vez.
+pío es un pajarito que te ayuda a hablar otro idioma, una frase a la vez.
 
-Tú dices algo en tu idioma, lo que de verdad quieres decir. Pío te lo dice en el idioma que estás aprendiendo, te escucha repetirlo y te dice con calma qué palabra no se entendió. Esa palabra la practican juntos, y luego la frase completa.
+Tú dices algo en tu idioma, lo que de verdad quieres decir. pío te lo dice en el idioma que estás aprendiendo, te escucha repetirlo y te dice con calma qué palabra no se entendió. Esa palabra la practican juntos, y luego la frase completa.
 
 CÓMO FUNCIONA
-• Toca una vez y habla. Pío escucha, contesta y vuelve a escuchar: no hay que tocar nada más.
+• Toca una vez y habla. pío escucha, contesta y vuelve a escuchar: no hay que tocar nada más.
 • Cada frase viene con su voz y con lo que significa cada palabra.
-• Si una palabra no sale, Pío la repite despacio y te da un consejo para ese sonido.
-• Si ya te animas, habla directo en el idioma que aprendes y Pío conversa contigo.
+• Si una palabra no sale, pío la repite despacio y te da un consejo para ese sonido.
+• Si ya te animas, habla directo en el idioma que aprendes y pío conversa contigo.
 • Al terminar la frase ves qué tan claro se te entendió, del 0 al 10.
 
 PENSADA PARA QUIEN LE DA PENA HABLAR
 • Sin rachas que castigan ni lecciones obligatorias.
-• Pío nunca te culpa: si no te oyó, te lo dice así.
+• pío nunca te culpa: si no te oyó, te lo dice así.
 • Tu progreso solo suma.
 
 IDIOMAS
@@ -51,40 +51,40 @@ Español, inglés, alemán, francés, italiano y portugués, en cualquier combin
 PRIVACIDAD
 • Sin cuenta, sin anuncios y sin rastreo.
 • El micrófono solo se enciende cuando tocas Hablar.
-• Tu voz se envía para entenderte y contestarte; Pío no guarda tus grabaciones.
+• Tu voz se envía para entenderte y contestarte; pío no guarda tus grabaciones.
 • Tus idiomas y tus estrellas se quedan en tu teléfono.
 
-Pío necesita conexión a internet.
+pío necesita conexión a internet.
 
 **Palabras clave (100):**
 idiomas,hablar,pronunciación,inglés,alemán,francés,italiano,portugués,traductor,voz,conversar
 
-**Novedades de esta versión:** Primera versión de Pío.
+**Novedades de esta versión:** Primera versión de pío.
 
 ## English (U.S.)
 
-**Name (30):** Pío: Learn by Speaking
+**Name (30):** pío: Learn by Speaking
 
 **Subtitle (30):** A language, phrase by phrase
 
 **Promotional text (170):**
-Say anything in your own language. Pío shows you how to say it, listens to you repeat it and helps with the word that didn't come out. No account, no pressure.
+Say anything in your own language. pío shows you how to say it, listens to you repeat it and helps with the word that didn't come out. No account, no pressure.
 
 **Description (4000):**
-Pío is a little bird that helps you speak another language, one phrase at a time.
+pío is a little bird that helps you speak another language, one phrase at a time.
 
-You say something in your own language, whatever you actually want to say. Pío says it in the language you're learning, listens to you repeat it and calmly tells you which word didn't come through. You practise that word together, then the whole phrase.
+You say something in your own language, whatever you actually want to say. pío says it in the language you're learning, listens to you repeat it and calmly tells you which word didn't come through. You practise that word together, then the whole phrase.
 
 HOW IT WORKS
-• Tap once and speak. Pío listens, answers and listens again: nothing else to tap.
+• Tap once and speak. pío listens, answers and listens again: nothing else to tap.
 • Every phrase comes with its voice and the meaning of each word.
-• When a word doesn't come out, Pío says it again slowly and gives you a tip for that sound.
-• When you're ready, speak straight in the language you're learning and Pío chats with you.
+• When a word doesn't come out, pío says it again slowly and gives you a tip for that sound.
+• When you're ready, speak straight in the language you're learning and pío chats with you.
 • After the whole phrase you see how clearly you were understood, from 0 to 10.
 
 MADE FOR PEOPLE WHO FEEL SHY SPEAKING
 • No streaks that punish you, no compulsory lessons.
-• Pío never blames you: if it didn't hear you, it says so.
+• pío never blames you: if it didn't hear you, it says so.
 • Your progress only adds up.
 
 LANGUAGES
@@ -93,15 +93,15 @@ Spanish, English, German, French, Italian and Portuguese, in any combination. Th
 PRIVACY
 • No account, no ads, no tracking.
 • The microphone only turns on when you tap Speak.
-• Your voice is sent to understand you and answer; Pío does not keep your recordings.
+• Your voice is sent to understand you and answer; pío does not keep your recordings.
 • Your languages and stars stay on your phone.
 
-Pío needs an internet connection.
+pío needs an internet connection.
 
 **Keywords (100):**
 languages,speaking,pronunciation,spanish,german,french,italian,portuguese,translator,voice,chat
 
-**What's New:** First version of Pío.
+**What's New:** First version of pío.
 
 ## Capturas
 
@@ -130,7 +130,7 @@ Esto coincide con el archivo `Pio/PrivacyInfo.xcprivacy` de la app y con https:/
 
 ## Notas para la revisión de Apple
 
-> Pío needs no account or sign-in. To try it: choose your language and the one to practise, allow the microphone, tap the round button once and say a short sentence in your own language (for example "I would like a coffee, please"). Pío answers aloud with the sentence in the other language, listens to you repeat it, and helps with any word that was not understood.
+> pío needs no account or sign-in. To try it: choose your language and the one to practise, allow the microphone, tap the round button once and say a short sentence in your own language (for example "I would like a coffee, please"). pío answers aloud with the sentence in the other language, listens to you repeat it, and helps with any word that was not understood.
 >
 > The app needs the microphone and an internet connection. Speech is processed on our server with ElevenLabs (speech recognition and voice) and OpenAI (translation and conversation); recordings are not stored.
 >

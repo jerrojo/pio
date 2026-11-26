@@ -41,7 +41,7 @@ const es = {
   stumble: "Tuvimos un tropiezo",
   connection: {
     checking: {
-      title: "Despertando a Pío…",
+      title: "Despertando a pío…",
       description: "Esto puede tardar unos segundos.",
     },
     offline: {
@@ -88,7 +88,7 @@ const es = {
     missingBit: "Te faltó un pedacito. Luego dila completa.",
     watchMarked: "Fíjate en las palabras resaltadas.",
     slower: "Luego dila un poco más despacio.",
-    replies: "Pío te contesta",
+    replies: "pío te contesta",
     listenThenAnswer: (language: string) =>
       `Escucha y luego contéstame en ${language}.`,
     howItSounds: {
@@ -143,9 +143,9 @@ const es = {
       `Bien dicho. Llevas ${n} ${n === 1 ? "frase" : "frases"} hoy.`,
     almost: "Casi.",
     practise: (words: string) => `Practica: ${words}.`,
-    paused: "Pío está en pausa.",
+    paused: "pío está en pausa.",
   },
-  loading: "Preparando Pío…",
+  loading: "Preparando pío…",
   stars: {
     title: "Frases logradas hoy",
     done: (n: number): string =>
@@ -186,16 +186,16 @@ const es = {
   help: {
     summary: "Ayuda y privacidad",
     steps: [
-      "Di algo en tu idioma. Pío lo traduce y te lo dice.",
-      "Repítelo. Pío te ayuda hasta que se entienda todo.",
-      "Si hablas en el idioma que aprendes, Pío te contesta y conversan.",
+      "Di algo en tu idioma. pío lo traduce y te lo dice.",
+      "Repítelo. pío te ayuda hasta que se entienda todo.",
+      "Si hablas en el idioma que aprendes, pío te contesta y conversan.",
       "Para oír la frase otra vez, di «repítelo» o toca Escuchar.",
     ],
     microphone:
       "El micrófono se enciende al tocar Hablar y vuelve a encenderse solo entre turnos. Pausar, quedarte en silencio o salir de esta pestaña lo apaga.",
     policy: "Política de privacidad",
     privacy:
-      "Pío revisa qué tan claro se entendió cada palabra; no mide sonidos exactos. Tu voz se envía a ElevenLabs para entenderte; el texto, y el audio de una palabra que no salió, a OpenAI para traducir, conversar y darte un consejo. Nada se guarda en una base de datos. Tus idiomas y estrellas se quedan en este navegador.",
+      "pío revisa qué tan claro se entendió cada palabra; no mide sonidos exactos. Tu voz se envía a ElevenLabs para entenderte; el texto, y el audio de una palabra que no salió, a OpenAI para traducir, conversar y darte un consejo. Nada se guarda en una base de datos. Tus idiomas y estrellas se quedan en este navegador.",
   },
   settings: { title: "Tus idiomas", close: "Cerrar idiomas" },
   access: {
@@ -266,7 +266,7 @@ const en: Copy = {
   stumble: "We hit a bump",
   connection: {
     checking: {
-      title: "Waking Pío up…",
+      title: "Waking pío up…",
       description: "This can take a few seconds.",
     },
     offline: {
@@ -313,7 +313,7 @@ const en: Copy = {
     missingBit: "A little bit was missing. Then say all of it.",
     watchMarked: "Watch the highlighted words.",
     slower: "Then say it a little more slowly.",
-    replies: "Pío answers you",
+    replies: "pío answers you",
     listenThenAnswer: (language) => `Listen, then answer me in ${language}.`,
     howItSounds: {
       title: "Listen to how it sounds",
@@ -368,9 +368,9 @@ const en: Copy = {
       `Well said. That's ${n} ${n === 1 ? "phrase" : "phrases"} today.`,
     almost: "Almost.",
     practise: (words) => `Practise: ${words}.`,
-    paused: "Pío is paused.",
+    paused: "pío is paused.",
   },
-  loading: "Getting Pío ready…",
+  loading: "Getting pío ready…",
   stars: {
     title: "Phrases you got today",
     done: (n) => (n === 1 ? "phrase done" : "phrases done"),
@@ -410,16 +410,16 @@ const en: Copy = {
   help: {
     summary: "Help and privacy",
     steps: [
-      "Say something in your language. Pío translates it and says it to you.",
-      "Repeat it. Pío helps you until everything is understood.",
-      "If you speak in the language you're learning, Pío answers and you chat.",
+      "Say something in your language. pío translates it and says it to you.",
+      "Repeat it. pío helps you until everything is understood.",
+      "If you speak in the language you're learning, pío answers and you chat.",
       "To hear the phrase again, say “repeat it” or tap Listen.",
     ],
     microphone:
       "The microphone turns on when you tap Speak and comes back on by itself between turns. Pausing, staying silent or leaving this tab turns it off.",
     policy: "Privacy policy",
     privacy:
-      "Pío checks how clearly each word came through; it doesn't measure exact sounds. Your voice is sent to ElevenLabs to understand you; the text, and the audio of a word that didn't come out, to OpenAI to translate, chat and give you a tip. Nothing is stored in a database. Your languages and stars stay in this browser.",
+      "pío checks how clearly each word came through; it doesn't measure exact sounds. Your voice is sent to ElevenLabs to understand you; the text, and the audio of a word that didn't come out, to OpenAI to translate, chat and give you a tip. Nothing is stored in a database. Your languages and stars stay in this browser.",
   },
   settings: { title: "Your languages", close: "Close languages" },
   access: {
@@ -498,7 +498,7 @@ const de: Copy = {
   stumble: "Wir sind gestolpert",
   connection: {
     checking: {
-      title: "Pío wacht auf…",
+      title: "pío wacht auf…",
       description: "Das kann ein paar Sekunden dauern.",
     },
     offline: {
@@ -545,7 +545,7 @@ const de: Copy = {
     missingBit: "Ein Stückchen hat gefehlt. Sag ihn danach vollständig.",
     watchMarked: "Achte auf die markierten Wörter.",
     slower: "Sag ihn danach etwas langsamer.",
-    replies: "Pío antwortet dir",
+    replies: "pío antwortet dir",
     listenThenAnswer: (language) =>
       `Hör zu und antworte mir dann auf ${language}.`,
     howItSounds: {
@@ -603,9 +603,9 @@ const de: Copy = {
       `Gut gesagt. Das ${n === 1 ? "ist" : "sind"} heute ${n} ${n === 1 ? "Satz" : "Sätze"}.`,
     almost: "Fast.",
     practise: (words) => `Übe: ${words}.`,
-    paused: "Pío ist pausiert.",
+    paused: "pío ist pausiert.",
   },
-  loading: "Pío wird vorbereitet…",
+  loading: "pío wird vorbereitet…",
   stars: {
     title: "Heute geschaffte Sätze",
     done: (n) => (n === 1 ? "Satz geschafft" : "Sätze geschafft"),
@@ -645,16 +645,16 @@ const de: Copy = {
   help: {
     summary: "Hilfe und Datenschutz",
     steps: [
-      "Sag etwas in deiner Sprache. Pío übersetzt es und sagt es dir.",
-      "Wiederhol es. Pío hilft dir, bis alles verständlich ist.",
-      "Wenn du in der Sprache sprichst, die du lernst, antwortet Pío und ihr unterhaltet euch.",
+      "Sag etwas in deiner Sprache. pío übersetzt es und sagt es dir.",
+      "Wiederhol es. pío hilft dir, bis alles verständlich ist.",
+      "Wenn du in der Sprache sprichst, die du lernst, antwortet pío und ihr unterhaltet euch.",
       "Um den Satz noch einmal zu hören, sag „wiederhol das“ oder tippe auf Anhören.",
     ],
     microphone:
       "Das Mikrofon geht an, wenn du auf Sprechen tippst, und schaltet sich zwischen den Runden von selbst wieder ein. Pausieren, Schweigen oder das Verlassen dieses Tabs schaltet es aus.",
     policy: "Datenschutzerklärung",
     privacy:
-      "Pío prüft, wie klar jedes Wort zu verstehen war; exakte Laute misst es nicht. Deine Stimme wird an ElevenLabs gesendet, um dich zu verstehen; der Text und der Ton eines Wortes, das nicht geklappt hat, an OpenAI, um zu übersetzen, zu plaudern und dir einen Tipp zu geben. Nichts wird in einer Datenbank gespeichert. Deine Sprachen und Sterne bleiben in diesem Browser.",
+      "pío prüft, wie klar jedes Wort zu verstehen war; exakte Laute misst es nicht. Deine Stimme wird an ElevenLabs gesendet, um dich zu verstehen; der Text und der Ton eines Wortes, das nicht geklappt hat, an OpenAI, um zu übersetzen, zu plaudern und dir einen Tipp zu geben. Nichts wird in einer Datenbank gespeichert. Deine Sprachen und Sterne bleiben in diesem Browser.",
   },
   settings: { title: "Deine Sprachen", close: "Sprachen schließen" },
   access: {
@@ -729,7 +729,7 @@ const fr: Copy = {
   stumble: "On a trébuché",
   connection: {
     checking: {
-      title: "Je réveille Pío…",
+      title: "Je réveille pío…",
       description: "Cela peut prendre quelques secondes.",
     },
     offline: {
@@ -779,7 +779,7 @@ const fr: Copy = {
     missingBit: "Il manquait un petit bout. Ensuite, dis-la en entier.",
     watchMarked: "Regarde les mots surlignés.",
     slower: "Ensuite, dis-la un peu plus lentement.",
-    replies: "Pío te répond",
+    replies: "pío te répond",
     listenThenAnswer: (language) => `Écoute, puis réponds-moi en ${language}.`,
     howItSounds: {
       title: "Écoute comment ça sonne",
@@ -834,9 +834,9 @@ const fr: Copy = {
       `Bien dit. Ça fait ${n} ${n === 1 ? "phrase" : "phrases"} aujourd'hui.`,
     almost: "Presque.",
     practise: (words) => `Entraîne-toi sur : ${words}.`,
-    paused: "Pío est en pause.",
+    paused: "pío est en pause.",
   },
-  loading: "Pío se prépare…",
+  loading: "pío se prépare…",
   stars: {
     title: "Phrases réussies aujourd'hui",
     done: (n) => (n === 1 ? "phrase réussie" : "phrases réussies"),
@@ -876,16 +876,16 @@ const fr: Copy = {
   help: {
     summary: "Aide et confidentialité",
     steps: [
-      "Dis quelque chose dans ta langue. Pío le traduit et te le dit.",
-      "Répète-le. Pío t'aide jusqu'à ce que tout soit compris.",
-      "Si tu parles dans la langue que tu apprends, Pío te répond et vous discutez.",
+      "Dis quelque chose dans ta langue. pío le traduit et te le dit.",
+      "Répète-le. pío t'aide jusqu'à ce que tout soit compris.",
+      "Si tu parles dans la langue que tu apprends, pío te répond et vous discutez.",
       "Pour réentendre la phrase, dis « répète » ou touche Écouter.",
     ],
     microphone:
       "Le micro s'allume quand tu touches Parler et se rallume tout seul entre les tours. Mettre en pause, rester silencieux ou quitter cet onglet l'éteint.",
     policy: "Politique de confidentialité",
     privacy:
-      "Pío vérifie si chaque mot a été bien compris ; il ne mesure pas les sons exacts. Ta voix est envoyée à ElevenLabs pour te comprendre ; le texte, et le son d'un mot qui n'est pas sorti, à OpenAI pour traduire, discuter et te donner un conseil. Rien n'est enregistré dans une base de données. Tes langues et tes étoiles restent dans ce navigateur.",
+      "pío vérifie si chaque mot a été bien compris ; il ne mesure pas les sons exacts. Ta voix est envoyée à ElevenLabs pour te comprendre ; le texte, et le son d'un mot qui n'est pas sorti, à OpenAI pour traduire, discuter et te donner un conseil. Rien n'est enregistré dans une base de données. Tes langues et tes étoiles restent dans ce navigateur.",
   },
   settings: { title: "Tes langues", close: "Fermer les langues" },
   access: {
@@ -962,7 +962,7 @@ const it: Copy = {
   stumble: "Abbiamo avuto un intoppo",
   connection: {
     checking: {
-      title: "Sto svegliando Pío…",
+      title: "Sto svegliando pío…",
       description: "Può volerci qualche secondo.",
     },
     offline: {
@@ -1009,7 +1009,7 @@ const it: Copy = {
     missingBit: "Ti è mancato un pezzetto. Poi dilla per intero.",
     watchMarked: "Fai attenzione alle parole evidenziate.",
     slower: "Poi dilla un po' più lentamente.",
-    replies: "Pío ti risponde",
+    replies: "pío ti risponde",
     listenThenAnswer: (language) => `Ascolta e poi rispondimi in ${language}.`,
     howItSounds: {
       title: "Ascolta come suona",
@@ -1068,9 +1068,9 @@ const it: Copy = {
       `Ben detto. Oggi sei a ${n} ${n === 1 ? "frase" : "frasi"}.`,
     almost: "Quasi.",
     practise: (words) => `Esercitati su: ${words}.`,
-    paused: "Pío è in pausa.",
+    paused: "pío è in pausa.",
   },
-  loading: "Sto preparando Pío…",
+  loading: "Sto preparando pío…",
   stars: {
     title: "Frasi riuscite oggi",
     done: (n) => (n === 1 ? "frase riuscita" : "frasi riuscite"),
@@ -1110,16 +1110,16 @@ const it: Copy = {
   help: {
     summary: "Aiuto e privacy",
     steps: [
-      "Di' qualcosa nella tua lingua. Pío lo traduce e te lo dice.",
-      "Ripetilo. Pío ti aiuta finché si capisce tutto.",
-      "Se parli nella lingua che stai imparando, Pío ti risponde e conversate.",
+      "Di' qualcosa nella tua lingua. pío lo traduce e te lo dice.",
+      "Ripetilo. pío ti aiuta finché si capisce tutto.",
+      "Se parli nella lingua che stai imparando, pío ti risponde e conversate.",
       "Per risentire la frase, di' «ripetilo» o tocca Ascolta.",
     ],
     microphone:
       "Il microfono si accende quando tocchi Parla e si riaccende da solo tra un turno e l'altro. Mettere in pausa, restare in silenzio o uscire da questa scheda lo spegne.",
     policy: "Informativa sulla privacy",
     privacy:
-      "Pío controlla quanto si è capita bene ogni parola; non misura i suoni esatti. La tua voce viene inviata a ElevenLabs per capirti; il testo, e l'audio di una parola che non è venuta, a OpenAI per tradurre, conversare e darti un consiglio. Niente viene salvato in un database. Le tue lingue e le tue stelle restano in questo browser.",
+      "pío controlla quanto si è capita bene ogni parola; non misura i suoni esatti. La tua voce viene inviata a ElevenLabs per capirti; il testo, e l'audio di una parola che non è venuta, a OpenAI per tradurre, conversare e darti un consiglio. Niente viene salvato in un database. Le tue lingue e le tue stelle restano in questo browser.",
   },
   settings: { title: "Le tue lingue", close: "Chiudi lingue" },
   access: {
@@ -1192,7 +1192,7 @@ const pt: Copy = {
   stumble: "Tivemos um tropeço",
   connection: {
     checking: {
-      title: "Acordando o Pío…",
+      title: "Acordando o pío…",
       description: "Isso pode levar alguns segundos.",
     },
     offline: {
@@ -1240,7 +1240,7 @@ const pt: Copy = {
     missingBit: "Faltou um pedacinho. Depois diga completa.",
     watchMarked: "Repare nas palavras destacadas.",
     slower: "Depois diga um pouco mais devagar.",
-    replies: "O Pío responde",
+    replies: "O pío responde",
     listenThenAnswer: (language) => `Escute e depois responda em ${language}.`,
     howItSounds: {
       title: "Escute como soa",
@@ -1294,9 +1294,9 @@ const pt: Copy = {
       `Bem dito. Já ${n === 1 ? "é" : "são"} ${n} ${n === 1 ? "frase" : "frases"} hoje.`,
     almost: "Quase.",
     practise: (words) => `Pratique: ${words}.`,
-    paused: "O Pío está em pausa.",
+    paused: "O pío está em pausa.",
   },
-  loading: "Preparando o Pío…",
+  loading: "Preparando o pío…",
   stars: {
     title: "Frases conseguidas hoje",
     done: (n) => (n === 1 ? "frase conseguida" : "frases conseguidas"),
@@ -1336,16 +1336,16 @@ const pt: Copy = {
   help: {
     summary: "Ajuda e privacidade",
     steps: [
-      "Diga algo no seu idioma. O Pío traduz e diz para você.",
-      "Repita. O Pío ajuda até que se entenda tudo.",
-      "Se você falar no idioma que está aprendendo, o Pío responde e vocês conversam.",
+      "Diga algo no seu idioma. O pío traduz e diz para você.",
+      "Repita. O pío ajuda até que se entenda tudo.",
+      "Se você falar no idioma que está aprendendo, o pío responde e vocês conversam.",
       "Para ouvir a frase outra vez, diga «repita» ou toque em Ouvir.",
     ],
     microphone:
       "O microfone liga quando você toca em Falar e volta a ligar sozinho entre os turnos. Pausar, ficar em silêncio ou sair desta aba desliga-o.",
     policy: "Política de privacidade",
     privacy:
-      "O Pío verifica com que clareza cada palavra foi entendida; não mede sons exatos. A sua voz é enviada à ElevenLabs para entender você; o texto, e o áudio de uma palavra que não saiu, à OpenAI para traduzir, conversar e dar uma dica. Nada é guardado em uma base de dados. Os seus idiomas e estrelas ficam neste navegador.",
+      "O pío verifica com que clareza cada palavra foi entendida; não mede sons exatos. A sua voz é enviada à ElevenLabs para entender você; o texto, e o áudio de uma palavra que não saiu, à OpenAI para traduzir, conversar e dar uma dica. Nada é guardado em uma base de dados. Os seus idiomas e estrelas ficam neste navegador.",
   },
   settings: { title: "Os seus idiomas", close: "Fechar idiomas" },
   access: {

@@ -4,7 +4,7 @@ import hashlib, json, os
 
 here = os.path.dirname(os.path.abspath(__file__))
 BUNDLE = "today.pio.app"
-VERSION, BUILD = "1.0", "2"
+VERSION, BUILD = "1.0", "3"
 
 
 def uid(name):

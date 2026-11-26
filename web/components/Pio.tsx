@@ -65,19 +65,23 @@ const speakAgain = [
   "invalid-audio",
   "invalid-input",
 ];
+// The iPhone app listens for messages from the page: it vibrates, and it
+// can ask for a rating. On the web there is nobody listening.
+function tellApp(message: unknown) {
+  const app = (
+    window as unknown as {
+      webkit?: {
+        messageHandlers?: { pio?: { postMessage(message: unknown): void } };
+      };
+    }
+  ).webkit?.messageHandlers?.pio;
+  app?.postMessage(message);
+  return !!app;
+}
 // Second feedback channel for touch devices; silently absent elsewhere.
-// Inside the iPhone app, where the web cannot vibrate, the app itself does it.
 function buzz(pattern: number | number[]) {
   try {
-    const app = (
-      window as unknown as {
-        webkit?: {
-          messageHandlers?: { pio?: { postMessage(message: unknown): void } };
-        };
-      }
-    ).webkit?.messageHandlers?.pio;
-    if (app) app.postMessage({ haptic: pattern });
-    else navigator.vibrate?.(pattern);
+    if (!tellApp({ haptic: pattern })) navigator.vibrate?.(pattern);
   } catch {}
 }
 async function checked(response: Response) {
@@ -95,6 +99,7 @@ async function checked(response: Response) {
   return response;
 }
 const statusKey = "pio.status.v1";
+const milestoneKey = "pio.milestone.v1";
 type Lock = { release(): Promise<void> };
 
 export function Pio() {
@@ -393,6 +398,10 @@ export function Pio() {
     setMissed(false);
     setTries(0);
   }
+  // Three phrases said well: celebrated once, and the moment the iPhone app
+  // asks for a rating.
+  const [milestone, setMilestone] = useState(false);
+  const reached = useRef(false);
   // Set when new languages are saved: listen as soon as Pío is ready for them.
   const wake = useRef(false);
   function save(p: Preferences) {
@@ -618,6 +627,20 @@ export function Pio() {
       } catch {}
       const updated = addMastery(current, reply, preferences);
       setEntries(updated);
+      // The third phrase ever said well is a moment of its own, once.
+      const said = (list: Mastered[]) =>
+        new Set(list.map((e) => `${e.pair} ${e.phrase}`)).size;
+      try {
+        if (
+          said(updated) === 3 &&
+          said(current) === 2 &&
+          !localStorage.getItem(milestoneKey)
+        ) {
+          localStorage.setItem(milestoneKey, "1");
+          reached.current = true;
+          setMilestone(true);
+        }
+      } catch {}
       try {
         localStorage.setItem(progressKey, JSON.stringify(updated));
       } catch {}
@@ -797,11 +820,24 @@ export function Pio() {
         sound("win");
         flyStar(orb.current, document.querySelector(".chip.progress"));
         go("idle");
-        celebration.current = setTimeout(() => {
-          if (token !== epoch.current) return;
-          setResult(null);
-          done(token);
-        }, 2600);
+        if (reached.current) {
+          // The milestone stays on screen until the learner goes on: nothing
+          // listens while they enjoy it or answer the rating question.
+          reached.current = false;
+          releaseMic();
+          celebration.current = setTimeout(() => {
+            if (token !== epoch.current) return;
+            sound("win");
+            try {
+              tellApp({ review: true });
+            } catch {}
+          }, 1500);
+        } else
+          celebration.current = setTimeout(() => {
+            if (token !== epoch.current) return;
+            setResult(null);
+            done(token);
+          }, 2600);
       } else {
         // Nothing usable was heard. Whatever is on screen stays; Pío listens
         // once more by itself and then waits.
@@ -920,6 +956,7 @@ export function Pio() {
     setIssue("");
     setRecovery(null);
     setPaused(false);
+    setMilestone(false);
     // A celebrated phrase leaves the screen when the next turn begins.
     setResult((shown) => (shown?.outcome === "accepted" ? null : shown));
     go(granted.current ? "waking" : "permission");
@@ -1131,34 +1168,36 @@ export function Pio() {
       ? t.connection[connection]
       : issue && !active
         ? { title: t.stumble, description: issue }
-        : sessionCopy(
-            {
-              phase,
-              outcome: result?.outcome,
-              paused,
-              stopped,
-              missed,
-              target: preferences
-                ? languageIn(preferences.target, ui)
-                : undefined,
-              focus: result?.focus.length,
-              missing: result?.evidence?.words.some(
-                (w) => w.error === "Omission",
-              ),
-              tries,
-              streak: days,
-              drill: step && {
-                ...step,
-                means: meaningOf(
-                  result?.text,
-                  result ? glosses[result.text] : undefined,
-                  step.word,
+        : milestone && result?.outcome === "accepted" && !active && !paused
+          ? t.milestone
+          : sessionCopy(
+              {
+                phase,
+                outcome: result?.outcome,
+                paused,
+                stopped,
+                missed,
+                target: preferences
+                  ? languageIn(preferences.target, ui)
+                  : undefined,
+                focus: result?.focus.length,
+                missing: result?.evidence?.words.some(
+                  (w) => w.error === "Omission",
                 ),
+                tries,
+                streak: days,
+                drill: step && {
+                  ...step,
+                  means: meaningOf(
+                    result?.text,
+                    result ? glosses[result.text] : undefined,
+                    step.word,
+                  ),
+                },
+                whole,
               },
-              whole,
-            },
-            t,
-          );
+              t,
+            );
   // Short spoken updates for screen readers, only when something changed for
   // the learner. The visible instructions are not read over the microphone.
   const announce = issue

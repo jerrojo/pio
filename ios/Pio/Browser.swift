@@ -1,4 +1,5 @@
 import AVFoundation
+import StoreKit
 import SwiftUI
 import UIKit
 import WebKit
@@ -92,9 +93,18 @@ final class Browser: NSObject, ObservableObject {
         }
     }
 
-    // What the page asks the phone to do. Today: vibrate.
+    // What the page asks the phone to do: vibrate, or, after the third phrase
+    // said well, ask for a rating. The question itself is Apple's own, shown
+    // at most a few times a year however often it is asked for.
     fileprivate func received(_ body: Any) {
-        guard let message = body as? [String: Any], let pattern = message["haptic"] else { return }
+        guard let message = body as? [String: Any] else { return }
+        if message["review"] != nil {
+            if let scene = view.window?.windowScene {
+                AppStore.requestReview(in: scene)
+            }
+            return
+        }
+        guard let pattern = message["haptic"] else { return }
         if let steps = pattern as? [Any], steps.count > 1 {
             // A pattern marks a phrase said well.
             UINotificationFeedbackGenerator().notificationOccurred(.success)

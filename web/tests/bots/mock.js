@@ -8,6 +8,13 @@
     dest = null;
   const audio = () => ctx || (ctx = new AC());
   window.__events = [];
+  // Stands in for the iPhone app, to see what the page asks of it.
+  if (cfg.app) {
+    window.__asked = [];
+    window.webkit = {
+      messageHandlers: { pio: { postMessage: (m) => window.__asked.push(m) } },
+    };
+  }
   // Tones the page itself plays (the fake microphone's own are not counted).
   window.__cues = 0;
   const begin = OscillatorNode.prototype.start;

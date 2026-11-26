@@ -1389,6 +1389,71 @@ Object.assign(scenarios, {
   },
 });
 
+Object.assign(scenarios, {
+  // The third phrase ever said well is celebrated once, the iPhone app is
+  // asked for a rating, and nothing listens until the learner goes on.
+  async milestone(c) {
+    const t = copyFor(c.native);
+    const pair = `${c.native}:${c.target}`;
+    const before = JSON.stringify([
+      { id: "a", pair, phrase: "guten morgen", day: "2026-11-20" },
+      { id: "b", pair, phrase: "danke schon", day: "2026-11-21" },
+    ]);
+    await open(
+      c,
+      { app: true, turns: ["translation", "ok", "translation", "ok"] },
+      { ...prefs(c.native, c.target), "pio.mastery.v3": before },
+    );
+    await click(".mic-button");
+    if (!(await until(hasCard("accepted"), 40000, "third phrase accepted")))
+      return;
+    await expect(
+      await until(title(t.milestone.title), 3000, "the milestone is announced"),
+      "milestone title",
+      "milestone",
+    );
+    await audit("milestone", c.native);
+    await sleep(2500);
+    await expect(
+      await js(`window.__asked.some(m => m && m.review)`),
+      "the iPhone app is asked for a rating",
+      "milestone",
+    );
+    await expect(
+      (await js(`window.__asked.filter(m => m && m.review).length`)) === 1,
+      "asked exactly once",
+      "milestone",
+    );
+    await sleep(3000);
+    await expect(
+      await js(micIs("idle") + "&&" + title(t.milestone.title)),
+      "nothing listens until the learner goes on",
+      "milestone",
+    );
+    await expect(
+      !(await js(`window.__micOpen()`)),
+      "microphone closed during the milestone",
+      "milestone",
+    );
+    // Going on works, and the next phrase is an ordinary one.
+    await click(".mic-button");
+    if (
+      !(await until(
+        hasCard("accepted") + "&&" + title(t.session.accepted.title),
+        50000,
+        "fourth phrase is an ordinary success",
+      ))
+    )
+      return;
+    await sleep(3000);
+    await expect(
+      (await js(`window.__asked.filter(m => m && m.review).length`)) === 1,
+      "never asked a second time",
+      "after",
+    );
+  },
+});
+
 // ---- The cases ---------------------------------------------------------------
 const targetFor = (native) => (base(native) === "de" ? "en-US" : "de-DE");
 const phone = { w: 390, h: 844 },
@@ -1567,6 +1632,9 @@ for (const pair of [
   [0.06, 0.04],
 ])
   add("shortWord", "es-MX", phone, pair);
+
+for (const n of ["es-MX", "en-US", "de-DE"])
+  add("milestone", n, n === "de-DE" ? small : phone);
 
 // ---- Run -----------------------------------------------------------------------
 const wanted = filter.split(",").filter(Boolean);

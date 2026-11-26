@@ -121,6 +121,11 @@ const es = {
     askHow: "Dilo en tu idioma y te enseño cómo se dice.",
     streak: (days: number) => `Llevas ${days} días seguidos.`,
   },
+  milestone: {
+    title: "¡3 frases bien dichas!",
+    description:
+      "Ya lo estás hablando. Toca el micrófono cuando quieras seguir.",
+  },
   mic: {
     speak: "Hablar",
     done: "Listo",
@@ -345,6 +350,11 @@ const en: Copy = {
     ask: "What do you want to say?",
     askHow: "Say it in your language and I'll show you how it's said.",
     streak: (days) => `You're on a ${days}-day streak.`,
+  },
+  milestone: {
+    title: "3 phrases, well said!",
+    description:
+      "You're really speaking it. Tap the microphone whenever you want to go on.",
   },
   mic: {
     speak: "Speak",
@@ -581,6 +591,11 @@ const de: Copy = {
     askHow: "Sag es in deiner Sprache und ich zeige dir, wie man es sagt.",
     streak: (days) => `Du bist seit ${days} Tagen in Folge dabei.`,
   },
+  milestone: {
+    title: "3 Sätze, gut gesagt!",
+    description:
+      "Du sprichst es wirklich. Tippe auf das Mikrofon, wann immer du weitermachen möchtest.",
+  },
   mic: {
     speak: "Sprechen",
     done: "Fertig",
@@ -811,6 +826,11 @@ const fr: Copy = {
     ask: "Que veux-tu dire ?",
     askHow: "Dis-le dans ta langue et je te montre comment ça se dit.",
     streak: (days) => `Ça fait ${days} jours de suite.`,
+  },
+  milestone: {
+    title: "3 phrases bien dites !",
+    description:
+      "Tu le parles vraiment. Touche le micro quand tu veux continuer.",
   },
   mic: {
     speak: "Parler",
@@ -1046,6 +1066,11 @@ const it: Copy = {
     askHow: "Dillo nella tua lingua e ti insegno come si dice.",
     streak: (days) => `Sei a ${days} giorni di fila.`,
   },
+  milestone: {
+    title: "3 frasi dette bene!",
+    description:
+      "Lo stai parlando davvero. Tocca il microfono quando vuoi continuare.",
+  },
   mic: {
     speak: "Parla",
     done: "Fatto",
@@ -1271,6 +1296,11 @@ const pt: Copy = {
     ask: "O que você quer dizer?",
     askHow: "Diga no seu idioma e eu mostro como se diz.",
     streak: (days) => `Já são ${days} dias seguidos.`,
+  },
+  milestone: {
+    title: "3 frases bem ditas!",
+    description:
+      "Você já está falando. Toque no microfone quando quiser continuar.",
   },
   mic: {
     speak: "Falar",

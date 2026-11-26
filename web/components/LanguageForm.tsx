@@ -93,7 +93,7 @@ export function LanguageForm({
         id={hintId}
         aria-live="polite"
       >
-        {sameLanguage ? t.different : t.remember}
+        {sameLanguage ? t.different : ""}
       </p>
       <button className="primary full" disabled={!valid}>
         {t.save} <Icon name="arrow" size={18} />

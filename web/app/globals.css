@@ -2519,3 +2519,15 @@ select:hover {
     }
   }
 }
+
+/* The note under the two languages speaks only when the choice has a
+   problem; otherwise it takes no room. */
+.form-note:empty {
+  margin: 0;
+}
+.language-form .form-note:not(:empty) {
+  margin: 12px 0 0;
+}
+.language-form .primary {
+  margin-top: 16px;
+}

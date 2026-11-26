@@ -163,7 +163,7 @@ const es = {
     `Cambiar idiomas. Ahora: ${native} a ${target}`,
   welcome: {
     hello: "Hola, soy",
-    intro: "Aprende un idioma hablando, una frase a la vez.",
+    intro: "Aprende un idioma hablando.",
     steps: [
       "Di algo en tu idioma.",
       "Escucha cómo se dice y repítelo.",
@@ -227,8 +227,6 @@ const es = {
     practise: "Quiero practicar",
     pick: "Selecciona un idioma",
     different: "Elige un idioma distinto al tuyo para practicar.",
-    remember:
-      "Recordaremos tu selección en este navegador. Puedes cambiarla cuando quieras.",
     save: "Guardar y continuar",
   },
 };
@@ -392,7 +390,7 @@ const en: Copy = {
     `Change languages. Now: ${native} to ${target}`,
   welcome: {
     hello: "Hi, I'm",
-    intro: "Learn a language by speaking, one phrase at a time.",
+    intro: "Learn a language by speaking.",
     steps: [
       "Say something in your language.",
       "Hear how it's said and repeat it.",
@@ -456,8 +454,6 @@ const en: Copy = {
     practise: "I want to practise",
     pick: "Select a language",
     different: "Pick a language different from yours to practise.",
-    remember:
-      "We'll remember your choice in this browser. You can change it any time.",
     save: "Save and continue",
   },
 };
@@ -632,7 +628,7 @@ const de: Copy = {
     `Sprachen ändern. Jetzt: ${native} zu ${target}`,
   welcome: {
     hello: "Hallo, ich bin",
-    intro: "Lern eine Sprache durch Sprechen, einen Satz nach dem anderen.",
+    intro: "Lern eine Sprache durch Sprechen.",
     steps: [
       "Sag etwas in deiner Sprache.",
       "Hör dir an, wie man es sagt, und wiederhol es.",
@@ -696,8 +692,6 @@ const de: Copy = {
     practise: "Ich möchte üben",
     pick: "Wähl eine Sprache",
     different: "Wähl zum Üben eine andere Sprache als deine eigene.",
-    remember:
-      "Wir merken uns deine Auswahl in diesem Browser. Du kannst sie jederzeit ändern.",
     save: "Speichern und weiter",
   },
 };
@@ -868,7 +862,7 @@ const fr: Copy = {
     `Changer de langues. Maintenant : ${native} vers ${target}`,
   welcome: {
     hello: "Salut, je suis",
-    intro: "Apprends une langue en parlant, une phrase à la fois.",
+    intro: "Apprends une langue en parlant.",
     steps: [
       "Dis quelque chose dans ta langue.",
       "Écoute comment ça se dit et répète.",
@@ -932,8 +926,6 @@ const fr: Copy = {
     practise: "Je veux pratiquer",
     pick: "Sélectionne une langue",
     different: "Choisis une langue différente de la tienne pour pratiquer.",
-    remember:
-      "Nous retiendrons ton choix dans ce navigateur. Tu peux le changer quand tu veux.",
     save: "Enregistrer et continuer",
   },
 };
@@ -1107,7 +1099,7 @@ const it: Copy = {
     `Cambia lingue. Ora: ${native} verso ${target}`,
   welcome: {
     hello: "Ciao, sono",
-    intro: "Impara una lingua parlando, una frase alla volta.",
+    intro: "Impara una lingua parlando.",
     steps: [
       "Di' qualcosa nella tua lingua.",
       "Ascolta come si dice e ripetilo.",
@@ -1171,8 +1163,6 @@ const it: Copy = {
     practise: "Voglio esercitarmi in",
     pick: "Seleziona una lingua",
     different: "Scegli una lingua diversa dalla tua per esercitarti.",
-    remember:
-      "Ricorderemo la tua scelta in questo browser. Puoi cambiarla quando vuoi.",
     save: "Salva e continua",
   },
 };
@@ -1338,7 +1328,7 @@ const pt: Copy = {
     `Mudar idiomas. Agora: ${native} para ${target}`,
   welcome: {
     hello: "Olá, eu sou o",
-    intro: "Aprenda um idioma falando, uma frase de cada vez.",
+    intro: "Aprenda um idioma falando.",
     steps: [
       "Diga algo no seu idioma.",
       "Escute como se diz e repita.",
@@ -1402,8 +1392,6 @@ const pt: Copy = {
     practise: "Quero praticar",
     pick: "Selecione um idioma",
     different: "Escolha um idioma diferente do seu para praticar.",
-    remember:
-      "Vamos lembrar a sua escolha neste navegador. Você pode mudá-la quando quiser.",
     save: "Guardar e continuar",
   },
 };

@@ -111,13 +111,13 @@ export async function POST(request: Request) {
         result.weak?.length ?? 0,
       );
     // An accented attempt is often written down as words of some other
-    // language, nothing like the phrase. Shown as "you said", that would put
-    // words in the learner's mouth, so it is only shown when at least some of
+    // language, little like the phrase. Shown as "you said", that would put
+    // words in the learner's mouth, so it is only shown when at least half of
     // the phrase is in it. The log above keeps what was heard, for tuning.
     if (
       parsed.data.reference &&
       (result.outcome === "accepted" || result.outcome === "practice") &&
-      overlap(result.heard, parsed.data.reference.text, target) === 0
+      overlap(result.heard, parsed.data.reference.text, target) < 0.5
     )
       result.heard = "";
     // A new phrase Pío will say aloud travels with its voice: the result as

@@ -134,7 +134,7 @@
       return {
         ...base,
         outcome: "practice",
-        heard: "Ich mochte einen Cafe bestellen",
+        heard: cfg.heardPractice || "Ich mochte einen Cafe bestellen",
         text: P,
         evidence: ev(ws, turn, ref),
         focus: [weakWord],

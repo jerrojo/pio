@@ -3,14 +3,24 @@
 import os, subprocess
 here = os.path.dirname(os.path.abspath(__file__))
 W, H = 1320, 2868
-panels = [
-    ("1-learn", "Learn a language<br>by <em>speaking</em>", "Say it your way. pío shows you how.", "inicio", "saluda", "right"),
-    ("2-listen", "Just talk.<br><em>pío listens.</em>", "Tap once. No typing, no menus.", "escucha", "escucha", "left"),
-    ("3-phrase", "Hear it.<br><em>Repeat it.</em>", "Every word comes with its meaning.", "frase", "animo", "right"),
-    ("4-parts", "Stuck on a word?<br><em>Practice only that.</em>", "pío slows down and gives you a tip.", "partes", "escucha", "left"),
-    ("5-star", "Nail the phrase,<br><em>earn your star</em>", "See how clearly you were understood.", "logro", "celebra", "right"),
-    ("6-free", "6 languages.<br><em>Zero pressure.</em>", "No account. Spanish, English, German, French, Italian, Portuguese.", "inicio", "viajero", "left"),
-]
+sets = {
+    "en-US": [
+        ("1-learn", "Learn a language<br>by <em>speaking</em>", "Say it your way. pío shows you how.", "inicio", "saluda", "right"),
+        ("2-listen", "Just talk.<br><em>pío listens.</em>", "Tap once. No typing, no menus.", "escucha", "escucha", "left"),
+        ("3-phrase", "Hear it.<br><em>Repeat it.</em>", "Every word comes with its meaning.", "frase", "animo", "right"),
+        ("4-parts", "Stuck on a word?<br><em>Practice only that.</em>", "pío slows down and gives you a tip.", "partes", "escucha", "left"),
+        ("5-star", "Nail the phrase,<br><em>earn your star</em>", "See how clearly you were understood.", "logro", "celebra", "right"),
+        ("6-free", "6 languages.<br><em>Zero pressure.</em>", "No account. Spanish, English, German, French, Italian, Portuguese.", "inicio", "viajero", "left"),
+    ],
+    "es-MX": [
+        ("1-aprende", "Aprende un idioma<br><em>hablando</em>", "Dilo a tu manera. pío te enseña cómo.", "inicio", "saluda", "right"),
+        ("2-escucha", "Solo habla.<br><em>pío te escucha.</em>", "Toca una vez. Sin teclear, sin menús.", "escucha", "escucha", "left"),
+        ("3-frase", "Escúchala.<br><em>Repítela.</em>", "Cada palabra viene con su significado.", "frase", "animo", "right"),
+        ("4-partes", "¿Una palabra difícil?<br><em>Practica solo esa.</em>", "pío la dice despacio y te da un consejo.", "partes", "escucha", "left"),
+        ("5-estrella", "Di bien la frase<br><em>y gana tu estrella</em>", "Mira qué tan claro se te entendió.", "logro", "celebra", "right"),
+        ("6-idiomas", "6 idiomas.<br><em>Cero presión.</em>", "Sin cuenta. Español, inglés, alemán, francés, italiano y portugués.", "inicio", "viajero", "left"),
+    ],
+}
 page = """<!doctype html><meta charset="utf-8">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@600;700&display=swap" rel="stylesheet">
 <style>
@@ -26,19 +36,24 @@ p{margin:34px 0 0;padding:0 110px;font:700 54px/1.3 Nunito,sans-serif;color:#a9b
 .pio{position:absolute;%(side)s:-24px;bottom:%(bottom)spx;width:%(size)spx;filter:drop-shadow(0 40px 50px #0009)}
 </style>
 <h1>%(title)s</h1><p>%(sub)s</p>
-<div class="phone"><img src="en-US/pantallas/%(screen)s.png"></div>
+<div class="phone"><img src="%(lang)s/pantallas/%(screen)s.png"></div>
 <img class="pio" src="arte/%(art)s-m.png">
 """
 glows = ["#1f4a45", "#4a2a26", "#1c3a52", "#3a2f52", "#4a4220", "#1f4a45"]
-for i, (name, title, sub, screen, art, side) in enumerate(panels):
-    big = name.startswith("6")
-    html = page % dict(W=W, H=H, title=title, sub=sub, screen=screen, art=art, side=side, glow=glows[i],
-                       top=1010 if big else 880, bottom=120 if big else 60, size=900 if big else 620)
-    path = os.path.join(here, f"_{name}.html")
-    open(path, "w").write(html)
-    out = os.path.join(here, "en-US", "final", name + ".png")
-    subprocess.run(["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "--headless=new", "--hide-scrollbars",
-                    "--force-device-scale-factor=1", f"--window-size={W},{H}", "--virtual-time-budget=6000",
-                    f"--screenshot={out}", "file://" + path], capture_output=True)
-    os.remove(path)
-    print(name, os.path.getsize(out))
+chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+for lang, panels in sets.items():
+    for i, (name, title, sub, screen, art, side) in enumerate(panels):
+        big = name.startswith("6")
+        html = page % dict(W=W, H=H, title=title, sub=sub, screen=screen, art=art, side=side, glow=glows[i], lang=lang,
+                           top=1010 if big else 880, bottom=120 if big else 60, size=900 if big else 620)
+        path = os.path.join(here, f"_{name}.html")
+        open(path, "w").write(html)
+        out = os.path.join(here, lang, "final", name + ".png")
+        subprocess.run([chrome, "--headless=new", "--hide-scrollbars", "--force-device-scale-factor=1",
+                        f"--window-size={W},{H}", "--virtual-time-budget=6000", f"--screenshot={out}", "file://" + path],
+                       capture_output=True)
+        os.remove(path)
+        # The size App Store Connect asks for in its main iPhone slot.
+        small = os.path.join(here, lang, "subir", name + ".png")
+        subprocess.run(["sips", "-z", "2622", "1206", out, "--out", small], capture_output=True)
+        print(lang, name, os.path.getsize(out))

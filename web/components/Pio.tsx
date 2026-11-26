@@ -66,9 +66,18 @@ const speakAgain = [
   "invalid-input",
 ];
 // Second feedback channel for touch devices; silently absent elsewhere.
+// Inside the iPhone app, where the web cannot vibrate, the app itself does it.
 function buzz(pattern: number | number[]) {
   try {
-    navigator.vibrate?.(pattern);
+    const app = (
+      window as unknown as {
+        webkit?: {
+          messageHandlers?: { pio?: { postMessage(message: unknown): void } };
+        };
+      }
+    ).webkit?.messageHandlers?.pio;
+    if (app) app.postMessage({ haptic: pattern });
+    else navigator.vibrate?.(pattern);
   } catch {}
 }
 async function checked(response: Response) {
@@ -1466,6 +1475,9 @@ export function Pio() {
               </ol>
               <p>{t.help.microphone}</p>
               <p>{t.help.privacy}</p>
+              <p>
+                <a href="/privacidad">{t.help.policy}</a>
+              </p>
             </details>
           </section>
         )}

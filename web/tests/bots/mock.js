@@ -221,7 +221,12 @@
       if (cfg.gloss === "net") throw new TypeError("Failed to fetch");
       const out = Array.from(
         { length: cfg.gloss === "wrongcount" ? n + 1 : n },
-        (_, i) => (cfg.longGloss ? "significadolargo" + i : "m" + i),
+        (_, i) =>
+          cfg.meanings
+            ? cfg.meanings[i]
+            : cfg.longGloss
+              ? "significadolargo" + i
+              : "m" + i,
       );
       return json({ words: out });
     }

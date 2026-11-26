@@ -193,6 +193,7 @@ const es = {
     ],
     microphone:
       "El micrófono se enciende al tocar Hablar y vuelve a encenderse solo entre turnos. Pausar, quedarte en silencio o salir de esta pestaña lo apaga.",
+    policy: "Política de privacidad",
     privacy:
       "Pío revisa qué tan claro se entendió cada palabra; no mide sonidos exactos. Tu voz se envía a ElevenLabs para entenderte; el texto, y el audio de una palabra que no salió, a OpenAI para traducir, conversar y darte un consejo. Nada se guarda en una base de datos. Tus idiomas y estrellas se quedan en este navegador.",
   },
@@ -416,6 +417,7 @@ const en: Copy = {
     ],
     microphone:
       "The microphone turns on when you tap Speak and comes back on by itself between turns. Pausing, staying silent or leaving this tab turns it off.",
+    policy: "Privacy policy",
     privacy:
       "Pío checks how clearly each word came through; it doesn't measure exact sounds. Your voice is sent to ElevenLabs to understand you; the text, and the audio of a word that didn't come out, to OpenAI to translate, chat and give you a tip. Nothing is stored in a database. Your languages and stars stay in this browser.",
   },
@@ -650,6 +652,7 @@ const de: Copy = {
     ],
     microphone:
       "Das Mikrofon geht an, wenn du auf Sprechen tippst, und schaltet sich zwischen den Runden von selbst wieder ein. Pausieren, Schweigen oder das Verlassen dieses Tabs schaltet es aus.",
+    policy: "Datenschutzerklärung",
     privacy:
       "Pío prüft, wie klar jedes Wort zu verstehen war; exakte Laute misst es nicht. Deine Stimme wird an ElevenLabs gesendet, um dich zu verstehen; der Text und der Ton eines Wortes, das nicht geklappt hat, an OpenAI, um zu übersetzen, zu plaudern und dir einen Tipp zu geben. Nichts wird in einer Datenbank gespeichert. Deine Sprachen und Sterne bleiben in diesem Browser.",
   },
@@ -880,6 +883,7 @@ const fr: Copy = {
     ],
     microphone:
       "Le micro s'allume quand tu touches Parler et se rallume tout seul entre les tours. Mettre en pause, rester silencieux ou quitter cet onglet l'éteint.",
+    policy: "Politique de confidentialité",
     privacy:
       "Pío vérifie si chaque mot a été bien compris ; il ne mesure pas les sons exacts. Ta voix est envoyée à ElevenLabs pour te comprendre ; le texte, et le son d'un mot qui n'est pas sorti, à OpenAI pour traduire, discuter et te donner un conseil. Rien n'est enregistré dans une base de données. Tes langues et tes étoiles restent dans ce navigateur.",
   },
@@ -1113,6 +1117,7 @@ const it: Copy = {
     ],
     microphone:
       "Il microfono si accende quando tocchi Parla e si riaccende da solo tra un turno e l'altro. Mettere in pausa, restare in silenzio o uscire da questa scheda lo spegne.",
+    policy: "Informativa sulla privacy",
     privacy:
       "Pío controlla quanto si è capita bene ogni parola; non misura i suoni esatti. La tua voce viene inviata a ElevenLabs per capirti; il testo, e l'audio di una parola che non è venuta, a OpenAI per tradurre, conversare e darti un consiglio. Niente viene salvato in un database. Le tue lingue e le tue stelle restano in questo browser.",
   },
@@ -1338,6 +1343,7 @@ const pt: Copy = {
     ],
     microphone:
       "O microfone liga quando você toca em Falar e volta a ligar sozinho entre os turnos. Pausar, ficar em silêncio ou sair desta aba desliga-o.",
+    policy: "Política de privacidade",
     privacy:
       "O Pío verifica com que clareza cada palavra foi entendida; não mede sons exatos. A sua voz é enviada à ElevenLabs para entender você; o texto, e o áudio de uma palavra que não saiu, à OpenAI para traduzir, conversar e dar uma dica. Nada é guardado em uma base de dados. Os seus idiomas e estrelas ficam neste navegador.",
   },
@@ -1398,9 +1404,16 @@ const capital = (text: string, ui: string) =>
 // ("alemán", "German", "Deutsch").
 export function languageIn(locale: Locale, ui: string) {
   try {
-    return (
+    const name =
       new Intl.DisplayNames([ui], { type: "language" }).of(base(locale)) ||
-      locale
+      locale;
+    // Browsers disagree on the first letter, so the language decides: English
+    // and German write language names with a capital, the others do not.
+    const first = name.charAt(0);
+    return (
+      (["en", "de"].includes(base(ui))
+        ? first.toLocaleUpperCase(ui)
+        : first.toLocaleLowerCase(ui)) + name.slice(1)
     );
   } catch {
     return locale;

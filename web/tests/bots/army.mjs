@@ -1454,6 +1454,39 @@ Object.assign(scenarios, {
   },
 });
 
+Object.assign(scenarios, {
+  // A first visit reads in the device's language, and in English when pío
+  // does not speak it.
+  async firstLanguage(c) {
+    const [languages, wanted] = c.arg;
+    const t = copyFor(wanted);
+    await open(c, { languages }, {});
+    if (
+      !(await until(
+        `!!document.querySelector('.welcome')`,
+        8000,
+        "welcome shows",
+      ))
+    )
+      return;
+    await sleep(300);
+    await expect(
+      (await js(`document.querySelector('.welcome h1').textContent`)) ===
+        `${t.welcome.hello} pío`,
+      `a ${languages[0]} device starts in ${wanted}`,
+      languages[0],
+    );
+    await expect(
+      (await js(
+        `document.querySelector('.language-form .primary').textContent.trim()`,
+      )) === t.form.save,
+      "the form is in that language too",
+      languages[0],
+    );
+    await audit("first-" + languages[0], wanted);
+  },
+});
+
 // ---- The cases ---------------------------------------------------------------
 const targetFor = (native) => (base(native) === "de" ? "en-US" : "de-DE");
 const phone = { w: 390, h: 844 },
@@ -1635,6 +1668,17 @@ for (const pair of [
 
 for (const n of ["es-MX", "en-US", "de-DE"])
   add("milestone", n, n === "de-DE" ? small : phone);
+
+for (const pair of [
+  [["ja-JP"], "en-US"],
+  [["ko-KR", "zh-CN"], "en-US"],
+  [["es-AR"], "es-MX"],
+  [["en-GB"], "en-US"],
+  [["pt-PT"], "pt-BR"],
+  [["de-AT"], "de-DE"],
+  [["ja-JP", "fr-CA"], "fr-FR"],
+])
+  add("firstLanguage", "en-US", phone, pair);
 
 // ---- Run -----------------------------------------------------------------------
 const wanted = filter.split(",").filter(Boolean);

@@ -4,7 +4,7 @@ import hashlib, json, os
 
 here = os.path.dirname(os.path.abspath(__file__))
 BUNDLE = "today.pio.app"
-VERSION, BUILD = "1.0", "3"
+VERSION, BUILD = "1.0", "4"
 
 
 def uid(name):
@@ -61,7 +61,7 @@ plist = {
         "pt": "O pío escuta só quando você toca em Falar, para traduzir o que você diz e ajudar na pronúncia.",
     },
 }
-for name, data in [("Localizable.xcstrings", catalog("es", words)), ("InfoPlist.xcstrings", catalog("es", plist))]:
+for name, data in [("Localizable.xcstrings", catalog("en", words)), ("InfoPlist.xcstrings", catalog("en", plist))]:
     with open(os.path.join(here, "Pio", name), "w") as f:
         json.dump(data, f, ensure_ascii=False, indent=2, sort_keys=True)
         f.write("\n")
@@ -90,7 +90,7 @@ target = f"""
 				INFOPLIST_KEY_CFBundleDisplayName = "pío";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "pío te escucha solo cuando tocas Hablar, para traducir lo que dices y ayudarte a pronunciarlo.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "pío listens only when you tap Speak, to translate what you say and help you pronounce it.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIRequiresFullScreen = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -194,11 +194,11 @@ project = f"""// !$*UTF8*$!
 				}};
 			}};
 			buildConfigurationList = {I['p-configs']} /* Build configuration list for PBXProject "Pio" */;
-			developmentRegion = es;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				es,
 				en,
+				es,
 				de,
 				fr,
 				it,

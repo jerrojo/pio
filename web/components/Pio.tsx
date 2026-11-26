@@ -118,7 +118,9 @@ export function Pio() {
     (loaded
       ? browserLocale(navigator.languages || [navigator.language])
       : "") ||
-    "es-MX";
+    // A device in a language pío does not speak yet starts in English, the
+    // one most people can read.
+    "en-US";
   const t = copyFor(ui);
   const say = useRef(t);
   useEffect(() => {

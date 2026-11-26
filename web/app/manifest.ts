@@ -3,8 +3,8 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "pío",
     short_name: "pío",
-    description: "Practica idiomas hablando.",
-    lang: "es",
+    description: "Practice languages by speaking.",
+    lang: "en",
     start_url: "/",
     display: "standalone",
     background_color: "#0b1516",

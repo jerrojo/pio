@@ -196,15 +196,15 @@ test("a word being practised is named with what it means, taken from the phrase'
   );
 });
 
-test("Pío speaks the learner's own language, and Spanish when it is unknown", () => {
+test("Pío speaks the learner's own language, and English when it is unknown", () => {
   const english = copyFor("en-US");
   assert.equal(
     sessionCopy({ phase: "listening" }, english).title,
     "I'm listening",
   );
   assert.equal(microphoneLabel("idle", copyFor("de-DE")), "Sprechen");
-  assert.equal(copyFor("xx-XX"), copyFor("es-MX"));
-  assert.equal(copyFor(null), copyFor("es-MX"));
+  assert.equal(copyFor("xx-XX"), copyFor("en-US"));
+  assert.equal(copyFor(null), copyFor("en-US"));
   // A word being practised is quoted the way each language quotes.
   const drill = { word: "Kaffee", at: 1, total: 1, again: false };
   assert.equal(

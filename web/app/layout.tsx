@@ -16,17 +16,17 @@ const text = Nunito({
   display: "swap",
 });
 export const metadata: Metadata = {
-  title: "pío · Tu voz, un nuevo idioma",
+  title: "pío · Learn a language by speaking",
   description:
-    "Practica idiomas hablando. Traduce, repite y conversa a tu ritmo.",
+    "Practice languages by speaking. Translate, repeat and chat at your own pace.",
   metadataBase: new URL("https://pio.today"),
   // What a shared link shows in a chat.
   openGraph: {
-    title: "pío · Tu voz, un nuevo idioma",
-    description: "Practica idiomas hablando, una frase a la vez.",
+    title: "pío · Learn a language by speaking",
+    description: "Practice languages by speaking, one phrase at a time.",
     url: "/",
     siteName: "pío",
-    locale: "es_MX",
+    locale: "en_US",
     type: "website",
     images: [{ url: "/pio/share.jpg", width: 1200, height: 630, alt: "pío" }],
   },
@@ -48,7 +48,7 @@ export const viewport: Viewport = {
 };
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={`${display.variable} ${text.variable}`}>
+    <html lang="en" className={`${display.variable} ${text.variable}`}>
       <body>{children}</body>
     </html>
   );

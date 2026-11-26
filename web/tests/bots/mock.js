@@ -7,6 +7,13 @@
   let ctx = null,
     dest = null;
   const audio = () => ctx || (ctx = new AC());
+  // The language the device is set to, as the page sees it.
+  if (cfg.languages) {
+    Object.defineProperty(navigator, "languages", { get: () => cfg.languages });
+    Object.defineProperty(navigator, "language", {
+      get: () => cfg.languages[0],
+    });
+  }
   window.__events = [];
   // Stands in for the iPhone app, to see what the page asks of it.
   if (cfg.app) {

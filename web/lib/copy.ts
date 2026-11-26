@@ -1410,9 +1410,10 @@ const pt: Copy = {
 
 const all: Record<string, Copy> = { es, en, de, fr, it, pt };
 export const spanish = es;
-// The copy for a learner's language; Spanish when the language is unknown.
+// The copy for a learner's language; English, the one most people can read,
+// when the language is unknown.
 export const copyFor = (locale: string | null | undefined): Copy =>
-  (locale && all[base(locale)]) || es;
+  (locale && all[base(locale)]) || en;
 
 // The first supported language the browser asks for, if any.
 export function browserLocale(wanted: readonly string[]): Locale | "" {

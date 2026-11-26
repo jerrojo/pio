@@ -47,6 +47,17 @@
       document.head.appendChild(st);
     });
   window.__say = async () => {
+    // A very short word: one brief burst of sound, then silence.
+    if (cfg.blip) {
+      const tone = audio().createOscillator(),
+        level = audio().createGain();
+      tone.frequency.value = 280;
+      level.gain.value = cfg.level ?? 0.25;
+      tone.connect(level).connect(dest);
+      tone.start();
+      tone.stop(audio().currentTime + cfg.blip);
+      return;
+    }
     const b = await audio().decodeAudioData(wav.buffer.slice(0));
     const s = audio().createBufferSource();
     s.buffer = b;

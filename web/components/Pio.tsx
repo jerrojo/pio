@@ -971,6 +971,9 @@ export function Pio() {
     capture.onSamples = (samples, rate) => listener.send(samples, rate);
     const waited = granted.current;
     let heard = false,
+      // Something brief and clear was said, too short to count as speech by
+      // its length: a "sí", a "ja". It is sent all the same.
+      blip = false,
       lastVoice = 0,
       stopping = false,
       smooth = 0,
@@ -985,7 +988,7 @@ export function Pio() {
     manualStop.current = () => {
       if (!stopping) {
         stopping = true;
-        void finish(token, heard);
+        void finish(token, heard || blip);
       }
     };
     capture.onLost = () => manualStop.current();
@@ -1024,9 +1027,14 @@ export function Pio() {
         );
         noiseFloor.current = floor;
         // The first instant is skipped: opening the microphone can pop.
-        if (time > 0.25 && smooth > Math.max(0.01, floor * 3)) {
+        // Sound arrives in pieces of about a tenth of a second, so a very
+        // short word fills one piece and part of the next. One piece that is
+        // clearly louder than the room is enough to know something was said.
+        const loud = rms > Math.max(0.02, floor * 5);
+        if (time > 0.25 && (smooth > Math.max(0.01, floor * 3) || loud)) {
           run += step;
           lastVoice = time;
+          if (loud) blip = true;
           // A click or a cough is not speech: it must last.
           if (run >= 0.15) heard = true;
         } else if (time - lastVoice > 0.35) run = 0;
@@ -1036,6 +1044,8 @@ export function Pio() {
         if (
           time >= 24.5 ||
           (!heard && time >= 8 && quiet > 0.6) ||
+          // One short word and then silence: that was the whole turn.
+          (!heard && blip && quiet > 1.3) ||
           // The live recognizer follows the sentence: once it takes it as
           // finished there is no need to wait out the whole pause, and while
           // it takes it as unfinished a hesitation gets more time.

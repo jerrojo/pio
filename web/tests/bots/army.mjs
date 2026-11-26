@@ -1360,6 +1360,35 @@ Object.assign(scenarios, {
   },
 });
 
+Object.assign(scenarios, {
+  // A word of a fifth of a second ("sí", "ja") must still be taken as a turn,
+  // and without waiting out the long silence limit.
+  async shortWord(c) {
+    await open(
+      c,
+      { blip: c.arg[0], level: c.arg[1], turns: ["translation"] },
+      prefs(c.native, c.target),
+    );
+    await click(".mic-button");
+    await until(micIs("listening"), 8000, "listening");
+    const from = Date.now();
+    if (
+      !(await until(
+        `window.__events.some(e=>e.startsWith('turn'))`,
+        7000,
+        `a word of ${c.arg[0]} s at level ${c.arg[1]} is sent to be understood`,
+      ))
+    )
+      return;
+    await expect(
+      Date.now() - from < 5000,
+      "sent soon after the word, not after the long wait",
+      "short-word",
+    );
+    await until(hasCard("translation"), 15000, "and answered");
+  },
+});
+
 // ---- The cases ---------------------------------------------------------------
 const targetFor = (native) => (base(native) === "de" ? "en-US" : "de-DE");
 const phone = { w: 390, h: 844 },
@@ -1526,6 +1555,18 @@ for (const [n, size, pct] of [
 for (const n of ["es-MX", "de-DE"]) add("slow", n, phone);
 // Last: it disables storage for the rest of that browser's run.
 for (const n of ["es-MX", "it-IT"]) add("noStorage", n, phone);
+
+// Length in seconds and loudness. The last two are the ones the detector
+// used to miss: under a tenth of a second and soft.
+for (const pair of [
+  [0.2, 0.25],
+  [0.12, 0.25],
+  [0.2, 0.06],
+  [0.1, 0.06],
+  [0.08, 0.04],
+  [0.06, 0.04],
+])
+  add("shortWord", "es-MX", phone, pair);
 
 // ---- Run -----------------------------------------------------------------------
 const wanted = filter.split(",").filter(Boolean);

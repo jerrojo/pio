@@ -8,7 +8,12 @@ import {
   type Turn,
 } from "./domain.ts";
 export interface Services {
-  transcribe(audio: Buffer, signal: AbortSignal): Promise<Transcript>;
+  // The turn tells the recognizer which two languages to expect.
+  transcribe(
+    audio: Buffer,
+    signal: AbortSignal,
+    turn?: Turn,
+  ): Promise<Transcript>;
   assess(audio: Buffer, turn: Turn, signal: AbortSignal): Promise<Evidence>;
   generate(
     task: "translate" | "converse",
@@ -31,7 +36,7 @@ export async function runTurn(
   signal: AbortSignal,
 ): Promise<Result> {
   signal.throwIfAborted();
-  const transcript = await services.transcribe(audio, signal);
+  const transcript = await services.transcribe(audio, signal, turn);
   if (transcript.text.length > 500) throw new Error("phrase-too-long");
   signal.throwIfAborted();
   const initial: Result = {

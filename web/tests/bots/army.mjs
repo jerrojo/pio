@@ -117,9 +117,12 @@ const report = (kind, detail, step = "") => {
   findings.push({ case: current, step, kind, detail });
 };
 let script = null,
-  screenW = 390;
+  screenW = 390,
+  // On a phone held upright everything fits the screen: no scrolling.
+  fits = false;
 async function open(c, cfg, storage) {
   screenW = c.w;
+  fits = c.w < 700 && c.h >= 640 && c.scenario !== "bigText";
   await send("Emulation.setDeviceMetricsOverride", {
     width: c.w,
     height: c.h,
@@ -204,6 +207,9 @@ const expect = async (ok, what, step) => {
 // What must hold on every screen, whatever the state.
 async function audit(step, native) {
   const lang = base(native);
+  // SHOTS=1 keeps a picture of every audited screen, to look at the layout.
+  if (process.env.SHOTS)
+    await shot(`see-${screenW}-${current.split(" ")[0]}-${native}-${step}`);
   const found = await js(`(()=>{
     const out = [];
     // The real screen: a page that overflows makes the layout wider than it.
@@ -211,6 +217,8 @@ async function audit(step, native) {
     const seen = (e) => { const r = e.getBoundingClientRect(), c = getComputedStyle(e); return r.width > 0 && r.height > 0 && c.visibility !== 'hidden' && c.display !== 'none' && +c.opacity > 0.05 && !e.closest('.sr-only') && !e.closest('[aria-hidden="true"]:not(.dock-label)') };
     const name = (e) => e.tagName.toLowerCase() + (e.className && typeof e.className === 'string' ? '.' + e.className.trim().split(/\\s+/).join('.') : '') + ' "' + (e.textContent || '').trim().slice(0, 40) + '"';
     if (document.documentElement.scrollWidth > W + 1) out.push(['overflow-x', 'page is ' + document.documentElement.scrollWidth + 'px wide in a ' + W + 'px screen']);
+    if (${fits} && document.documentElement.scrollHeight > innerHeight + 1) out.push(['scroll-y', 'page is ' + document.documentElement.scrollHeight + 'px tall in a ' + innerHeight + 'px screen']);
+    if (${fits}) for (const e of document.querySelectorAll('.conversation, .welcome, .phrase-card')) if (e.scrollHeight > e.clientHeight + 1) out.push(['inner-scroll', name(e).slice(0, 40) + ' holds ' + e.scrollHeight + 'px in ' + e.clientHeight + 'px']);
     for (const e of document.querySelectorAll('.app-shell *')) {
       if (!seen(e) || e.closest('.celebrate') || e.closest('.pio-orb') || e.closest('nextjs-portal')) continue;
       const r = e.getBoundingClientRect();
@@ -1489,7 +1497,8 @@ Object.assign(scenarios, {
 
 // ---- The cases ---------------------------------------------------------------
 const targetFor = (native) => (base(native) === "de" ? "en-US" : "de-DE");
-const phone = { w: 390, h: 844 },
+// A phone's screen less the bars the app keeps clear of (notch, home bar).
+const phone = { w: 393, h: 756 },
   small = { w: 320, h: 568 },
   short = { w: 375, h: 650 },
   wide = { w: 1280, h: 800 },
@@ -1549,6 +1558,12 @@ for (const n of ["es-MX", "de-DE", "it-IT"])
   add("drillPaths", n, n === "de-DE" ? small : phone);
 for (const n of ["fr-FR", "en-US"]) add("manyMisses", n, phone);
 add("welcome", "es-MX", phone, [...locales]);
+add("welcome", "es-MX", short, [...locales]);
+for (const n of locales) add("happy", n, short);
+for (const n of ["de-DE", "fr-FR"]) add("drillPaths", n, short);
+for (const n of ["de-DE", "pt-BR"]) add("milestone", n, short);
+add("manyMisses", "de-DE", short);
+add("conversation", "it-IT", short);
 add("welcome", "es-MX", small, ["de-DE", "fr-FR", "pt-BR", "en-US", "it-IT"]);
 add("welcome", "es-MX", wide, ["en-US", "es-MX"]);
 [

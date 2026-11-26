@@ -1830,13 +1830,13 @@ body {
   background-repeat: no-repeat;
   transition: --glow 0.8s ease;
 }
-body:has(.conversation > .pio-orb.listening) {
+body:has(.conversation .pio-orb.listening) {
   --glow: #4a2a26;
 }
-body:has(.conversation > .pio-orb.happy) {
+body:has(.conversation .pio-orb.happy) {
   --glow: #4a4220;
 }
-body:has(.conversation > .pio-orb.sleepy) {
+body:has(.conversation .pio-orb.sleepy) {
   --glow: #142322;
 }
 
@@ -2197,4 +2197,325 @@ select:hover {
   padding: 12px 0;
   color: var(--mint);
   font-weight: 700;
+}
+
+/* One screen, never a scroll. The practice is a frame the height of the
+   screen: the top bar above, the microphone below, and what changes in
+   between gives way before anything is pushed off the edge. Sizes follow the
+   room that is really left (the frame's own height), not the phone model.
+   Very short screens, a phone on its side, keep the scrolling page. */
+.lead {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+.conversation.has-phrase .lead {
+  flex-direction: row;
+  gap: 12px;
+}
+.conversation.has-phrase .lead .pio-orb {
+  --size: 88px;
+  flex: none;
+  margin: 0;
+}
+.conversation.has-phrase .lead .session-copy {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+@media (min-height: 600px) {
+  .framed {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .framed > main {
+    flex: 1;
+    min-height: 0;
+    container: stage / size;
+  }
+  .framed .conversation,
+  .framed .welcome {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    /* Only if the text is set very large: the middle scrolls, the page
+       does not. */
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+  .framed .conversation > *,
+  .framed .welcome > * {
+    flex: none;
+  }
+  .framed .notice {
+    flex: none;
+    margin: 8px auto calc(8px + env(safe-area-inset-bottom));
+  }
+
+  /* Practising */
+  .framed .conversation {
+    --orb: min(58vw, 30cqh, 236px);
+    padding: 4px 0 0;
+    align-items: center;
+  }
+  .framed .conversation:has(.recap, .revisit, .connection-action) {
+    --orb: min(40vw, 20cqh, 150px);
+  }
+  .framed .conversation .lead .pio-orb {
+    --size: var(--orb);
+  }
+  .framed .conversation .celebrate {
+    top: calc(var(--orb) / 2);
+  }
+  .framed .conversation.has-phrase {
+    --orb: 88px;
+    align-items: stretch;
+  }
+  .framed .conversation.has-phrase .celebrate {
+    top: calc(var(--orb) / 2);
+    left: calc(var(--orb) / 2);
+  }
+  .framed .conversation.has-phrase .bubble.mine {
+    align-self: flex-end;
+    margin-top: 8px;
+    padding: 8px 14px;
+  }
+  .framed .conversation.has-phrase .bubble.mine p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    line-height: 1.35;
+  }
+  /* The phrase gives way first: a long one scrolls inside its own card. */
+  .framed .conversation.has-phrase .phrase-card {
+    flex: 0 1 auto;
+    min-height: 132px;
+    margin-top: 10px;
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+  .framed .dock {
+    position: static;
+    width: 100%;
+    margin-top: auto;
+    background: none;
+  }
+  .framed .conversation:not(.has-phrase) .dock {
+    min-height: 0;
+    padding-top: 16px;
+  }
+  /* With a phrase on screen the microphone and its two actions share one
+     row, so the phrase keeps the height. */
+  .framed .conversation.has-phrase .dock {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    justify-items: center;
+    gap: 0 8px;
+    padding: 12px 0 calc(8px + env(safe-area-inset-bottom));
+  }
+  .framed .conversation.has-phrase .mic-button {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .framed .conversation.has-phrase .dock-label {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-top: 12px;
+  }
+  .framed .conversation.has-phrase .dock-actions {
+    display: contents;
+  }
+  .framed .conversation.has-phrase .dock-actions .text-button {
+    grid-row: 1;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 100%;
+    min-height: 48px;
+    padding: 6px 10px;
+    border-radius: 16px;
+    font-size: 0.8125rem;
+    line-height: 1.15;
+    text-align: center;
+    text-wrap: balance;
+  }
+  .framed .conversation.has-phrase .dock-actions .before {
+    grid-column: 1;
+  }
+  .framed .conversation.has-phrase .dock-actions .after {
+    grid-column: 3;
+  }
+  /* Help waits where a session starts, and opens over the screen. */
+  .framed .conversation.has-phrase .help-details {
+    display: none;
+  }
+  .framed .help-details {
+    margin-top: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .framed .conversation:not(.has-phrase) .dock {
+    padding-bottom: 4px;
+  }
+  .framed .help-details[open] {
+    position: absolute;
+    inset: auto 0 calc(8px + env(safe-area-inset-bottom));
+    z-index: 5;
+    max-height: 82%;
+    padding: 0 16px 8px;
+    overflow: hidden auto;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    box-shadow: 0 -16px 48px #000b;
+  }
+  .framed .recap,
+  .framed .revisit {
+    margin-top: 10px;
+  }
+
+  /* Welcome */
+  .framed .welcome {
+    max-width: 460px;
+    margin: 0 auto;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+  .framed .welcome > .pio-orb {
+    --size: min(52vw, 20cqh, 210px);
+    margin: auto auto 0;
+  }
+  .framed .welcome .steps {
+    margin-top: 16px;
+  }
+  .framed .welcome .setup-card {
+    width: 100%;
+    margin: auto 0 0;
+  }
+  @container stage (max-height: 860px) {
+    .welcome > .pio-orb {
+      --size: clamp(84px, 17cqh, 150px);
+    }
+    .welcome h1 {
+      font-size: clamp(1.6rem, 6.4vw, 2rem);
+    }
+    .welcome .intro {
+      margin-top: 2px;
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+    .welcome .steps {
+      margin-top: 12px;
+      gap: 8px;
+      font-size: 0.95rem;
+    }
+    .welcome .steps li::before {
+      width: 28px;
+      height: 28px;
+      font-size: 0.9rem;
+    }
+    .welcome .setup-card {
+      padding: 16px 18px;
+    }
+    .welcome .setup-card h2 {
+      font-size: 1.2rem;
+      margin-bottom: 10px;
+    }
+    .welcome .language-form label {
+      gap: 6px;
+    }
+    .welcome select {
+      min-height: 48px;
+      padding: 10px 12px;
+    }
+    /* The arrow between the two choices is a nicety; the room is not. */
+    .welcome .pair-arrow {
+      height: 10px;
+      padding: 0;
+      visibility: hidden;
+    }
+    .welcome .form-note {
+      margin: 10px 0;
+      line-height: 1.35;
+    }
+    .welcome .primary {
+      min-height: 50px;
+    }
+    /* The words to polish sit beside their label instead of under it. */
+    .conversation.has-phrase .focus-words {
+      margin-bottom: 8px;
+    }
+    .conversation.has-phrase .focus-words > span {
+      flex-basis: auto;
+    }
+  }
+  @container stage (max-height: 640px) {
+    .welcome > .pio-orb {
+      --size: clamp(72px, 15cqh, 96px);
+    }
+    .welcome .steps {
+      margin-top: 8px;
+      gap: 4px;
+      font-size: 0.9rem;
+    }
+    .welcome .steps li::before {
+      width: 24px;
+      height: 24px;
+      font-size: 0.8rem;
+    }
+    .welcome .setup-card {
+      padding: 12px 16px;
+    }
+    .welcome .setup-card h2 {
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+    }
+    .welcome select {
+      min-height: 46px;
+      padding: 8px 12px;
+    }
+    /* The reminder that languages can change later goes; a problem with
+       the choice still shows. */
+    .welcome .form-note:not(.field-error) {
+      display: none;
+    }
+    .welcome .form-note {
+      margin: 6px 0;
+    }
+    .welcome .primary {
+      min-height: 48px;
+      margin-top: 12px;
+    }
+    /* Practising on a small phone: everything a size down. */
+    .conversation.has-phrase {
+      --orb: 64px;
+    }
+    .conversation.has-phrase .session-copy h1 {
+      font-size: 1.3rem;
+    }
+    .conversation.has-phrase .session-copy p {
+      font-size: 0.95rem;
+    }
+    .conversation.has-phrase .phrase-card {
+      padding: 14px 16px;
+    }
+    .conversation.has-phrase .phrase-card > p {
+      margin: 6px 0 10px;
+      font-size: 1.4rem;
+    }
+    .conversation.has-phrase .mic-button {
+      width: 68px;
+      height: 68px;
+      min-height: 68px;
+    }
+    .conversation.has-phrase .dock {
+      padding-top: 8px;
+    }
+    .conversation.has-phrase .dock-label {
+      margin-top: 8px;
+    }
+  }
 }

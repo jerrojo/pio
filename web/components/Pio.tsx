@@ -1246,7 +1246,7 @@ export function Pio() {
       </main>
     );
   return (
-    <div className="app-shell">
+    <div className="app-shell framed">
       <header className="topbar">
         <p className="brand">
           <span className="brand-mark">
@@ -1318,28 +1318,32 @@ export function Pio() {
             className={`conversation ${result?.text ? "has-phrase" : ""}`}
             aria-labelledby="session-title"
           >
-            <div
-              ref={orb}
-              className={`pio-orb ${mood}`}
-              aria-hidden="true"
-              onClick={poke}
-            >
-              <span className="pio-halo" />
-              <div className="pio-nest">
-                <Mascot mood={mood} />
+            {/* Pío and what it says: stacked while waiting, side by side
+                once a phrase needs the room. */}
+            <div className="lead">
+              <div
+                ref={orb}
+                className={`pio-orb ${mood}`}
+                aria-hidden="true"
+                onClick={poke}
+              >
+                <span className="pio-halo" />
+                <div className="pio-nest">
+                  <Mascot mood={mood} />
+                </div>
               </div>
-            </div>
-            <div className="session-copy">
-              {/* Keyed so each new line arrives with its own soft entrance. */}
-              <h1 id="session-title" key={title}>
-                {title}
-              </h1>
-              <p key={description}>{description}</p>
-              {phase === "listening" && hearing && (
-                <p className="hearing" aria-hidden="true">
-                  {hearing}
-                </p>
-              )}
+              <div className="session-copy">
+                {/* Keyed so each new line arrives with its own soft entrance. */}
+                <h1 id="session-title" key={title}>
+                  {title}
+                </h1>
+                <p key={description}>{description}</p>
+                {phase === "listening" && hearing && (
+                  <p className="hearing" aria-hidden="true">
+                    {hearing}
+                  </p>
+                )}
+              </div>
             </div>
             <p className="sr-only" role="status">
               {announce}
@@ -1494,14 +1498,17 @@ export function Pio() {
                 )}
                 <div className="dock-actions">
                   {active && phase !== "permission" && (
-                    <button className="text-button" onClick={() => pause(true)}>
+                    <button
+                      className="text-button before"
+                      onClick={() => pause(true)}
+                    >
                       <Icon name="pause" size={18} />
                       {t.pause}
                     </button>
                   )}
                   {result && phase !== "thinking" && (
                     <button
-                      className="text-button"
+                      className="text-button after"
                       onClick={() => {
                         unlockVoice();
                         reset();

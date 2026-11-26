@@ -2049,3 +2049,49 @@ select:hover {
 .dock-label {
   margin-top: 14px;
 }
+
+/* With large text the language button gives way instead of pushing the page
+   wider than the screen. */
+.topbar-tools {
+  flex: 1;
+  justify-content: flex-end;
+}
+.language-pill {
+  min-width: 0;
+}
+.language-pill span,
+.language-pill strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.language-pill svg,
+.chip.progress {
+  flex-shrink: 0;
+}
+@media (max-width: 350px) {
+  .language-pill {
+    padding: 6px 10px;
+    gap: 6px;
+    font-size: 0.8rem;
+  }
+  .chip.progress {
+    padding: 4px 10px;
+  }
+}
+/* A very long word wraps inside the card, and with large text the card's
+   controls take two lines instead of leaving the screen. */
+.phrase-card .word {
+  max-width: 100%;
+}
+.phrase-card .word > * {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.phrase-actions {
+  flex-wrap: wrap;
+}
+.session-copy {
+  overflow-wrap: anywhere;
+}

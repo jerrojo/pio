@@ -9,6 +9,7 @@ import {
   signVoice,
 } from "../../../lib/security";
 import { maxAudioBytes, validateWav } from "../../../lib/wav";
+import { overlap } from "../../../lib/words";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 // The page calls this once to wake the function before the first phrase.
@@ -109,6 +110,16 @@ export async function POST(request: Request) {
         "drill",
         result.weak?.length ?? 0,
       );
+    // An accented attempt is often written down as words of some other
+    // language, nothing like the phrase. Shown as "you said", that would put
+    // words in the learner's mouth, so it is only shown when at least some of
+    // the phrase is in it. The log above keeps what was heard, for tuning.
+    if (
+      parsed.data.reference &&
+      (result.outcome === "accepted" || result.outcome === "practice") &&
+      overlap(result.heard, parsed.data.reference.text, target) === 0
+    )
+      result.heard = "";
     // A new phrase Pío will say aloud travels with its voice: the result as
     // one JSON line, then the audio. The text shows at once and no second
     // request is needed. A phrase already on screen is cached by the browser.

@@ -83,10 +83,10 @@ export function Mascot({ mood = "idle" }: { mood?: Mood | "still" }) {
     return (
       <img
         className="mascot-still"
-        src="/pio/icon.png"
+        src="/pio/mark.png"
         alt=""
-        width={180}
-        height={180}
+        width={96}
+        height={96}
         draggable={false}
       />
     );
@@ -100,6 +100,10 @@ export function Mascot({ mood = "idle" }: { mood?: Mood | "still" }) {
             className={`m-frame f-${frame}`}
             src={`/pio/${frame}.webp`}
             alt=""
+            // The pose on screen first; the others arrive behind it, ready
+            // for the first change of gesture.
+            fetchPriority={frame === "idle" || frame === mood ? "high" : "low"}
+            decoding="async"
             width={560}
             height={560}
             draggable={false}

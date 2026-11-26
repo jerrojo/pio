@@ -382,6 +382,8 @@ export function Pio() {
     setMissed(false);
     setTries(0);
   }
+  // Set when new languages are saved: listen as soon as Pío is ready for them.
+  const wake = useRef(false);
   function save(p: Preferences) {
     settings.current?.close();
     setDraft("");
@@ -389,6 +391,16 @@ export function Pio() {
       return;
     reset();
     setPreferences(p);
+    // With the languages chosen there is nothing left to set up: Pío starts
+    // listening by itself. Sound and the audio clock must be unlocked inside
+    // this tap, or a phone would refuse them a moment later.
+    unlockVoice();
+    try {
+      if (!captureContext.current || captureContext.current.state === "closed")
+        captureContext.current = new AudioContext();
+      void captureContext.current.resume();
+    } catch {}
+    wake.current = true;
     try {
       localStorage.setItem(preferenceKey, JSON.stringify(p));
     } catch {
@@ -1143,6 +1155,12 @@ export function Pio() {
       );
     else void start();
   }
+  useEffect(() => {
+    if (!wake.current || !preferences || connection === "checking") return;
+    wake.current = false;
+    if (connection === "ready" && live.current === "idle" && !document.hidden)
+      startRef.current(false);
+  }, [preferences, connection]);
   if (!loaded)
     return (
       <main className="loading">

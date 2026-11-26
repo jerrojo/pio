@@ -216,7 +216,7 @@ async function audit(step, native) {
       const r = e.getBoundingClientRect();
       if (r.right > W + 1 || r.left < -1) out.push(['off-screen', name(e) + ' x=' + Math.round(r.left) + '..' + Math.round(r.right)]);
       const c = getComputedStyle(e);
-      if (e.children.length === 0 && e.scrollWidth > e.clientWidth + 1 && c.overflowX !== 'visible' ) out.push(['clipped', name(e)]);
+      if (e.children.length === 0 && e.scrollWidth > e.clientWidth + 1 && c.overflowX !== 'visible' && c.textOverflow !== 'ellipsis' ) out.push(['clipped', name(e)]);
     }
     for (const e of document.querySelectorAll('button, select, summary, input:not([type=hidden])')) {
       if (!seen(e) || e.closest('dialog:not([open])')) continue;
@@ -320,6 +320,11 @@ const scenarios = {
       return;
     await sleep(600);
     await audit("drill", c.native);
+    await expect(
+      await js(`!document.querySelector('.phrase-top .score')`),
+      "no score while one word is practised",
+      "drill",
+    );
     await expect(await js(title(t.session.parts)), "drill title", "drill");
     await expect(
       await js(`document.querySelector('mark.now')?.textContent === 'Kaffee'`),
@@ -348,6 +353,13 @@ const scenarios = {
         `document.querySelector('.chip.progress').textContent.trim()`,
       )) === "1",
       "one star earned",
+      "accepted",
+    );
+    await expect(
+      (await js(
+        `document.querySelector('.phrase-top .score')?.textContent`,
+      )) === "9/10",
+      "the whole phrase gets its score out of ten",
       "accepted",
     );
     if (
@@ -832,6 +844,18 @@ const scenarios = {
       5000,
       "saving opens the practice screen",
     );
+    await until(
+      micIs("listening"),
+      8000,
+      "listens by itself after choosing languages",
+    );
+    await expect(
+      await js(`window.__micOpen()`),
+      "microphone open after choosing languages",
+      "auto-listen",
+    );
+    await clickText(copyFor(native).pause);
+    await sleep(300);
     await expect(
       (await js(`localStorage.getItem('pio.preferences.v3')`)) ===
         JSON.stringify({ version: 3, native, target }),
@@ -932,8 +956,12 @@ const scenarios = {
     await click("dialog .primary");
     await sleep(500);
     await expect(
-      await js(title(o.session.ask)),
-      "saving switches for good and starts clean",
+      await until(
+        micIs("listening") + "&&" + title(o.session.hearing),
+        6000,
+        "saving listens by itself, in the new language",
+      ),
+      "saving switches for good and listens by itself",
       "dialog-save",
     );
     await expect(
@@ -942,7 +970,6 @@ const scenarios = {
       "dialog-save",
     );
     await audit("dialog-saved", other);
-    await click(".mic-button");
     await until(hasCard("translation"), 15000, "works in the new language");
     await sleep(600);
     await audit("new-language-card", other);
@@ -1244,7 +1271,7 @@ Object.assign(scenarios, {
       "notice",
     );
     await audit("no-storage", c.native);
-    await click(".mic-button");
+    // Saving the languages starts the session by itself.
     await until(
       hasCard("accepted"),
       40000,
@@ -1341,10 +1368,10 @@ errors.forEach((e, i) =>
   add("error", locales[i % locales.length], i % 3 === 0 ? small : phone, e),
 );
 ["NotAllowedError", "NotFoundError", "NotReadableError"].forEach((e, i) =>
-  add("micError", ["de-DE", "en-GB", "it-IT"][i], phone, e),
+  add("micError", ["de-DE", "en-US", "it-IT"][i], phone, e),
 );
-for (const n of ["es-ES", "de-DE", "fr-FR"]) add("noSpeech", n, phone);
-for (const n of ["pt-PT", "en-US"]) add("silent", n, phone);
+for (const n of ["es-MX", "de-DE", "fr-FR"]) add("noSpeech", n, phone);
+for (const n of ["pt-BR", "en-US"]) add("silent", n, phone);
 for (const n of ["de-DE", "es-MX", "it-IT"])
   add("voiceFail", n, n === "de-DE" ? small : phone);
 for (const g of ["ok", "slow", "fail", "net", "wrongcount"])
@@ -1356,16 +1383,16 @@ for (const n of locales.filter((_, i) => i % 2 === 0))
   add("conversation", n, phone);
 for (const n of ["es-MX", "de-DE", "it-IT"])
   add("drillPaths", n, n === "de-DE" ? small : phone);
-for (const n of ["fr-FR", "en-GB"]) add("manyMisses", n, phone);
+for (const n of ["fr-FR", "en-US"]) add("manyMisses", n, phone);
 add("welcome", "es-MX", phone, [...locales]);
-add("welcome", "es-MX", small, ["de-DE", "fr-FR", "pt-PT", "en-GB", "it-IT"]);
-add("welcome", "es-MX", wide, ["en-US", "es-ES"]);
+add("welcome", "es-MX", small, ["de-DE", "fr-FR", "pt-BR", "en-US", "it-IT"]);
+add("welcome", "es-MX", wide, ["en-US", "es-MX"]);
 [
   ["es-MX", "de-DE"],
   ["de-DE", "fr-FR"],
   ["en-US", "pt-BR"],
-  ["it-IT", "es-ES"],
-  ["fr-FR", "en-GB"],
+  ["it-IT", "es-MX"],
+  ["fr-FR", "en-US"],
 ].forEach(([a, b], i) => add("settings", a, i % 2 ? small : phone, b));
 const good = { version: 3, native: "es-MX", target: "de-DE" };
 [
@@ -1376,7 +1403,7 @@ const good = { version: 3, native: "es-MX", target: "de-DE" };
       "pio.preferences.v3": JSON.stringify({
         version: 3,
         native: "es-MX",
-        target: "es-ES",
+        target: "es-MX",
       }),
     },
     "welcome",

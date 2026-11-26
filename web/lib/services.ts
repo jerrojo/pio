@@ -93,14 +93,11 @@ const iso3: Record<string, string> = {
 let priorityTier = process.env.PIO_TEXT_PRIORITY !== "off";
 const language: Record<string, string> = {
   "es-MX": "Mexican Spanish",
-  "es-ES": "European Spanish",
   "en-US": "American English",
-  "en-GB": "British English",
   "de-DE": "German",
   "fr-FR": "French",
   "it-IT": "Italian",
   "pt-BR": "Brazilian Portuguese",
-  "pt-PT": "European Portuguese",
 };
 const heardCache = new WeakMap<Buffer, ScribeResponse>();
 async function scribe(audio: Buffer, signal: AbortSignal, language?: string) {

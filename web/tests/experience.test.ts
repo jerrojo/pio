@@ -7,7 +7,13 @@ import {
   languageName,
   ownName,
 } from "../lib/copy.ts";
-import { locales } from "../lib/domain.ts";
+import {
+  countMastery,
+  locales,
+  readMastery,
+  readPreferences,
+  readReview,
+} from "../lib/domain.ts";
 import {
   connectionState,
   readStatus,
@@ -191,14 +197,14 @@ test("a word being practised is named with what it means, taken from the phrase'
 });
 
 test("Pío speaks the learner's own language, and Spanish when it is unknown", () => {
-  const english = copyFor("en-GB");
+  const english = copyFor("en-US");
   assert.equal(
     sessionCopy({ phase: "listening" }, english).title,
     "I'm listening",
   );
   assert.equal(microphoneLabel("idle", copyFor("de-DE")), "Sprechen");
   assert.equal(copyFor("xx-XX"), copyFor("es-MX"));
-  assert.equal(copyFor(null), copyFor("es-ES"));
+  assert.equal(copyFor(null), copyFor("es-MX"));
   // A word being practised is quoted the way each language quotes.
   const drill = { word: "Kaffee", at: 1, total: 1, again: false };
   assert.equal(
@@ -220,15 +226,64 @@ test("every language says something for every moment", () => {
 });
 test("languages are named in the learner's language and in their own", () => {
   assert.equal(ownName("de-DE"), "Deutsch");
-  assert.equal(ownName("es-MX"), "Español · México");
-  assert.equal(ownName("pt-BR"), "Português · Brasil");
+  assert.equal(ownName("es-MX"), "Español");
+  assert.equal(ownName("pt-BR"), "Português");
   assert.equal(languageName("de-DE", "es-MX"), "Alemán");
   assert.equal(languageIn("de-DE", "es-MX"), "alemán");
   assert.equal(languageIn("es-MX", "en-US"), "Spanish");
-  assert.equal(languageName("en-GB", "fr-FR", true), "Anglais · Royaume-Uni");
+  assert.equal(languageName("en-US", "fr-FR", true), "Anglais");
 });
 test("the first visit starts in the browser's language when Pío knows it", () => {
   assert.equal(browserLocale(["fr-CA", "en-US"]), "fr-FR");
-  assert.equal(browserLocale(["ja-JP", "en-GB"]), "en-GB");
+  assert.equal(browserLocale(["ja-JP", "en-GB"]), "en-US");
   assert.equal(browserLocale(["ja-JP"]), "");
+});
+
+test("what was saved under a regional variety now belongs to its language", () => {
+  assert.deepEqual(
+    readPreferences('{"version":3,"native":"es-ES","target":"en-GB"}'),
+    { version: 3, native: "es-MX", target: "en-US" },
+  );
+  assert.equal(
+    readPreferences('{"version":3,"native":"es-ES","target":"es-MX"}'),
+    null,
+  );
+  const stars = readMastery(
+    JSON.stringify([
+      { id: "a", pair: "es-ES:pt-PT", phrase: "bom dia", day: "2026-11-25" },
+    ]),
+  );
+  assert.equal(stars[0].pair, "es-MX:pt-BR");
+  assert.equal(
+    countMastery(
+      stars,
+      { version: 3, native: "es-MX", target: "pt-BR" },
+      "2026-11-25",
+    ),
+    1,
+  );
+  // A pending phrase keeps its place when only the learner's side changed,
+  // and is dropped when its voice was made for the variety that is gone.
+  const pending = readReview(
+    JSON.stringify([
+      {
+        pair: "es-ES:de-DE",
+        text: "Guten Tag",
+        proof: "p",
+        words: [],
+        day: "2026-11-25",
+      },
+      {
+        pair: "es-MX:pt-PT",
+        text: "Bom dia",
+        proof: "p",
+        words: [],
+        day: "2026-11-25",
+      },
+    ]),
+  );
+  assert.deepEqual(
+    pending.map((e) => e.pair),
+    ["es-MX:de-DE"],
+  );
 });

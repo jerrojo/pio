@@ -185,14 +185,14 @@
         canSignIn: false,
         ready: cfg.ready || [
           "es-MX",
-          "es-ES",
+          "es-MX",
           "en-US",
-          "en-GB",
+          "en-US",
           "de-DE",
           "fr-FR",
           "it-IT",
           "pt-BR",
-          "pt-PT",
+          "pt-BR",
         ],
       });
     }
@@ -258,6 +258,18 @@
   };
   // The fake learner: answers once each time Pío starts listening.
   let busy = false;
+  // The end of a turn is noticed the moment it happens, so a turn that starts
+  // right after another is still answered.
+  const watch = () =>
+    new MutationObserver(() => {
+      if (!document.querySelector(".mic-button.listening")) busy = false;
+    }).observe(document.documentElement, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+  if (document.documentElement) watch();
+  else addEventListener("DOMContentLoaded", watch);
   setInterval(async () => {
     const on = !!document.querySelector(".mic-button.listening");
     if (on && !busy) {

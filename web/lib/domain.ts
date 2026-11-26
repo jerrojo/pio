@@ -1,28 +1,25 @@
 import { keysOf } from "./words.ts";
 
+// One variety of each language: fewer choices, and the same voice for all.
 export const locales = [
   "es-MX",
-  "es-ES",
   "en-US",
-  "en-GB",
   "de-DE",
   "fr-FR",
   "it-IT",
   "pt-BR",
-  "pt-PT",
 ] as const;
 export type Locale = (typeof locales)[number];
-export const names: Record<Locale, string> = {
-  "es-MX": "Español · México",
-  "es-ES": "Español · España",
-  "en-US": "Inglés · EE. UU.",
-  "en-GB": "Inglés · Reino Unido",
-  "de-DE": "Alemán",
-  "fr-FR": "Francés",
-  "it-IT": "Italiano",
-  "pt-BR": "Portugués · Brasil",
-  "pt-PT": "Portugués · Portugal",
+// Varieties that used to be offered separately. What was saved under one of
+// them now belongs to its language.
+const former: Record<string, Locale> = {
+  "es-ES": "es-MX",
+  "en-GB": "en-US",
+  "pt-PT": "pt-BR",
 };
+const current = (locale: unknown) =>
+  (typeof locale === "string" && former[locale]) || locale;
+const currentPair = (pair: string) => pair.split(":").map(current).join(":");
 export const base = (locale: string) => locale.split("-")[0];
 export type Preferences = { version: 3; native: Locale; target: Locale };
 const isLocale = (value: unknown): value is Locale =>
@@ -32,6 +29,10 @@ export const preferenceKey = "pio.preferences.v3";
 export function readPreferences(raw: string | null): Preferences | null {
   try {
     const p = JSON.parse(raw || "null");
+    if (p && typeof p === "object") {
+      p.native = current(p.native);
+      p.target = current(p.target);
+    }
     return p &&
       p.version === 3 &&
       isLocale(p.native) &&
@@ -244,7 +245,7 @@ export function readMastery(raw: string | null): Mastered[] {
     )
       ? list.map((e) => ({
           id: e.id,
-          pair: e.pair,
+          pair: currentPair(e.pair),
           phrase: e.phrase,
           day: e.day,
         }))
@@ -335,10 +336,13 @@ export function readReview(raw: string | null, day = localDay()): Pending[] {
             Array.isArray(e.words) &&
             e.words.length <= 12 &&
             e.words.every(text) &&
-            (e.won === undefined || text(e.won)),
+            (e.won === undefined || text(e.won)) &&
+            // Its proof was made for a variety that is no longer offered, so
+            // Pío could not say it again.
+            !former[e.pair.split(":")[1]],
         )
         .map((e) => ({
-          pair: e.pair,
+          pair: currentPair(e.pair),
           text: e.text,
           proof: e.proof,
           words: e.words,

@@ -37,6 +37,14 @@ export function PhraseCard({
   const weak = new Set(result.focus.map((word) => canon(word, locale)));
   const now = current ? canon(current, locale) : "";
   const missing = result.evidence?.words.some((w) => w.error === "Omission");
+  // How clearly the whole phrase came through, from 0 to 10. Only for a
+  // phrase said in full: one word practised alone gets no number.
+  const graded =
+    !current &&
+    (accepted || result.outcome === "practice") &&
+    result.evidence?.mode === "scripted" &&
+    result.evidence.words.length > 1;
+  const score = graded ? Math.round(result.evidence!.accuracy / 10) : null;
   return (
     <article
       // "conversation" is also the name of the page section, whose spacing
@@ -57,6 +65,16 @@ export function PhraseCard({
               ? "Pío"
               : copy.card.yourPhrase(language)}
         </span>
+        {score !== null && (
+          <span
+            className="score"
+            role="img"
+            aria-label={copy.card.score(score)}
+          >
+            {score}
+            <small>/10</small>
+          </span>
+        )}
       </div>
       <p lang={locale} className={meanings ? "glossed" : undefined}>
         {/* The words to work on are marked inside the phrase itself, and the

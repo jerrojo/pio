@@ -8,6 +8,13 @@
     dest = null;
   const audio = () => ctx || (ctx = new AC());
   window.__events = [];
+  // Tones the page itself plays (the fake microphone's own are not counted).
+  window.__cues = 0;
+  const begin = OscillatorNode.prototype.start;
+  OscillatorNode.prototype.start = function (...args) {
+    if (this.context !== ctx) window.__cues++;
+    return begin.apply(this, args);
+  };
   const note = (x) => window.__events.push(x);
   navigator.mediaDevices.getUserMedia = async () => {
     note("gum");

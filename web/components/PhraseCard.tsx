@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState, type CSSProperties } from "react";
 import type { Copy } from "../lib/copy";
 import type { Locale, Result } from "../lib/domain";
 import { canon } from "../lib/words";
@@ -71,12 +72,17 @@ export function PhraseCard({
             role="img"
             aria-label={copy.card.score(score)}
           >
-            {score}
+            <Count to={score} />
             <small>/10</small>
           </span>
         )}
       </div>
-      <p lang={locale} className={meanings ? "glossed" : undefined}>
+      {/* A new phrase arrives word by word, the way it is about to be said. */}
+      <p
+        key={result.text}
+        lang={locale}
+        className={meanings ? "glossed" : undefined}
+      >
         {/* The words to work on are marked inside the phrase itself, and the
             one being practised right now stands out. */}
         {result.text.split(/(\s+)/).map((part, index) => {
@@ -96,7 +102,11 @@ export function PhraseCard({
           if (!meanings || index % 2 || !part) return word;
           const meaning = meanings[index / 2];
           return (
-            <span key={index} className="word">
+            <span
+              key={index}
+              className="word"
+              style={{ "--i": index / 2 } as CSSProperties}
+            >
               {word}
               <small
                 key={meaning ? "meaning" : "waiting"}
@@ -161,4 +171,28 @@ export function PhraseCard({
       </div>
     </article>
   );
+}
+
+// A number that climbs to its value, so the score is noticed as it lands.
+function Count({ to }: { to: number }) {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    if (
+      typeof matchMedia === "function" &&
+      matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      setShown(to);
+      return;
+    }
+    let step = 0;
+    const steps = 10;
+    const timer = setInterval(() => {
+      step++;
+      // Fast at first, slowing as it arrives.
+      setShown(Math.round(to * (1 - Math.pow(1 - step / steps, 3))));
+      if (step >= steps) clearInterval(timer);
+    }, 50);
+    return () => clearInterval(timer);
+  }, [to]);
+  return <>{shown}</>;
 }

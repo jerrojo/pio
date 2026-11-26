@@ -29,6 +29,8 @@ import { readTurn } from "../lib/turn-reply";
 import { encodeWav } from "../lib/wav";
 import { Icon, Mascot } from "./Icons";
 import { LanguageForm } from "./LanguageForm";
+import { flyStar, hop, ripple } from "../lib/effects";
+import { cue, type Cue } from "../lib/sounds";
 import {
   browserLocale,
   copyFor,
@@ -663,11 +665,12 @@ export function Pio() {
     if (!d || !phrase) return Promise.resolve();
     if (passed) {
       buzz(12);
-      chime([880]);
+      sound("word");
       if (known.current.text !== phrase.text)
         known.current = { text: phrase.text, words: new Set() };
       known.current.words.add(d.words[d.at]);
     }
+    if (!passed) sound("miss");
     if (passed || d.tries >= 2) {
       d.at++;
       d.tries = 0;
@@ -732,6 +735,7 @@ export function Pio() {
           }
           // Show the phrase the moment it arrives, while its voice downloads.
           keep(reply);
+          if (reply.outcome !== "practice" && spoken(reply)) sound("reply");
           if (spoken(reply)) go("preparing-voice");
         });
       } catch (error) {
@@ -744,6 +748,8 @@ export function Pio() {
       let again: string[] = [];
       retained.current = null;
       noteSounds(next);
+      // Not yet, said gently, for a whole phrase that did not come through.
+      if (!word && next.outcome === "practice") sound("miss");
       if (!word && next.outcome !== "practice") blank.current = 0;
       // A listener's advice about the word just missed wins over a bare score.
       if (word && next.tip) hints.current.set(word, next.tip);
@@ -779,7 +785,8 @@ export function Pio() {
         // Celebrate, then return to the clean starting state and listen again.
         misses.current = 0;
         buzz([12, 60, 18]);
-        chime();
+        sound("win");
+        flyStar(orb.current, document.querySelector(".chip.progress"));
         go("idle");
         celebration.current = setTimeout(() => {
           if (token !== epoch.current) return;
@@ -844,25 +851,31 @@ export function Pio() {
     }
   }
   const manualStop = useRef<() => void>(() => {});
-  // Two rising notes when a phrase is accepted. Uses the audio context the
-  // first tap already unlocked; silently skipped where it is unavailable.
-  function chime(notes = [659.25, 987.77]) {
-    const context = captureContext.current;
-    if (!context || context.state !== "running") return;
+  // Pío's sounds play on the audio clock the first tap already started;
+  // where that is not running they are silently skipped.
+  const sound = (name: Cue) => cue(captureContext.current, name);
+  // What just happened can be heard too, for a learner who is not looking:
+  // the microphone opening, Pío taking the turn, and a stumble.
+  const before = useRef<Phase>("idle");
+  useEffect(() => {
+    if (phase === "listening") sound("listen");
+    else if (phase === "thinking" && before.current === "listening")
+      sound("heard");
+    before.current = phase;
+  }, [phase]);
+  useEffect(() => {
+    if (issue) sound("oops");
+  }, [issue]);
+  // Tapping Pío makes it chirp and jump. Not while the microphone is open or
+  // its voice is playing: the chirp would land on top of them.
+  function poke() {
+    if (live.current !== "idle" && live.current !== "thinking") return;
+    buzz(8);
+    hop(orb.current);
     try {
-      notes.forEach((frequency, index) => {
-        const at = context.currentTime + index * 0.13;
-        const tone = context.createOscillator();
-        const volume = context.createGain();
-        tone.type = "sine";
-        tone.frequency.value = frequency;
-        volume.gain.setValueAtTime(0, at);
-        volume.gain.linearRampToValueAtTime(0.16, at + 0.02);
-        volume.gain.exponentialRampToValueAtTime(0.001, at + 0.42);
-        tone.connect(volume).connect(context.destination);
-        tone.start(at);
-        tone.stop(at + 0.45);
-      });
+      if (!captureContext.current || captureContext.current.state === "closed")
+        captureContext.current = new AudioContext();
+      void captureContext.current.resume().then(() => sound("chirp"));
     } catch {}
   }
   // Phones only allow audio that starts inside a tap. Playing a short silent
@@ -1245,7 +1258,12 @@ export function Pio() {
             className={`conversation ${result?.text ? "has-phrase" : ""}`}
             aria-labelledby="session-title"
           >
-            <div ref={orb} className={`pio-orb ${mood}`} aria-hidden="true">
+            <div
+              ref={orb}
+              className={`pio-orb ${mood}`}
+              aria-hidden="true"
+              onClick={poke}
+            >
               <span className="pio-halo" />
               <div className="pio-nest">
                 <Mascot mood={mood} />
@@ -1391,6 +1409,7 @@ export function Pio() {
                   aria-label={microphoneLabel(phase, t)}
                   onClick={() => {
                     buzz(10);
+                    ripple(mic.current);
                     unlockVoice();
                     if (phase === "listening") manualStop.current();
                     else if (phase === "permission") return;

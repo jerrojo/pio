@@ -273,6 +273,18 @@ const scenarios = {
       prefs(c.native, c.target),
     );
     await audit("idle", c.native);
+    await click(".conversation .pio-orb");
+    await sleep(400);
+    await expect(
+      (await js(`window.__cues`)) === 2,
+      "tapping Pío makes it chirp: " + (await js(`window.__cues`)),
+      "poke",
+    );
+    await expect(
+      await js(`!!document.querySelector('.mic-button.idle')`),
+      "tapping Pío does not start listening",
+      "poke",
+    );
     await expect(await js(title(t.session.ask)), "idle title", "idle");
     await click(".mic-button");
     if (!(await until(micIs("listening"), 8000, "listening starts"))) return;
@@ -280,6 +292,11 @@ const scenarios = {
     await expect(
       await js(title(t.session.hearing)),
       "listening title",
+      "listening",
+    );
+    await expect(
+      (await js(`window.__cues`)) >= 1,
+      "a sound says the microphone is open",
       "listening",
     );
     if (
@@ -341,6 +358,26 @@ const scenarios = {
       return;
     await audit("whole", c.native);
     if (!(await until(hasCard("accepted"), 25000, "phrase accepted"))) return;
+    await expect(
+      await until(
+        `!!document.querySelector('.fly-star')`,
+        1200,
+        "a star flies to the count",
+      ),
+      "star effect",
+      "accepted",
+    );
+    await sleep(700);
+    await expect(
+      (await js(`window.__cues`)) >= 12,
+      "every step of the phrase had its sound: " + (await js(`window.__cues`)),
+      "accepted",
+    );
+    await until(
+      `!document.querySelector('.fly-star')`,
+      2500,
+      "the star lands and goes away",
+    );
     await sleep(500);
     await audit("accepted", c.native);
     await expect(

@@ -2113,3 +2113,43 @@ select:hover {
   font-size: 0.75em;
   font-weight: 600;
 }
+
+/* Flourishes: the phrase arriving word by word, the star that flies to the
+   count, the ring under a tap, and Pío answering a tap. */
+.phrase-card .word {
+  animation: word-in 0.4s var(--spring) backwards;
+  animation-delay: calc(var(--i, 0) * 55ms);
+}
+@keyframes word-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+}
+.fly-star {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--chick);
+  font-size: 28px;
+  line-height: 1;
+  text-shadow: 0 0 14px #ffd978aa;
+  pointer-events: none;
+  will-change: transform;
+}
+.tap-ripple {
+  position: absolute;
+  inset: 0;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.conversation .pio-orb {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}

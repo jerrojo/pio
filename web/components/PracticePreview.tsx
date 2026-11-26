@@ -2,6 +2,7 @@
 // Only mounted by the development-only /qa route. No audio or provider requests.
 import { useState } from "react";
 import { PhraseCard } from "./PhraseCard";
+import { spanish } from "../lib/copy";
 import { Mascot } from "./Icons";
 import { sessionCopy, type Mood, type Phase } from "../lib/experience";
 import type { Outcome, Result } from "../lib/domain";
@@ -51,6 +52,8 @@ export function PracticePreview() {
         </div>
         {cards.map((card) => (
           <PhraseCard
+            copy={spanish}
+            language="alemán"
             key={card.id}
             result={card}
             locale="de-DE"

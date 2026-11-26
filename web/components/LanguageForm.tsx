@@ -1,29 +1,29 @@
 "use client";
 import { useId, useState } from "react";
-import {
-  locales,
-  names,
-  base,
-  type Locale,
-  type Preferences,
-} from "../lib/domain";
+import { browserLocale, copyFor, languageName, ownName } from "../lib/copy";
+import { locales, base, type Locale, type Preferences } from "../lib/domain";
 import { Icon } from "./Icons";
 export function LanguageForm({
   saved,
   onSave,
+  ui,
+  onNative,
 }: {
   saved: Preferences | null;
   onSave: (p: Preferences) => void;
+  // The language the form is written in right now.
+  ui: string;
+  // Told at once when the learner picks their own language, so everything
+  // switches to it before saving.
+  onNative: (locale: Locale) => void;
 }) {
+  const t = copyFor(ui).form;
   // A first visit starts with the browser's own language already chosen.
   const [native, setNative] = useState<Locale | "">(() => {
     if (saved) return saved.native;
-    const mine = typeof navigator === "undefined" ? "" : navigator.language;
-    return (
-      locales.find((l) => l === mine) ||
-      locales.find((l) => mine && base(l) === base(mine)) ||
-      ""
-    );
+    return typeof navigator === "undefined"
+      ? ""
+      : browserLocale(navigator.languages || [navigator.language]);
   });
   const [target, setTarget] = useState<Locale | "">(saved?.target || "");
   const valid = native && target && base(native) !== base(target);
@@ -38,18 +38,26 @@ export function LanguageForm({
       className="language-form"
     >
       <label>
-        Mi idioma
+        {t.mine}
         <select
           value={native}
-          onChange={(e) => setNative(e.target.value as Locale)}
+          onChange={(e) => {
+            const mine = e.target.value as Locale;
+            setNative(mine);
+            // Keeping the pair valid: the language to practise cannot be
+            // the learner's own.
+            if (target && base(target) === base(mine)) setTarget("");
+            onNative(mine);
+          }}
           required
         >
           <option value="" disabled>
-            Selecciona tu idioma
+            {t.pickMine}
           </option>
           {locales.map((l) => (
-            <option value={l} key={l}>
-              {names[l]}
+            <option value={l} key={l} lang={l}>
+              {/* Each language in its own words, so anyone finds theirs. */}
+              {ownName(l)}
             </option>
           ))}
         </select>
@@ -58,7 +66,7 @@ export function LanguageForm({
         <Icon name="arrow" />
       </div>
       <label>
-        Quiero practicar
+        {t.practise}
         <select
           value={target}
           aria-describedby={hintId}
@@ -67,7 +75,7 @@ export function LanguageForm({
           required
         >
           <option value="" disabled>
-            Selecciona un idioma
+            {t.pick}
           </option>
           {locales.map((l) => (
             <option
@@ -75,7 +83,7 @@ export function LanguageForm({
               key={l}
               disabled={!!native && base(native) === base(l)}
             >
-              {names[l]}
+              {languageName(l, ui, true)}
             </option>
           ))}
         </select>
@@ -85,12 +93,10 @@ export function LanguageForm({
         id={hintId}
         aria-live="polite"
       >
-        {sameLanguage
-          ? "Elige un idioma distinto al tuyo para practicar."
-          : "Recordaremos tu selección en este navegador. Puedes cambiarla cuando quieras."}
+        {sameLanguage ? t.different : t.remember}
       </p>
       <button className="primary full" disabled={!valid}>
-        Guardar y continuar <Icon name="arrow" size={18} />
+        {t.save} <Icon name="arrow" size={18} />
       </button>
     </form>
   );

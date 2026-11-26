@@ -1,5 +1,6 @@
 "use client";
-import { names, type Locale, type Result } from "../lib/domain";
+import type { Copy } from "../lib/copy";
+import type { Locale, Result } from "../lib/domain";
 import { canon } from "../lib/words";
 import { Icon } from "./Icons";
 export function PhraseCard({
@@ -12,6 +13,8 @@ export function PhraseCard({
   current,
   meanings,
   playing,
+  copy,
+  language,
 }: {
   result: Result;
   locale: Locale;
@@ -25,6 +28,10 @@ export function PhraseCard({
   meanings?: string[];
   // Pío's voice is saying the phrase right now.
   playing?: boolean;
+  // The words of the interface, and the name of the language of the phrase,
+  // both in the learner's own language.
+  copy: Copy;
+  language: string;
 }) {
   const accepted = result.outcome === "accepted";
   const weak = new Set(result.focus.map((word) => canon(word, locale)));
@@ -35,7 +42,7 @@ export function PhraseCard({
       // "conversation" is also the name of the page section, whose spacing
       // must not reach this card.
       className={`phrase-card ${result.outcome === "conversation" ? "reply" : result.outcome}`}
-      aria-label="Frase de práctica"
+      aria-label={copy.card.label}
     >
       <div className="phrase-top">
         {accepted && (
@@ -45,10 +52,10 @@ export function PhraseCard({
         )}
         <span>
           {accepted
-            ? "Bien dicho"
+            ? copy.card.wellSaid
             : result.outcome === "conversation"
               ? "Pío"
-              : `Tu frase en ${names[locale].split(" ·")[0].toLocaleLowerCase()}`}
+              : copy.card.yourPhrase(language)}
         </span>
       </div>
       <p lang={locale} className={meanings ? "glossed" : undefined}>
@@ -88,12 +95,12 @@ export function PhraseCard({
         <div className="focus-words">
           <span>
             {missing
-              ? "Te faltó decir:"
+              ? copy.card.leftOut
               : result.evidence?.source === "azure-acoustic"
-                ? "Hay que pulir:"
+                ? copy.card.polish
                 : result.focus.length === 1
-                  ? "No se entendió bien:"
-                  : "No se entendieron bien:"}
+                  ? copy.card.unclearOne
+                  : copy.card.unclearMany}
           </span>
           {result.focus.map((word, index) => (
             <button
@@ -102,7 +109,7 @@ export function PhraseCard({
               onClick={() => onPlay(word)}
             >
               <Icon name="play" size={14} />
-              <span className="sr-only">Escuchar </span>
+              <span className="sr-only">{copy.card.listen} </span>
               <span lang={locale}>{word}</span>
             </button>
           ))}
@@ -121,7 +128,7 @@ export function PhraseCard({
               <Icon name="play" size={16} />
             )}
           </span>
-          Escuchar
+          {copy.card.listen}
         </button>
         <label className="switch-row">
           <input
@@ -131,7 +138,7 @@ export function PhraseCard({
             checked={slow}
             onChange={(e) => onSlow(e.target.checked)}
           />
-          Despacio
+          {copy.card.slow}
         </label>
       </div>
     </article>

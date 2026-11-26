@@ -9,7 +9,6 @@ import {
   readReview,
   reviewKey,
   winPending,
-  names,
   preferenceKey,
   progressKey,
   readMastery,
@@ -21,6 +20,7 @@ import {
   type Reference,
   type Result,
   type Turn,
+  type Locale,
 } from "../lib/domain";
 import { Recorder, releaseMic, warmMic } from "../lib/recorder";
 import { Ear } from "../lib/ear";
@@ -29,12 +29,17 @@ import { readTurn } from "../lib/turn-reply";
 import { encodeWav } from "../lib/wav";
 import { Icon, Mascot } from "./Icons";
 import { LanguageForm } from "./LanguageForm";
+import {
+  browserLocale,
+  copyFor,
+  languageIn,
+  languageName,
+  type Copy,
+} from "../lib/copy";
 
 import { PhraseCard } from "./PhraseCard";
 import {
   connectionState,
-  connectionCopy,
-  examples,
   mascotMood,
   microphoneLabel,
   readStatus,
@@ -45,43 +50,10 @@ import {
   meaningOf,
 } from "../lib/experience";
 // Everything is said by Pío, in the first person, without jargon.
-const errorText: Record<string, string> = {
-  "phrase-too-long": "Esa estuvo larguita. Prueba con una frase más corta.",
-  NotAllowedError:
-    "Necesito permiso para escucharte. Permite el micrófono en tu navegador y vuelve a intentar.",
-  NotFoundError:
-    "No encuentro ningún micrófono. Conecta uno y vuelve a intentar.",
-  NotReadableError:
-    "Otra app está usando tu micrófono. Ciérrala y vuelve a intentar.",
-  "unsupported-microphone":
-    "Este navegador no me deja usar el micrófono. Ábreme en Safari o Chrome actualizado.",
-  "not-configured": "Todavía no hablo ese idioma. Elige otro por ahora.",
-  "provider-busy":
-    "Estoy un poco saturado. Dame unos segundos y vuelve a intentar.",
-  "provider-quota":
-    "Se me acabaron los créditos de voz. Hay que recargarlos en ElevenLabs para seguir.",
-  "provider-timeout": "Me tardé demasiado. ¿Lo intentamos otra vez?",
-  "assessment-incomplete":
-    "No alcancé a oír toda la frase. Dila otra vez, completa.",
-  "assessment-unavailable":
-    "No te escuché con claridad. Dilo otra vez cuando quieras.",
-  "access-required": "Tu sesión se cerró. Escribe tu código para seguir.",
-  "too-many-requests": "Vamos muy rápido. Descansa un minutito y seguimos.",
-  "invalid-audio": "La grabación se cortó. Dilo otra vez.",
-  "capture-failed": "El micrófono se cortó. Toca Hablar y dilo otra vez.",
-  TypeError:
-    "Parece que se fue el internet. Revisa tu conexión y lo intentamos de nuevo.",
-  TimeoutError:
-    "Parece que el internet está lento. Revisa tu conexión y lo intentamos de nuevo.",
-};
-function message(error: unknown) {
+function message(error: unknown, copy: Copy) {
   if (error instanceof Error)
-    return (
-      errorText[error.message] ||
-      errorText[error.name] ||
-      "Algo me falló. ¿Lo intentamos otra vez?"
-    );
-  return "Algo me falló. ¿Lo intentamos otra vez?";
+    return copy.errors[error.message] || copy.errors[error.name] || copy.failed;
+  return copy.failed;
 }
 // Errors where sending the same recording again cannot help.
 const speakAgain = [
@@ -120,6 +92,23 @@ export function Pio() {
     [status, setStatus] = useState<Status | null>(null),
     [checkingStatus, setCheckingStatus] = useState(true),
     [statusFailed, setStatusFailed] = useState(false);
+  // The language everything is written in: the learner's own. While the
+  // language form is open it follows the choice being made there, and before
+  // any choice it follows the browser.
+  const [draft, setDraft] = useState<Locale | "">("");
+  const ui =
+    draft ||
+    preferences?.native ||
+    (loaded
+      ? browserLocale(navigator.languages || [navigator.language])
+      : "") ||
+    "es-MX";
+  const t = copyFor(ui);
+  const say = useRef(t);
+  useEffect(() => {
+    say.current = t;
+    document.documentElement.lang = ui;
+  }, [t, ui]);
   const [phase, setPhase] = useState<Phase>("idle"),
     [result, setResult] = useState<Result | null>(null),
     [issue, setIssue] = useState(""),
@@ -395,6 +384,7 @@ export function Pio() {
   }
   function save(p: Preferences) {
     settings.current?.close();
+    setDraft("");
     if (p.native === preferences?.native && p.target === preferences?.target)
       return;
     reset();
@@ -402,7 +392,7 @@ export function Pio() {
     try {
       localStorage.setItem(preferenceKey, JSON.stringify(p));
     } catch {
-      setNotice("No pude guardar tus idiomas para la próxima visita.");
+      setNotice(say.current.saveFailed);
     }
   }
   function openSettings() {
@@ -521,7 +511,7 @@ export function Pio() {
         if (!mine()) return;
         voices.current.delete(key);
         pause();
-        setIssue("No pude reproducir la voz. Toca para intentarlo otra vez.");
+        setIssue(say.current.voiceFailed);
         setRecovery("play");
       };
       go("speaking");
@@ -530,16 +520,14 @@ export function Pio() {
       } catch {
         if (mine()) {
           pause();
-          setIssue(
-            "Tu navegador tiene el sonido bloqueado. Toca para oír la frase.",
-          );
+          setIssue(say.current.soundBlocked);
           setRecovery("play");
         }
       }
     } catch (error) {
       if (token === epoch.current && !control.signal.aborted) {
         pause();
-        setIssue(message(error));
+        setIssue(message(error, say.current));
         setRecovery("play");
       }
     }
@@ -800,7 +788,7 @@ export function Pio() {
       if (token !== epoch.current || control.signal.aborted) return;
       const code = error instanceof Error ? error.message : "";
       pause();
-      setIssue(message(error));
+      setIssue(message(error, say.current));
       if (code === "access-required") void refreshStatus(true);
       setRecovery(
         code === "too-many-requests" || code === "access-required"
@@ -838,7 +826,7 @@ export function Pio() {
     } catch (error) {
       if (token === epoch.current) {
         pause();
-        setIssue(message(error));
+        setIssue(message(error, say.current));
         setRecovery("record");
       }
     }
@@ -914,7 +902,7 @@ export function Pio() {
       )
         granted.current = false;
       pause();
-      setIssue(message(error));
+      setIssue(message(error, say.current));
       setRecovery("record");
     };
     try {
@@ -1096,46 +1084,49 @@ export function Pio() {
   const mood = mascotMood(phase, connection, result?.outcome, paused && !issue);
   const { title, description } =
     connection !== "ready" && !active
-      ? connectionCopy[connection]
+      ? t.connection[connection]
       : issue && !active
-        ? { title: "Tuvimos un tropiezo", description: issue }
-        : sessionCopy({
-            phase,
-            outcome: result?.outcome,
-            paused,
-            stopped,
-            missed,
-            target: preferences
-              ? names[preferences.target].split(" ·")[0].toLocaleLowerCase()
-              : undefined,
-            focus: result?.focus.length,
-            missing: result?.evidence?.words.some(
-              (w) => w.error === "Omission",
-            ),
-            tries,
-            streak: days,
-            drill: step && {
-              ...step,
-              means: meaningOf(
-                result?.text,
-                result ? glosses[result.text] : undefined,
-                step.word,
+        ? { title: t.stumble, description: issue }
+        : sessionCopy(
+            {
+              phase,
+              outcome: result?.outcome,
+              paused,
+              stopped,
+              missed,
+              target: preferences
+                ? languageIn(preferences.target, ui)
+                : undefined,
+              focus: result?.focus.length,
+              missing: result?.evidence?.words.some(
+                (w) => w.error === "Omission",
               ),
+              tries,
+              streak: days,
+              drill: step && {
+                ...step,
+                means: meaningOf(
+                  result?.text,
+                  result ? glosses[result.text] : undefined,
+                  step.word,
+                ),
+              },
+              whole,
             },
-            whole,
-          });
+            t,
+          );
   // Short spoken updates for screen readers, only when something changed for
   // the learner. The visible instructions are not read over the microphone.
   const announce = issue
     ? issue
     : phase === "permission"
-      ? "Dale permiso al micrófono."
+      ? t.announce.permission
       : result?.outcome === "accepted"
-        ? `Bien dicho. Llevas ${today} ${today === 1 ? "frase" : "frases"} hoy.`
+        ? t.announce.accepted(today)
         : result?.outcome === "practice" && phase !== "listening"
-          ? `Casi. ${result.focus.length ? `Practica: ${result.focus.join(", ")}.` : ""}`
+          ? `${t.announce.almost} ${result.focus.length ? t.announce.practise(result.focus.join(", ")) : ""}`
           : paused
-            ? "Pío está en pausa."
+            ? t.announce.paused
             : "";
   function retry() {
     unlockVoice();
@@ -1160,7 +1151,7 @@ export function Pio() {
             <Mascot mood="thinking" />
           </div>
         </div>
-        <p>Preparando Pío…</p>
+        <p>{t.loading}</p>
       </main>
     );
   return (
@@ -1180,10 +1171,10 @@ export function Pio() {
               className={`chip progress ${today > 0 ? "earned" : ""}`}
               title={
                 days > 1
-                  ? `Frases logradas hoy. Llevas ${days} días seguidos.`
-                  : "Frases logradas hoy"
+                  ? `${t.stars.title}. ${t.stars.streak(days)}`
+                  : t.stars.title
               }
-              aria-label={`${today} ${today === 1 ? "frase lograda" : "frases logradas"} hoy${days > 1 ? `, ${days} días seguidos` : ""}`}
+              aria-label={`${today} ${t.stars.done(today)} ${t.stars.today}${days > 1 ? `, ${t.stars.days(days)}` : ""}`}
             >
               <Icon name="star" size={16} />
               {today}
@@ -1191,11 +1182,14 @@ export function Pio() {
             <button
               className="language-pill"
               onClick={openSettings}
-              aria-label={`Cambiar idiomas. Ahora: ${names[preferences.native]} a ${names[preferences.target]}`}
+              aria-label={t.changeLanguages(
+                languageName(preferences.native, ui, true),
+                languageName(preferences.target, ui, true),
+              )}
             >
-              <span>{names[preferences.native].split(" ·")[0]}</span>
+              <span>{languageName(preferences.native, ui)}</span>
               <Icon name="arrow" size={15} />
-              <strong>{names[preferences.target].split(" ·")[0]}</strong>
+              <strong>{languageName(preferences.target, ui)}</strong>
             </button>
           </div>
         )}
@@ -1210,19 +1204,22 @@ export function Pio() {
               </div>
             </div>
             <h1>
-              Hola, soy <em>Pío</em>
+              {t.welcome.hello} <em>Pío</em>
             </h1>
-            <p className="intro">
-              Aprende un idioma hablando, una frase a la vez.
-            </p>
+            <p className="intro">{t.welcome.intro}</p>
             <ol className="steps">
-              <li>Di algo en tu idioma.</li>
-              <li>Escucha cómo se dice y repítelo.</li>
-              <li>Te ayudo a pulirlo, sin prisa.</li>
+              {t.welcome.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
             </ol>
             <div className="setup-card">
-              <h2>Elige tus idiomas</h2>
-              <LanguageForm saved={null} onSave={save} />
+              <h2>{t.welcome.choose}</h2>
+              <LanguageForm
+                saved={null}
+                onSave={save}
+                ui={ui}
+                onNative={setDraft}
+              />
             </div>
           </section>
         ) : (
@@ -1260,12 +1257,12 @@ export function Pio() {
             )}
             {ready && !active && !result && !issue && !paused && (
               <p className="example">
-                Prueba con: <q>{examples[new Date().getDay()]}</q>
+                {t.tryWith} <q>{t.examples[new Date().getDay()]}</q>
               </p>
             )}
             {result?.heard && (
               <div className="bubble mine">
-                <span className="bubble-label">Dijiste</span>
+                <span className="bubble-label">{t.youSaid}</span>
                 <p
                   lang={
                     result.outcome === "translation"
@@ -1296,6 +1293,8 @@ export function Pio() {
                 current={step?.word}
                 playing={phase === "speaking"}
                 meanings={glosses[result.text]}
+                copy={t}
+                language={languageIn(preferences.target, ui)}
               />
             )}
             {ready &&
@@ -1304,18 +1303,17 @@ export function Pio() {
               !issue &&
               (today > 0 || hard.length > 0) && (
                 <div className="recap">
-                  <h2>Tu práctica de hoy</h2>
+                  <h2>{t.recap.title}</h2>
                   {today > 0 && (
                     <p>
-                      <strong>{today}</strong>{" "}
-                      {today === 1 ? "frase lograda" : "frases logradas"}
-                      {days > 1 && <> · {days} días seguidos</>}
+                      <strong>{today}</strong> {t.stars.done(today)}
+                      {days > 1 && <> · {t.stars.days(days)}</>}
                     </p>
                   )}
                   {hard.length > 0 && (
                     <p lang={preferences.target}>
-                      <span lang="es">
-                        {hard.length === 1 ? "Te costó: " : "Te costaron: "}
+                      <span lang={ui}>
+                        {hard.length === 1 ? t.recap.hardOne : t.recap.hardMany}
                       </span>
                       {hard.slice(0, 6).join(", ")}
                     </p>
@@ -1325,12 +1323,11 @@ export function Pio() {
             {ready && !active && !issue && next && (!result || paused) && (
               <div className="revisit">
                 <p>
-                  Te quedó pendiente:{" "}
-                  <q lang={preferences.target}>{next.text}</q>
+                  {t.pending} <q lang={preferences.target}>{next.text}</q>
                 </p>
                 <button className="secondary" onClick={() => revisit(next)}>
                   <Icon name="refresh" size={18} />
-                  Repasarla
+                  {t.review}
                 </button>
               </div>
             )}
@@ -1338,21 +1335,19 @@ export function Pio() {
               <div className="connection-action" role="alert">
                 <button className="secondary" onClick={retry}>
                   <Icon name="refresh" size={18} />
-                  {recovery === "play"
-                    ? "Volver a escuchar"
-                    : "Volver a intentar"}
+                  {recovery === "play" ? t.listenAgain : t.retry}
                 </button>
               </div>
             )}
             {connection !== "ready" &&
               (connection === "access" ? (
                 <div className="connection-action">
-                  <AccessForm onSuccess={refreshStatus} />
+                  <AccessForm onSuccess={refreshStatus} copy={t} />
                 </div>
               ) : connection === "unconfigured" ? (
                 <div className="connection-action">
                   <button className="secondary" onClick={openSettings}>
-                    Cambiar idioma
+                    {t.changeLanguage}
                   </button>
                 </div>
               ) : (
@@ -1366,7 +1361,7 @@ export function Pio() {
                     }}
                   >
                     <Icon name="refresh" size={18} />
-                    {checkingStatus ? "Revisando…" : "Volver a intentar"}
+                    {checkingStatus ? t.checking : t.retry}
                   </button>
                 </div>
               ))}
@@ -1375,7 +1370,7 @@ export function Pio() {
                 <button
                   ref={mic}
                   className={`mic-button ${phase}`}
-                  aria-label={microphoneLabel(phase)}
+                  aria-label={microphoneLabel(phase, t)}
                   onClick={() => {
                     buzz(10);
                     unlockVoice();
@@ -1395,18 +1390,16 @@ export function Pio() {
                   />
                 </button>
                 <p className="dock-label" aria-hidden="true">
-                  {microphoneLabel(phase)}
+                  {microphoneLabel(phase, t)}
                 </p>
                 {!result && !active && !paused && (
-                  <p className="dock-hint">
-                    Toca una vez. Yo escucho, contesto y vuelvo a escuchar.
-                  </p>
+                  <p className="dock-hint">{t.hint}</p>
                 )}
                 <div className="dock-actions">
                   {active && phase !== "permission" && (
                     <button className="text-button" onClick={() => pause(true)}>
                       <Icon name="pause" size={18} />
-                      Pausar
+                      {t.pause}
                     </button>
                   )}
                   {result && phase !== "thinking" && (
@@ -1420,39 +1413,22 @@ export function Pio() {
                     >
                       <Icon name="refresh" size={18} />
                       {result.outcome === "conversation"
-                        ? "Empezar de nuevo"
-                        : "Otra frase"}
+                        ? t.restart
+                        : t.another}
                     </button>
                   )}
                 </div>
               </div>
             )}
             <details className="help-details">
-              <summary>Ayuda y privacidad</summary>
+              <summary>{t.help.summary}</summary>
               <ol>
-                <li>Di algo en tu idioma. Pío lo traduce y te lo dice.</li>
-                <li>Repítelo. Pío te ayuda hasta que se entienda todo.</li>
-                <li>
-                  Si hablas en el idioma que aprendes, Pío te contesta y
-                  conversan.
-                </li>
-                <li>
-                  Para oír la frase otra vez, di «repítelo» o toca Escuchar.
-                </li>
+                {t.help.steps.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
               </ol>
-              <p>
-                El micrófono se enciende al tocar Hablar y vuelve a encenderse
-                solo entre turnos. Pausar, quedarte en silencio o salir de esta
-                pestaña lo apaga.
-              </p>
-              <p>
-                Pío revisa qué tan claro se entendió cada palabra; no mide
-                sonidos exactos. Tu voz se envía a ElevenLabs para entenderte;
-                el texto, y el audio de una palabra que no salió, a OpenAI para
-                traducir, conversar y darte un consejo. Nada se guarda en una
-                base de datos. Tus idiomas y estrellas se quedan en este
-                navegador.
-              </p>
+              <p>{t.help.microphone}</p>
+              <p>{t.help.privacy}</p>
             </details>
           </section>
         )}
@@ -1466,11 +1442,12 @@ export function Pio() {
         ref={settings}
         className="settings-dialog"
         aria-labelledby="settings-title"
+        onClose={() => setDraft("")}
       >
         <div className="dialog-heading">
-          <h2 id="settings-title">Tus idiomas</h2>
+          <h2 id="settings-title">{t.settings.title}</h2>
           <button
-            aria-label="Cerrar idiomas"
+            aria-label={t.settings.close}
             onClick={() => settings.current?.close()}
           >
             <Icon name="close" />
@@ -1481,13 +1458,21 @@ export function Pio() {
             key={`${preferences.native}:${preferences.target}:${settingsRevision}`}
             saved={preferences}
             onSave={save}
+            ui={ui}
+            onNative={setDraft}
           />
         )}
       </dialog>
     </div>
   );
 }
-function AccessForm({ onSuccess }: { onSuccess: () => Promise<void> }) {
+function AccessForm({
+  onSuccess,
+  copy,
+}: {
+  onSuccess: () => Promise<void>;
+  copy: Copy;
+}) {
   const [issue, setIssue] = useState(""),
     [busy, setBusy] = useState(false);
   const errorId = useId();
@@ -1512,14 +1497,14 @@ function AccessForm({ onSuccess }: { onSuccess: () => Promise<void> }) {
           setIssue("");
           await onSuccess();
         } catch {
-          setIssue("Ese código no funcionó. Revísalo o espera un minuto.");
+          setIssue(copy.access.failed);
         } finally {
           setBusy(false);
         }
       }}
     >
       <label>
-        Código de acceso
+        {copy.access.label}
         <input
           type="password"
           name="code"
@@ -1531,7 +1516,7 @@ function AccessForm({ onSuccess }: { onSuccess: () => Promise<void> }) {
         />
       </label>
       <button className="secondary" aria-disabled={busy} aria-busy={busy}>
-        {busy ? "Entrando…" : "Entrar"}
+        {busy ? copy.access.entering : copy.access.enter}
       </button>
       {issue && (
         <p id={errorId} role="alert">

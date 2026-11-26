@@ -1,6 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  browserLocale,
+  copyFor,
+  languageIn,
+  languageName,
+  ownName,
+} from "../lib/copy.ts";
+import { locales } from "../lib/domain.ts";
+import {
   connectionState,
   readStatus,
   sessionCopy,
@@ -180,4 +188,47 @@ test("a word being practised is named with what it means, taken from the phrase'
     sessionCopy({ phase: "listening", drill }).description,
     /Di solo: «Kaffee»\./,
   );
+});
+
+test("Pío speaks the learner's own language, and Spanish when it is unknown", () => {
+  const english = copyFor("en-GB");
+  assert.equal(
+    sessionCopy({ phase: "listening" }, english).title,
+    "I'm listening",
+  );
+  assert.equal(microphoneLabel("idle", copyFor("de-DE")), "Sprechen");
+  assert.equal(copyFor("xx-XX"), copyFor("es-MX"));
+  assert.equal(copyFor(null), copyFor("es-ES"));
+  // A word being practised is quoted the way each language quotes.
+  const drill = { word: "Kaffee", at: 1, total: 1, again: false };
+  assert.equal(
+    sessionCopy({ phase: "speaking", drill }, copyFor("fr-FR")).description,
+    "Écoute : « Kaffee ».",
+  );
+});
+test("every language says something for every moment", () => {
+  for (const locale of locales) {
+    const copy = copyFor(locale);
+    assert.equal(copy.examples.length, 7);
+    assert.equal(copy.welcome.steps.length, 3);
+    assert.equal(copy.help.steps.length, 4);
+    assert.deepEqual(
+      Object.keys(copy.errors).sort(),
+      Object.keys(copyFor("es-MX").errors).sort(),
+    );
+  }
+});
+test("languages are named in the learner's language and in their own", () => {
+  assert.equal(ownName("de-DE"), "Deutsch");
+  assert.equal(ownName("es-MX"), "Español · México");
+  assert.equal(ownName("pt-BR"), "Português · Brasil");
+  assert.equal(languageName("de-DE", "es-MX"), "Alemán");
+  assert.equal(languageIn("de-DE", "es-MX"), "alemán");
+  assert.equal(languageIn("es-MX", "en-US"), "Spanish");
+  assert.equal(languageName("en-GB", "fr-FR", true), "Anglais · Royaume-Uni");
+});
+test("the first visit starts in the browser's language when Pío knows it", () => {
+  assert.equal(browserLocale(["fr-CA", "en-US"]), "fr-FR");
+  assert.equal(browserLocale(["ja-JP", "en-GB"]), "en-GB");
+  assert.equal(browserLocale(["ja-JP"]), "");
 });

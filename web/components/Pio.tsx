@@ -551,6 +551,17 @@ export function Pio() {
     const proof = proofs.current.get(text);
     if (!preferences || !text || !proof || asked.current.has(text)) return;
     asked.current.add(text);
+    // An empty list holds the room under each word while the answer is on
+    // its way, so the card does not grow under the learner's eyes.
+    setGlosses((all) => ({ ...all, [text]: [] }));
+    const failed = () => {
+      asked.current.delete(text);
+      setGlosses((all) => {
+        const rest = { ...all };
+        delete rest[text];
+        return rest;
+      });
+    };
     void fetch("/api/gloss", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -571,9 +582,9 @@ export function Pio() {
           words.every((w) => typeof w === "string")
         )
           setGlosses((all) => ({ ...all, [text]: words as string[] }));
-        else asked.current.delete(text);
+        else failed();
       })
-      .catch(() => asked.current.delete(text));
+      .catch(failed);
   }
   // Everything the session must remember about a reply is stored the moment
   // it arrives, so nothing is lost if the learner interrupts its voice.
@@ -1226,8 +1237,11 @@ export function Pio() {
               </div>
             </div>
             <div className="session-copy">
-              <h1 id="session-title">{title}</h1>
-              <p>{description}</p>
+              {/* Keyed so each new line arrives with its own soft entrance. */}
+              <h1 id="session-title" key={title}>
+                {title}
+              </h1>
+              <p key={description}>{description}</p>
               {phase === "listening" && hearing && (
                 <p className="hearing" aria-hidden="true">
                   {hearing}
@@ -1280,6 +1294,7 @@ export function Pio() {
                 }}
                 onPlay={listen}
                 current={step?.word}
+                playing={phase === "speaking"}
                 meanings={glosses[result.text]}
               />
             )}

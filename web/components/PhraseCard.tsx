@@ -11,6 +11,7 @@ export function PhraseCard({
   onPlay,
   current,
   meanings,
+  playing,
 }: {
   result: Result;
   locale: Locale;
@@ -22,6 +23,8 @@ export function PhraseCard({
   current?: string;
   // What each word means in the learner's own language, in phrase order.
   meanings?: string[];
+  // Pío's voice is saying the phrase right now.
+  playing?: boolean;
 }) {
   const accepted = result.outcome === "accepted";
   const weak = new Set(result.focus.map((word) => canon(word, locale)));
@@ -64,14 +67,19 @@ export function PhraseCard({
               part
             );
           // Words sit at the even places; under each goes what it means.
-          const meaning = index % 2 === 0 ? meanings?.[index / 2] : undefined;
-          return meaning && part ? (
+          // The room is kept from the start, before the meanings arrive.
+          if (!meanings || index % 2 || !part) return word;
+          const meaning = meanings[index / 2];
+          return (
             <span key={index} className="word">
               {word}
-              <small>{meaning}</small>
+              <small
+                key={meaning ? "meaning" : "waiting"}
+                style={{ animationDelay: `${index * 25}ms` }}
+              >
+                {meaning || "\u00a0"}
+              </small>
             </span>
-          ) : (
-            word
           );
         })}
       </p>
@@ -103,7 +111,15 @@ export function PhraseCard({
       <div className="phrase-actions">
         <button className="listen" disabled={disabled} onClick={() => onPlay()}>
           <span className="listen-icon">
-            <Icon name="play" size={16} />
+            {playing ? (
+              <span className="bars">
+                <i />
+                <i />
+                <i />
+              </span>
+            ) : (
+              <Icon name="play" size={16} />
+            )}
           </span>
           Escuchar
         </button>

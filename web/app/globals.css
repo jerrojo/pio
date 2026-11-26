@@ -1815,3 +1815,237 @@ select {
     animation: none;
   }
 }
+
+/* The light around Pío follows what is happening: warm while it listens,
+   golden when a phrase comes out, dim while it rests. */
+@property --glow {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1c3a37;
+}
+body {
+  background:
+    radial-gradient(720px 420px at 50% -80px, var(--glow) 0, transparent 70%),
+    var(--bg);
+  background-repeat: no-repeat;
+  transition: --glow 0.8s ease;
+}
+body:has(.conversation > .pio-orb.listening) {
+  --glow: #4a2a26;
+}
+body:has(.conversation > .pio-orb.happy) {
+  --glow: #4a4220;
+}
+body:has(.conversation > .pio-orb.sleepy) {
+  --glow: #142322;
+}
+
+/* Before there is a phrase the page fills the screen and the microphone
+   rests low, under the thumb, in the same place in every state. */
+.app-shell > main {
+  display: flex;
+  flex-direction: column;
+}
+.conversation,
+.welcome {
+  width: 100%;
+}
+.conversation:not(.has-phrase) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.conversation:not(.has-phrase) > * {
+  max-width: 100%;
+}
+.conversation:not(.has-phrase) .dock {
+  width: 100%;
+  min-height: 216px;
+  margin-top: auto;
+  padding-top: 24px;
+  justify-content: flex-start;
+}
+.dock-hint {
+  text-wrap: balance;
+}
+
+/* What Pío says changes softly instead of snapping. */
+.session-copy h1 + p {
+  animation: fade 0.35s ease-out;
+}
+
+/* The microphone: one surface that changes colour with the state. */
+.mic-button {
+  background-image: radial-gradient(
+    circle at 34% 24%,
+    #ffffff4d,
+    transparent 58%
+  );
+  transition:
+    transform 0.12s var(--spring),
+    background-color 0.25s,
+    color 0.25s,
+    box-shadow 0.25s;
+}
+.mic-button.listening {
+  box-shadow:
+    0 0 0 8px #ff9f8e24,
+    0 10px 28px #0007,
+    inset 0 -6px 0 #0000001f;
+}
+.mic-button:is(.thinking, .waking, .speaking, .preparing-voice, .permission) {
+  background-image: none;
+}
+/* While Pío thinks, a turning arc shows that something is happening. */
+.mic-button:is(.thinking, .waking, .preparing-voice) .mic-ring {
+  inset: -7px;
+  opacity: 1;
+  border-color: #c0e99f26;
+  border-top-color: var(--mint);
+  animation: spin 0.9s linear infinite;
+}
+.text-button {
+  transition:
+    transform 0.12s var(--spring),
+    background-color 0.15s,
+    color 0.15s;
+}
+.text-button:hover {
+  background: #ffffff0d;
+}
+.listen:not(:disabled):hover {
+  background: #24393d;
+}
+
+/* Escuchar shows that the voice is playing. */
+.bars {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 16px;
+}
+.bars i {
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: currentColor;
+  transform-origin: center;
+  animation: bar 0.9s ease-in-out infinite;
+}
+.bars i:nth-child(2) {
+  animation-delay: -0.3s;
+}
+.bars i:nth-child(3) {
+  animation-delay: -0.6s;
+}
+
+/* A phrase that came out well gets one pass of light. */
+.phrase-card.accepted {
+  position: relative;
+  overflow: hidden;
+}
+.phrase-card.accepted::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    #ffffff1f 50%,
+    transparent 65%
+  );
+  transform: translateX(-100%);
+  animation: sheen 0.9s ease-out 0.15s;
+  pointer-events: none;
+}
+.phrase-card .word small {
+  animation-fill-mode: backwards;
+}
+
+/* The language dialog and its fields */
+.settings-dialog[open] {
+  animation: pop 0.28s var(--spring);
+}
+.settings-dialog[open]::backdrop {
+  animation: fade 0.2s ease-out;
+}
+select {
+  appearance: none;
+  padding-right: 44px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' stroke='%23a9bdb9' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 8 5 5 5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  transition: border-color 0.15s;
+}
+select:hover {
+  border-color: var(--ink);
+}
+
+/* The welcome arrives in order: Pío, the greeting, then what to do. */
+.welcome > * {
+  animation: rise 0.45s ease-out backwards;
+}
+.welcome > :nth-child(2) {
+  animation-delay: 0.06s;
+}
+.welcome > :nth-child(3) {
+  animation-delay: 0.12s;
+}
+.welcome > :nth-child(4) {
+  animation-delay: 0.18s;
+}
+.welcome > :nth-child(5) {
+  animation-delay: 0.26s;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes bar {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@keyframes sheen {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bars i {
+    transform: scaleY(0.7);
+  }
+  .phrase-card.accepted::after {
+    display: none;
+  }
+}
+
+/* The mark under a word to polish never touches its meaning, and the label
+   under the microphone never touches its ring. */
+.phrase-card .word small {
+  margin-top: 5px;
+}
+.phrase-card .word mark:not(.now) {
+  text-underline-offset: 0.16em;
+}
+.dock-label {
+  margin-top: 14px;
+}
